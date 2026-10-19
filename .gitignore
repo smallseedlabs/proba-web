@@ -147,3 +147,9 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Build and test output
+dist-demo
+playwright-report/
+test-results/
+blob-report/
