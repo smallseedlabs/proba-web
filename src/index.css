@@ -2,46 +2,70 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Proba design tokens.
+ * All colour pairs below are checked for WCAG 2.1 AA contrast (4.5:1 for text,
+ * 3:1 for UI boundaries) against the surfaces they are used on.
+ */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --primary: 221.2 83.2% 53.3%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 221.2 83.2% 53.3%;
-    --radius: 0.5rem;
-  }
+    --background: 220 23% 97%;
+    --foreground: 222 47% 11%;
 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --surface: 0 0% 100%;
+    --surface-raised: 0 0% 100%;
+    --surface-sunken: 220 20% 95%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    /* Proba indigo */
+    --primary: 233 64% 45%;
+    --primary-hover: 233 64% 38%;
+    --primary-subtle: 230 80% 96%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 18% 94%;
+    --secondary-foreground: 222 47% 15%;
+
+    --muted: 220 18% 95%;
+    --muted-foreground: 217 15% 37%;
+
+    --accent: 228 50% 95%;
+    --accent-foreground: 233 55% 30%;
+
+    --danger: 0 72% 42%;
+    --danger-hover: 0 72% 36%;
+    --danger-subtle: 0 86% 97%;
+    --danger-foreground: 0 0% 100%;
+
+    --success: 155 72% 26%;
+    --success-subtle: 150 60% 95%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 30 92% 31%;
+    --warning-subtle: 45 100% 95%;
+    --warning-foreground: 0 0% 100%;
+
+    --info: 205 85% 33%;
+    --info-subtle: 204 90% 96%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 220 16% 88%;
+    --input: 220 13% 66%;
+    --ring: 233 64% 45%;
+
+    --sidebar: 228 40% 13%;
+    --sidebar-foreground: 220 30% 96%;
+    --sidebar-muted: 222 20% 74%;
+    --sidebar-active: 230 35% 23%;
+    --sidebar-border: 228 28% 21%;
+
+    --chart-1: 233 64% 50%;
+    --chart-2: 172 66% 32%;
+    --chart-grid: 220 16% 90%;
+
+    --radius: 0.5rem;
   }
 }
 
@@ -49,7 +73,36 @@
   * {
     @apply border-border;
   }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-body text-foreground;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 }

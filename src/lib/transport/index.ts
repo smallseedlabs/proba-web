@@ -1,3 +1,3 @@
 export { SSETransport } from './sse';
-export { MockTransport } from './mock';
-export type { TransportClient } from './types';
+export { TransportError } from './types';
+export type { ConnectionStatus, IncomingEvent, OutgoingCommand, TransportClient } from './types';

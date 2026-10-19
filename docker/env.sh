@@ -1,12 +1,14 @@
 #!/bin/sh
 set -e
 
-cat > /usr/share/nginx/html/env-config.js << EOF
+# Inject runtime configuration. Demo data is a build-time, development-only
+# option and can never be enabled in a production container.
+cat > /usr/share/nginx/html/env-config.js << EOF2
 window.ENV = {
   API_BASE_URL: "${API_BASE_URL:-http://localhost:3000}",
-  MOCK_MODE: "${MOCK_MODE:-false}"
+  AUTH_LOGIN_PATH: "${AUTH_LOGIN_PATH:-/v1/auth/login}"
 };
-EOF
+EOF2
 
 echo "Runtime environment configuration injected:"
 cat /usr/share/nginx/html/env-config.js

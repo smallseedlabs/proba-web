@@ -1,13 +1,19 @@
 # Stage 1: Build
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
+
+# git is needed to resolve the protocol package from GitHub.
+RUN apk add --no-cache git
 
 COPY package*.json ./
 RUN npm ci
 
+# Production images never include demo data.
+ENV VITE_DEMO_MODE=false
+
 COPY . .
-RUN npm run build
+RUN npm run build && npm run check:bundle
 
 # Stage 2: Production
 FROM nginx:1.25-alpine

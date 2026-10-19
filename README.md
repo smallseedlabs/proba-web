@@ -1,226 +1,124 @@
 # proba-web
 
-Client UI for **Proba** - an AI-native platform for testing products with ads.
+Web client for **Proba**, an AI-native platform for product launch and ad-testing campaigns. Guardrails are enforced in code, and a person approves every plan and every change to spend.
 
 ## Overview
 
-`proba-web` is a server-driven UI that communicates with the [Interaction Hub (proba-hub)](https://github.com/smallseedlabs/proba-hub) through the [proba-protocol](https://github.com/smallseedlabs/proba-protocol). It renders dynamic UI components based on events from the server, providing a real-time interface for managing campaigns, approvals, and goals.
+`proba-web` is a server-driven UI. It connects to the [Interaction Hub (proba-hub)](https://github.com/smallseedlabs/proba-hub) over the [proba-protocol](https://github.com/smallseedlabs/proba-protocol) and renders the components the Hub sends: plans, approvals, questions, charts, tables, spend bars and more.
 
-## Architecture
+## Features
 
-### Stack
+- **Sign-in** with work email and password, validation, loading and error states, behind a pluggable `AuthClient` (`src/lib/auth/`).
+- **App shell** with a sidebar (Goals, Approvals, Activity, Campaigns, Settings) and a top bar with a workspace switcher, user menu, **Pause all** and **Emergency stop** (with confirmation).
+- **Empty, loading, error and reconnecting states** throughout.
+- **Accessibility**: WCAG 2.2 AA, checked with axe in the E2E suite; full keyboard navigation, skip link, ARIA menus, dialogs with focus trapping, and reduced-motion support.
+- **Responsive** down to tablet (768px): the sidebar collapses to a rail, and goals open full-width.
 
-- **React 18** - UI library
-- **TypeScript** - Type safety
-- **Vite** - Build tool
-- **Tailwind CSS** - Styling
-- **Vitest** - Unit testing
-- **Playwright** - E2E testing
-- **nginx** - Production web server
+## Stack
 
-### Key Components
+React 18 · TypeScript (strict) · Vite 5 · Tailwind CSS 3 · lucide-react · Vitest + Testing Library · Playwright + axe-core · nginx
 
-1. **Transport Layer** (`src/lib/transport/`)
-   - SSE transport for real-time events with automatic reconnection
-   - Mock transport for development without backend
-   - Command sending via REST endpoint
+## Project structure
 
-2. **Component Registry** (`src/components/registry/`)
-   - Maps protocol UI components to React components
-   - Validates props against protocol schemas
-   - Graceful fallback for unknown components
+```
+src/
+├── App.tsx, main.tsx            # Entry, session handling
+├── components/
+│   ├── auth/                    # Sign-in page
+│   ├── brand/                   # Proba logo
+│   ├── registry/                # Protocol component registry (all 17 components)
+│   ├── shell/                   # App shell: sidebar, top bar, banners, emergency stop
+│   ├── ui/                      # Design system primitives (button, card, field, menu, dialog, toast…)
+│   └── views/                   # Goals, Approvals, Activity, Campaigns, Settings
+├── lib/
+│   ├── auth/                    # AuthClient interface and Hub implementation
+│   ├── transport/               # SSE transport with reconnection and de-duplication
+│   ├── demo/                    # Demo data (development only, excluded from production builds)
+│   ├── config.tsx, router.ts, services.ts, utils/
+└── state/                       # Workspace reducer, selectors and provider
+e2e/                             # Playwright E2E and accessibility tests
+e2e-screenshots/                 # Screenshot capture for docs/screenshots
+```
 
-3. **Layout** (`src/components/layout/`)
-   - Top bar with Pause/Kill controls
-   - Left workspace with goals, approvals, and activity
-   - Right chat panel with inline component rendering
+## Getting started
 
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- npm or yarn
-
-### Installation
+Requires Node.js 20.
 
 ```bash
 npm install
+cp .env.example .env    # optional; .env is gitignored
 ```
 
-### Development
-
-Run in **mock mode** (uses fixture data, no backend required):
+### Run against the Hub
 
 ```bash
-npm run dev
+VITE_API_BASE_URL=http://localhost:3000 npm run dev
 ```
 
-The app will be available at `http://localhost:5173`.
+### Demo mode (development only)
 
-Run against a **real backend**:
+Demo mode runs the full UI with sample data and no backend. It is a **build-time** flag that is off by default; the demo code is removed from normal builds entirely, and `npm run check:bundle` verifies that.
 
 ```bash
-VITE_API_BASE_URL=http://localhost:3000 VITE_MOCK_MODE=false npm run dev
+npm run dev:demo
 ```
 
-### Building
+Sign in with any email address and a password of at least 8 characters.
 
-```bash
-npm run build
-```
+## Configuration
 
-Output is in `dist/`.
+| Build time (Vite)       | Runtime (Docker)  | Default            | Purpose                                     |
+| ----------------------- | ----------------- | ------------------ | ------------------------------------------- |
+| `VITE_API_BASE_URL`     | `API_BASE_URL`    | `http://localhost:3000` | Hub base URL                           |
+| `VITE_AUTH_LOGIN_PATH`  | `AUTH_LOGIN_PATH` | `/v1/auth/login`   | Hub sign-in endpoint                        |
+| `VITE_DEMO_MODE`        | n/a               | `false`            | Development-only demo data                  |
 
-### Preview Production Build
+Runtime values are injected into `window.ENV` by `docker/env.sh` and take precedence over build-time values.
 
-```bash
-npm run preview
-```
+## Authentication
 
-## Environment Variables
+`HubAuthClient` (`src/lib/auth/hub.ts`) expects the Hub to provide:
 
-Runtime configuration is injected via `window.ENV` (see `docker/env.sh`).
+- `POST /v1/auth/login` with `{ email, password }`, returning `{ token, user, workspaces? }`
+- `POST /v1/auth/logout` (Bearer token)
 
-### Build-time (Vite)
+The Hub does not provide these endpoints yet. Until it does, sign-in against a live Hub reports that the service is unavailable. The session token is used for `GET /v1/events` (SSE) and `POST /v1/commands`.
 
-- `VITE_API_BASE_URL` - Hub API base URL (default: `http://localhost:3000`)
-- `VITE_MOCK_MODE` - Use mock transport (default: `false`)
+## Scripts
 
-### Runtime (Docker)
-
-- `API_BASE_URL` - Hub API base URL
-- `MOCK_MODE` - Use mock transport (`true`/`false`)
-
-Runtime variables take precedence over build-time variables.
-
-## Testing
-
-### Unit Tests
-
-```bash
-npm run test
-npm run test:watch
-```
-
-### E2E Tests
-
-```bash
-npm run build
-npm run test:e2e
-```
-
-Run with UI:
-
-```bash
-npm run test:e2e:ui
-```
-
-### Full Validation
-
-```bash
-npm run validate
-```
-
-Runs lint, typecheck, unit tests, and E2E tests.
+| Script                 | Description                                           |
+| ---------------------- | ----------------------------------------------------- |
+| `npm run dev`          | Development server                                    |
+| `npm run dev:demo`     | Development server with demo data                     |
+| `npm run build`        | Production build to `dist/`                           |
+| `npm run check:bundle` | Fails if demo or development content is in `dist/`    |
+| `npm run lint`         | ESLint (zero warnings)                                |
+| `npm run typecheck`    | TypeScript                                            |
+| `npm run test`         | Unit tests                                            |
+| `npm run test:e2e`     | Playwright E2E and accessibility tests                |
+| `npm run screenshots`  | Regenerate `docs/screenshots/` at 1440×900            |
+| `npm run validate`     | Everything above, in order                            |
 
 ## Docker
 
-### Build
-
 ```bash
-docker build -t proba-web:latest .
+docker build -t proba-web .
+docker run -p 5173:8080 -e API_BASE_URL=https://hub.example.com proba-web
 ```
 
-### Run (Mock Mode)
-
-```bash
-docker run -p 5173:8080 -e MOCK_MODE=true proba-web:latest
-```
-
-### Run (Against Hub)
-
-```bash
-docker run -p 5173:8080 -e API_BASE_URL=http://proba-hub:3000 -e MOCK_MODE=false proba-web:latest
-```
-
-### Docker Compose
-
-Mock mode (no backend):
-
-```bash
-docker-compose up
-```
-
-With Hub (requires proba-hub running):
-
-```bash
-API_BASE_URL=http://proba-hub:3000 MOCK_MODE=false docker-compose up
-```
-
-### Docker Swarm
-
-Deploy to Swarm:
-
-```bash
-docker stack deploy -c deploy/stack.yml proba
-```
-
-Requires `proba-network` network:
-
-```bash
-docker network create --driver overlay proba-network
-```
-
-## Project Structure
-
-```
-proba-web/
-├── src/
-│   ├── components/
-│   │   ├── registry/          # UI component registry
-│   │   ├── layout/            # Layout components
-│   │   ├── AuthScreen.tsx
-│   │   └── MainLayout.tsx
-│   ├── context/               # React context providers
-│   ├── lib/
-│   │   ├── transport/         # Transport layer
-│   │   └── config.tsx         # Runtime config
-│   ├── test/                  # Test setup
-│   ├── index.css
-│   ├── main.tsx
-│   └── App.tsx
-├── e2e/                       # E2E tests
-├── docker/                    # Docker assets
-├── deploy/                    # Deployment configs
-└── public/
-```
+Docker Compose: `API_BASE_URL=http://proba-hub:3000 docker-compose up`.
+Docker Swarm: `docker network create --driver overlay proba-network && docker stack deploy -c deploy/stack.yml proba`.
 
 ## Protocol
 
-This UI follows the [@smallseedlabs/proba-protocol](https://github.com/smallseedlabs/proba-protocol).
+Pinned to `github:smallseedlabs/proba-protocol#c643d52f2515977251b4dec6e058b94cfb002e45` (package version 0.1.2).
+**TODO:** switch to `#v0.1.2` once that tag is published.
 
-**Current version:** `github:smallseedlabs/proba-protocol#v0.1.0`
+All 17 protocol components are implemented: `text`, `plan_card`, `approval_card`, `question_choice`, `question_text`, `status_banner`, `metric_tile`, `metric_chart`, `table`, `spend_bar`, `timeline_item`, `goal_summary`, `alert`, `form`, `number_input`, `select` and `confirm`.
 
-### Supported Components
+## Screenshots
 
-- ✅ `text` - Formatted text with markdown
-- ✅ `plan_card` - Multi-step plans
-- ✅ `approval_card` - Action approvals
-- ✅ `question_choice` - Multiple choice
-- ✅ `question_text` - Free text input
-- ✅ `status_banner` - Status with progress
-- ✅ `metric_tile` - Single metric
-- ✅ `goal_summary` - Goal overview
-- ✅ `alert` - Notifications
-- ⚠️ `metric_chart` - Fallback only
-- ⚠️ `table` - Fallback only
-- ⚠️ `spend_bar` - Fallback only
-- ⚠️ `timeline_item` - Fallback only
-- ⚠️ `form` - Fallback only
-- ⚠️ `number_input` - Fallback only
-- ⚠️ `select` - Fallback only
-- ⚠️ `confirm` - Fallback only
+See [`docs/screenshots/`](./docs/screenshots).
 
 ## Contributing
 
@@ -229,9 +127,3 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md).
 ## License
 
 Apache-2.0 © Small Seed Labs
-
----
-
-**Related Projects:**
-- [proba-hub](https://github.com/smallseedlabs/proba-hub) - Interaction Hub
-- [proba-protocol](https://github.com/smallseedlabs/proba-protocol) - Shared protocol library

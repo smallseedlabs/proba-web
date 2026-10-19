@@ -1,85 +1,64 @@
-import { ComponentRendererProps } from './types';
-import {
-  TextComponent,
-  PlanCardComponent,
-  ApprovalCardComponent,
-  QuestionChoiceComponent,
-  QuestionTextComponent,
-  StatusBannerComponent,
-  MetricTileComponent,
-  GoalSummaryComponent,
-} from './components';
+import { Component, type ReactNode } from 'react';
+import type { ComponentType } from '../../lib/protocol';
+import { AlertComponent, StatusBannerComponent, TextComponent, TimelineItemComponent } from './basic';
+import { ApprovalCardComponent, ConfirmComponent, GoalSummaryComponent, MetricTileComponent, PlanCardComponent } from './cards';
+import { MetricChartComponent } from './chart';
+import { FormComponent, NumberInputComponent, QuestionChoiceComponent, QuestionTextComponent, SelectComponent } from './questions';
+import { SpendBarComponent } from './spend-bar';
+import { DataTableComponent } from './table';
+import type { ComponentRendererProps } from './types';
 
-const componentRegistry: Record<
-  string,
-  (props: ComponentRendererProps) => JSX.Element | null
-> = {
+type Renderer = (props: ComponentRendererProps) => JSX.Element | null;
+
+/** Every component in the proba-protocol catalogue has a full implementation. */
+const componentRegistry: Record<ComponentType, Renderer> = {
   text: TextComponent,
   plan_card: PlanCardComponent,
   approval_card: ApprovalCardComponent,
   question_choice: QuestionChoiceComponent,
   question_text: QuestionTextComponent,
-  status_banner: StatusBannerComponent,
   metric_tile: MetricTileComponent,
+  metric_chart: MetricChartComponent,
+  table: DataTableComponent,
+  spend_bar: SpendBarComponent,
+  status_banner: StatusBannerComponent,
+  alert: AlertComponent,
+  timeline_item: TimelineItemComponent,
   goal_summary: GoalSummaryComponent,
-  metric_chart: ({ fallbackText }: ComponentRendererProps) => (
-    <div className="border rounded-lg p-4 bg-card text-muted-foreground">
-      {fallbackText} (chart rendering not implemented)
-    </div>
-  ),
-  table: ({ fallbackText }: ComponentRendererProps) => (
-    <div className="border rounded-lg p-4 bg-card text-muted-foreground">
-      {fallbackText} (table rendering not implemented)
-    </div>
-  ),
-  spend_bar: ({ fallbackText }: ComponentRendererProps) => (
-    <div className="border rounded-lg p-4 bg-card text-muted-foreground">
-      {fallbackText} (spend bar not implemented)
-    </div>
-  ),
-  alert: ({ ui, fallbackText }: ComponentRendererProps) => {
-    const props = ui.props as { message?: string; severity?: string };
-    return (
-      <div className="border rounded-lg p-3 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-900 dark:text-yellow-100">
-        {props.message || fallbackText}
-      </div>
-    );
-  },
-  timeline_item: ({ fallbackText }: ComponentRendererProps) => (
-    <div className="text-sm text-muted-foreground">{fallbackText}</div>
-  ),
-  form: ({ fallbackText }: ComponentRendererProps) => (
-    <div className="border rounded-lg p-4 bg-card text-muted-foreground">
-      {fallbackText} (form not implemented)
-    </div>
-  ),
-  number_input: ({ fallbackText }: ComponentRendererProps) => (
-    <div className="border rounded-lg p-4 bg-card text-muted-foreground">
-      {fallbackText} (number input not implemented)
-    </div>
-  ),
-  select: ({ fallbackText }: ComponentRendererProps) => (
-    <div className="border rounded-lg p-4 bg-card text-muted-foreground">
-      {fallbackText} (select not implemented)
-    </div>
-  ),
-  confirm: ({ fallbackText }: ComponentRendererProps) => (
-    <div className="border rounded-lg p-4 bg-card text-muted-foreground">
-      {fallbackText} (confirm not implemented)
-    </div>
-  ),
+  form: FormComponent,
+  number_input: NumberInputComponent,
+  select: SelectComponent,
+  confirm: ConfirmComponent,
 };
 
-export function ComponentRenderer(props: ComponentRendererProps) {
-  const Component = componentRegistry[props.ui.component];
+// eslint-disable-next-line react-refresh/only-export-components
+export const supportedComponents = Object.keys(componentRegistry) as ComponentType[];
 
-  if (!Component) {
-    return (
-      <div className="border rounded-lg p-4 bg-muted text-muted-foreground">
-        {props.fallbackText}
-      </div>
-    );
+function Fallback({ text }: { text: string }) {
+  return <div className="rounded-lg border bg-card px-4 py-3 text-body text-foreground shadow-card">{text}</div>;
+}
+
+class RenderBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
   }
 
-  return <Component {...props} />;
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
 }
+
+export function ComponentRenderer(props: ComponentRendererProps) {
+  const Renderer = componentRegistry[props.ui.component as ComponentType];
+  const fallback = <Fallback text={props.fallbackText} />;
+  if (!Renderer) return fallback;
+  return (
+    <RenderBoundary fallback={fallback}>
+      <Renderer {...props} />
+    </RenderBoundary>
+  );
+}
+
+export type { ComponentRendererProps, UIComponent } from './types';
