@@ -111,8 +111,7 @@ Docker Swarm: `docker network create --driver overlay proba-network && docker st
 
 ## Protocol
 
-Pinned to `github:smallseedlabs/proba-protocol#c643d52f2515977251b4dec6e058b94cfb002e45` (package version 0.1.2).
-**TODO:** switch to `#v0.1.2` once that tag is published.
+Pinned to the `github:smallseedlabs/proba-protocol#v0.1.2` release tag.
 
 All 17 protocol components are implemented: `text`, `plan_card`, `approval_card`, `question_choice`, `question_text`, `status_banner`, `metric_tile`, `metric_chart`, `table`, `spend_bar`, `timeline_item`, `goal_summary`, `alert`, `form`, `number_input`, `select` and `confirm`.
 

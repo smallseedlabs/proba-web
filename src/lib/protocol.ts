@@ -1,9 +1,7 @@
 /**
  * Protocol types shared with proba-hub.
  *
- * TODO: the dependency is pinned to proba-protocol commit c643d52 (PR #3).
- * Switch package.json to `github:smallseedlabs/proba-protocol#v0.1.2` once that
- * tag is published.
+ * The dependency is pinned to the proba-protocol v0.1.2 release tag.
  */
 export type {
   ActionStyle,

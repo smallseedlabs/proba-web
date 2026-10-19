@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Pinned `@smallseedlabs/proba-protocol` to the `v0.1.2` release tag (same commit `c643d52`).
+
 ### Added
 
 - Sign-in screen with work email and password, validation, loading and error states, backed by an `AuthClient` interface and a Hub implementation (`POST /v1/auth/login`, `POST /v1/auth/logout`).
