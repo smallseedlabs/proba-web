@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, cursor/**]
+    branches: [main, 'feat/**']
   pull_request:
     branches: [main]
 
@@ -81,6 +81,9 @@ jobs:
       
       - name: Build application
         run: npm run build
+
+      - name: Check production bundle contains no demo data
+        run: npm run check:bundle
       
       - name: Run E2E tests
         run: npm run test:e2e

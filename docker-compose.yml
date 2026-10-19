@@ -7,7 +7,7 @@ services:
       - "5173:8080"
     environment:
       - API_BASE_URL=${API_BASE_URL:-http://localhost:3000}
-      - MOCK_MODE=${MOCK_MODE:-true}
+      - AUTH_LOGIN_PATH=${AUTH_LOGIN_PATH:-/v1/auth/login}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]

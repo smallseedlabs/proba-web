@@ -26,7 +26,7 @@ services:
           memory: 64M
     environment:
       - API_BASE_URL=${API_BASE_URL:-http://proba-hub:3000}
-      - MOCK_MODE=${MOCK_MODE:-false}
+      - AUTH_LOGIN_PATH=${AUTH_LOGIN_PATH:-/v1/auth/login}
     ports:
       - "5173:8080"
     networks:
