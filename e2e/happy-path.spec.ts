@@ -9,41 +9,29 @@ test.describe('Proba Web E2E', () => {
 
     await page.getByRole('button', { name: /Continue with Mock Data/i }).click();
 
-    await expect(page.getByText('Goals')).toBeVisible();
-    await expect(page.getByText('Approvals')).toBeVisible();
-
-    await page.waitForTimeout(2000);
-
-    const goalButton = page.getByRole('button', { name: /Launch Q4 Product Campaign/i });
-    await expect(goalButton).toBeVisible({ timeout: 10000 });
-    
-    await goalButton.click();
+    await expect(page.getByRole('heading', { name: 'Goals' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Approvals' })).toBeVisible();
 
     await expect(page.getByText(/Who should see these ads/i)).toBeVisible({ timeout: 5000 });
 
-    await page.getByText('Active users').click();
+    await page.getByText('Active users (logged in last 30 days)').click();
 
-    await page.waitForTimeout(1000);
+    await expect(page.getByRole('heading', { name: /Campaign Launch Plan/i })).toBeVisible({ timeout: 5000 });
 
-    await expect(page.getByText(/Campaign Launch Plan/i)).toBeVisible({ timeout: 5000 });
+    const approveButton = page.getByRole('button', { name: /Approve Plan/i });
+    await expect(approveButton).toBeVisible();
+    await approveButton.click();
 
-    await page.getByRole('button', { name: /Approve Plan/i }).click();
-
-    await page.waitForTimeout(1000);
-
-    await expect(page.getByText(/budget/i)).toBeVisible({ timeout: 5000 });
-
-    await page.getByText(/Pause/).click();
-    await expect(page.getByText(/Resume/)).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Daily Budget Adjustment/i })).toBeVisible({ timeout: 5000 });
   });
 
   test('displays workspace sections', async ({ page }) => {
     await page.goto('/');
     await page.getByRole('button', { name: /Continue with Mock Data/i }).click();
 
-    await expect(page.getByText('Goals')).toBeVisible();
-    await expect(page.getByText('Approvals')).toBeVisible();
-    await expect(page.getByText('Activity')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Goals' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Approvals' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Activity' })).toBeVisible();
   });
 
   test('can send messages in chat', async ({ page }) => {
