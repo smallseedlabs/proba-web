@@ -15,15 +15,24 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --ext ts,tsx --fix",
     "typecheck": "tsc --noEmit",
-    "validate": "npm run lint && npm run typecheck && npm run test && npm run test:e2e"
+    "validate": "npm run lint && npm run typecheck && npm run test && npm run build && npm run check:bundle && npm run test:e2e",
+    "dev:demo": "VITE_DEMO_MODE=true vite",
+    "build:demo": "VITE_DEMO_MODE=true vite build --outDir dist-demo",
+    "preview:demo": "vite preview --outDir dist-demo --port 5173 --strictPort",
+    "check:bundle": "node scripts/check-production-bundle.mjs",
+    "screenshots": "playwright test --config playwright.screenshots.config.ts"
   },
   "dependencies": {
-    "@smallseedlabs/proba-protocol": "github:smallseedlabs/proba-protocol#v0.1.0",
+    "@smallseedlabs/proba-protocol": "github:smallseedlabs/proba-protocol#c643d52f2515977251b4dec6e058b94cfb002e45",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.59.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "tailwind-merge": "^2.6.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.48.2",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.0.1",
@@ -60,5 +69,6 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/smallseedlabs/proba-web.git"
-  }
+  },
+  "//protocol": "TODO: switch @smallseedlabs/proba-protocol to github:smallseedlabs/proba-protocol#v0.1.2 once the v0.1.2 tag is published (currently pinned to merged PR #3, commit c643d52)."
 }
