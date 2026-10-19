@@ -23,7 +23,7 @@
     "screenshots": "playwright test --config playwright.screenshots.config.ts"
   },
   "dependencies": {
-    "@smallseedlabs/proba-protocol": "github:smallseedlabs/proba-protocol#c643d52f2515977251b4dec6e058b94cfb002e45",
+    "@smallseedlabs/proba-protocol": "github:smallseedlabs/proba-protocol#v0.1.2",
     "clsx": "^2.1.1",
     "lucide-react": "^1.59.0",
     "react": "^18.3.1",
@@ -69,6 +69,5 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/smallseedlabs/proba-web.git"
-  },
-  "//protocol": "TODO: switch @smallseedlabs/proba-protocol to github:smallseedlabs/proba-protocol#v0.1.2 once the v0.1.2 tag is published (currently pinned to merged PR #3, commit c643d52)."
+  }
 }
