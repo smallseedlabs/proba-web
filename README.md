@@ -56,12 +56,12 @@ Run in **mock mode** (uses fixture data, no backend required):
 npm run dev
 ```
 
-The app will be available at `http://localhost:3000`.
+The app will be available at `http://localhost:5173`.
 
 Run against a **real backend**:
 
 ```bash
-VITE_API_BASE_URL=http://localhost:4000 VITE_MOCK_MODE=false npm run dev
+VITE_API_BASE_URL=http://localhost:3000 VITE_MOCK_MODE=false npm run dev
 ```
 
 ### Building
@@ -84,7 +84,7 @@ Runtime configuration is injected via `window.ENV` (see `docker/env.sh`).
 
 ### Build-time (Vite)
 
-- `VITE_API_BASE_URL` - Hub API base URL (default: `http://localhost:4000`)
+- `VITE_API_BASE_URL` - Hub API base URL (default: `http://localhost:3000`)
 - `VITE_MOCK_MODE` - Use mock transport (default: `false`)
 
 ### Runtime (Docker)
@@ -135,13 +135,13 @@ docker build -t proba-web:latest .
 ### Run (Mock Mode)
 
 ```bash
-docker run -p 3000:8080 -e MOCK_MODE=true proba-web:latest
+docker run -p 5173:8080 -e MOCK_MODE=true proba-web:latest
 ```
 
 ### Run (Against Hub)
 
 ```bash
-docker run -p 3000:8080 -e API_BASE_URL=http://proba-hub:4000 -e MOCK_MODE=false proba-web:latest
+docker run -p 5173:8080 -e API_BASE_URL=http://proba-hub:3000 -e MOCK_MODE=false proba-web:latest
 ```
 
 ### Docker Compose
@@ -155,7 +155,7 @@ docker-compose up
 With Hub (requires proba-hub running):
 
 ```bash
-API_BASE_URL=http://proba-hub:4000 MOCK_MODE=false docker-compose up
+API_BASE_URL=http://proba-hub:3000 MOCK_MODE=false docker-compose up
 ```
 
 ### Docker Swarm

@@ -25,10 +25,10 @@ services:
           cpus: '0.1'
           memory: 64M
     environment:
-      - API_BASE_URL=${API_BASE_URL:-http://proba-hub:4000}
+      - API_BASE_URL=${API_BASE_URL:-http://proba-hub:3000}
       - MOCK_MODE=${MOCK_MODE:-false}
     ports:
-      - "3000:8080"
+      - "5173:8080"
     networks:
       - proba-network
     healthcheck:
