@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { IncomingEvent } from '../lib/transport';
-import { describeEvent, selectActivity, selectGoals, selectOpenAsks, selectReports, selectThreadItems } from './selectors';
+import { describeEvent, messageUI, selectActivity, selectGoals, selectOpenAsks, selectReports, selectThreadItems } from './selectors';
 import { initialWorkspaceState, workspaceReducer } from './reducer';
 
 let seq = 0;
@@ -79,5 +79,21 @@ describe('workspaceReducer', () => {
   it('treats an open connection as loaded even with no events', () => {
     expect(workspaceReducer(initialWorkspaceState, { type: 'connection', status: 'open' }).hasLoaded).toBe(true);
     expect(workspaceReducer(initialWorkspaceState, { type: 'connection', status: 'reconnecting' }).hasLoaded).toBe(false);
+  });
+});
+
+describe('messageUI', () => {
+  const base = { kind: 'event' as const, seq: 1, type: 'message' as const, at: '2026-01-01T00:00:00Z' };
+
+  it('drops a text UI that repeats payload.text', () => {
+    const event = { ...base, payload: { text: 'Hi', source: 'brain' }, ui: { component: 'text' as const, version: '1.0.0', props: { text: 'Hi' } } };
+    expect(messageUI(event)).toBeUndefined();
+  });
+
+  it('keeps other UI', () => {
+    const ui = { component: 'metric_tile' as const, version: '1.0.0', props: { label: 'Spend', value: 1 } };
+    expect(messageUI({ ...base, payload: { text: 'Hi', source: 'brain' }, ui })).toBe(ui);
+    const different = { component: 'text' as const, version: '1.0.0', props: { text: 'Other' } };
+    expect(messageUI({ ...base, payload: { text: 'Hi', source: 'brain' }, ui: different })).toBe(different);
   });
 });

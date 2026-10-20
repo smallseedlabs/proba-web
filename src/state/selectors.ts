@@ -89,6 +89,18 @@ export function selectGoals(events: IncomingEvent[]): GoalView[] {
   );
 }
 
+/**
+ * proba-hub sends brain replies with both payload.text and a `text` UI whose
+ * props.text is the same string; rendering both shows the message twice.
+ */
+export function messageUI(event: IncomingEvent): IncomingEvent['ui'] | undefined {
+  if (!event.ui) return undefined;
+  const text = (event.payload as { text?: unknown }).text;
+  const props = event.ui.props as { text?: unknown } | undefined;
+  if (event.ui.component === 'text' && typeof text === 'string' && props?.text === text) return undefined;
+  return event.ui;
+}
+
 export function askPayload(event: IncomingEvent): AskPayload | null {
   if (event.type !== 'ask') return null;
   const payload = event.payload as unknown as AskPayload;

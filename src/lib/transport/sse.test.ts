@@ -45,6 +45,34 @@ describe('SSETransport', () => {
     expect(transport.status).toBe('connecting');
   });
 
+  it('listens for every named protocol event type the Hub sends', () => {
+    const onEvent = vi.fn();
+    transport.subscribe(onEvent);
+    transport.connect();
+    for (const type of ['ask', 'ask_resolved', 'status', 'alert', 'goal_updated', 'ack']) {
+      expect(mockEventSource.addEventListener).toHaveBeenCalledWith(type, expect.any(Function));
+    }
+
+    const ask = { kind: 'event', seq: 1, type: 'ask', payload: { askId: 'a' }, at: '2026-01-01T00:00:00Z' };
+    const goal = { kind: 'event', seq: 2, type: 'goal_updated', payload: { goalId: 'g' }, at: '2026-01-01T00:00:00Z' };
+    handlers.ask({ data: JSON.stringify(ask) });
+    handlers.goal_updated({ data: JSON.stringify(goal) });
+    expect(onEvent).toHaveBeenNthCalledWith(1, ask);
+    expect(onEvent).toHaveBeenNthCalledWith(2, goal);
+  });
+
+  it('treats an error event with data as a protocol error, not a disconnect', () => {
+    const onEvent = vi.fn();
+    transport.subscribe(onEvent);
+    transport.connect();
+    const err = { kind: 'event', seq: 3, type: 'error', payload: { message: 'boom' }, at: '2026-01-01T00:00:00Z' };
+    handlers.error({ data: JSON.stringify(err) });
+    expect(onEvent).toHaveBeenCalledWith(err);
+    expect(transport.status).toBe('connecting');
+    vi.advanceTimersByTime(1000);
+    expect(EventSourceMock).toHaveBeenCalledTimes(1);
+  });
+
   it('delivers events once and de-duplicates by sequence number', () => {
     const onEvent = vi.fn();
     transport.subscribe(onEvent);

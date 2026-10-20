@@ -94,7 +94,9 @@ export function WorkspaceProvider({
         message: { clientMsgId, threadId, text, sentAt: new Date().toISOString(), status: 'sending' },
       });
       const ok = await send('send_message', { text }, threadId, clientMsgId);
-      if (!ok) dispatch({ type: 'local_message_status', clientMsgId, status: 'failed' });
+      // The Hub accepts commands with 202 and does not emit ack events yet, so
+      // an accepted command counts as sent.
+      dispatch({ type: 'local_message_status', clientMsgId, status: ok ? 'sent' : 'failed' });
       return ok;
     },
     [send]
