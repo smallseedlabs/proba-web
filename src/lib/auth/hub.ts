@@ -17,12 +17,9 @@ export interface HubAuthClientOptions {
 }
 
 /**
- * Auth client for proba-hub.
- *
- * NOTE: proba-hub does not yet expose a password sign-in endpoint (it only has
- * a development-only email login). This client targets the contract the UI
- * needs: POST /v1/auth/login and POST /v1/auth/logout. The path is
- * configurable through AUTH_LOGIN_PATH until the Hub ships the endpoint.
+ * Auth client for proba-hub: POST /v1/auth/login { email, password } ->
+ * { token, user, workspaces, expiresAt } and POST /v1/auth/logout (revokes the
+ * session server-side). The sign-in path is configurable via AUTH_LOGIN_PATH.
  */
 export class HubAuthClient implements AuthClient {
   private readonly loginPath: string;
@@ -72,7 +69,7 @@ export class HubAuthClient implements AuthClient {
     return {
       token: body.token,
       user: { id: body.user.id, email: body.user.email, name, role: body.user.role },
-      // Workspaces are not modelled by the Hub yet; fall back to a single one.
+      // The Hub returns a single default workspace today; keep a fallback for older Hubs.
       workspaces:
         body.workspaces && body.workspaces.length > 0
           ? body.workspaces

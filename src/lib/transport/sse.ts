@@ -1,4 +1,21 @@
+import type { EventType } from '../protocol';
 import { TransportError, type ConnectionStatus, type IncomingEvent, type OutgoingCommand, type TransportClient } from './types';
+
+/**
+ * proba-hub writes every event with an `event: <type>` field, and EventSource
+ * only dispatches unnamed events to 'message' listeners, so each protocol
+ * event type needs its own listener.
+ */
+export const SSE_EVENT_TYPES: readonly EventType[] = [
+  'message',
+  'ask',
+  'ask_resolved',
+  'status',
+  'alert',
+  'goal_updated',
+  'ack',
+  'error',
+] as const;
 
 export interface SSETransportOptions {
   apiBaseUrl: string;
@@ -43,15 +60,25 @@ export class SSETransport implements TransportClient {
     this.setStatus(this.hasOpened ? 'reconnecting' : 'connecting');
     this.eventSource = new EventSource(url.toString());
 
-    this.eventSource.addEventListener('message', (e: MessageEvent) => {
+    const onData = (e: MessageEvent) => {
       try {
         this.handleEvent(JSON.parse(e.data) as IncomingEvent);
       } catch (error) {
         this.options.onError?.(error instanceof Error ? error : new Error(String(error)));
       }
-    });
+    };
+    for (const type of SSE_EVENT_TYPES) {
+      // 'error' doubles as the EventSource connection-error event; only
+      // events that carry data are protocol error events.
+      if (type === 'error') continue;
+      this.eventSource.addEventListener(type, onData as EventListener);
+    }
 
-    this.eventSource.addEventListener('error', () => {
+    this.eventSource.addEventListener('error', (e?: Event) => {
+      if (typeof (e as MessageEvent | undefined)?.data === 'string') {
+        onData(e as MessageEvent);
+        return;
+      }
       this.scheduleReconnect();
     });
 

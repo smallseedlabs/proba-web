@@ -4,7 +4,7 @@ import type { MessagePayload } from '../../lib/protocol';
 import type { IncomingEvent } from '../../lib/transport';
 import { cn } from '../../lib/utils/cn';
 import { formatRelativeTime, initials } from '../../lib/utils/format';
-import { selectThreadItems, type LocalMessage } from '../../state/selectors';
+import { messageUI, selectThreadItems, type LocalMessage } from '../../state/selectors';
 import { useWorkspace } from '../../state/workspace';
 import { LogoMark } from '../brand/Logo';
 import { RichText } from '../registry/basic';
@@ -70,13 +70,12 @@ function EventItem({ event, userName }: { event: IncomingEvent; userName: string
       if (payload.source === 'user') {
         return <UserMessage text={payload.text ?? event.fallbackText ?? ''} at={event.at} userName={userName} />;
       }
+      const ui = messageUI(event);
       return (
         <AssistantMessage at={event.at}>
           {payload.text && <RichText text={payload.text} />}
-          {event.ui && (
-            <ComponentRenderer ui={event.ui as never} fallbackText={event.fallbackText ?? ''} onAction={(r) => respond(event, r)} />
-          )}
-          {!payload.text && !event.ui && event.fallbackText && <RichText text={event.fallbackText} />}
+          {ui && <ComponentRenderer ui={ui as never} fallbackText={event.fallbackText ?? ''} onAction={(r) => respond(event, r)} />}
+          {!payload.text && !ui && event.fallbackText && <RichText text={event.fallbackText} />}
         </AssistantMessage>
       );
     }
