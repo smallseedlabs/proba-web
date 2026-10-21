@@ -1,10 +1,11 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
+import type { FirebaseWebConfig } from './auth/firebase';
 
 export interface AppConfig {
   /** Base URL of proba-hub. */
   apiBaseUrl: string;
-  /** Path of the Hub sign-in endpoint. */
-  authLoginPath: string;
+  /** Firebase Authentication web config; null when incomplete (sign-in unavailable). */
+  firebase: FirebaseWebConfig | null;
   /**
    * Development-only demo data. Controlled solely by the build-time
    * VITE_DEMO_MODE flag (off by default) so it can never be switched on in a
@@ -15,7 +16,26 @@ export interface AppConfig {
 
 interface RuntimeEnv {
   API_BASE_URL?: string;
-  AUTH_LOGIN_PATH?: string;
+  FIREBASE_API_KEY?: string;
+  FIREBASE_AUTH_DOMAIN?: string;
+  FIREBASE_PROJECT_ID?: string;
+  FIREBASE_APP_ID?: string;
+}
+
+/**
+ * Firebase web config from build-time VITE_FIREBASE_* variables. A container
+ * may override them at runtime through window.ENV (docker/env.sh).
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function firebaseConfig(env: RuntimeEnv | undefined): FirebaseWebConfig | null {
+  const pick = (runtime: string | undefined, buildTime: string | undefined) => (runtime || buildTime || '').trim();
+  const config: FirebaseWebConfig = {
+    apiKey: pick(env?.FIREBASE_API_KEY, import.meta.env.VITE_FIREBASE_API_KEY),
+    authDomain: pick(env?.FIREBASE_AUTH_DOMAIN, import.meta.env.VITE_FIREBASE_AUTH_DOMAIN),
+    projectId: pick(env?.FIREBASE_PROJECT_ID, import.meta.env.VITE_FIREBASE_PROJECT_ID),
+    appId: pick(env?.FIREBASE_APP_ID, import.meta.env.VITE_FIREBASE_APP_ID),
+  };
+  return Object.values(config).every(Boolean) ? config : null;
 }
 
 export const DEMO_MODE: boolean = __DEMO_MODE__;
@@ -24,7 +44,7 @@ export const DEMO_MODE: boolean = __DEMO_MODE__;
 export function loadConfig(env: RuntimeEnv | undefined = (window as { ENV?: RuntimeEnv }).ENV): AppConfig {
   return {
     apiBaseUrl: env?.API_BASE_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
-    authLoginPath: env?.AUTH_LOGIN_PATH || import.meta.env.VITE_AUTH_LOGIN_PATH || '/v1/auth/login',
+    firebase: firebaseConfig(env),
     demoMode: DEMO_MODE,
   };
 }

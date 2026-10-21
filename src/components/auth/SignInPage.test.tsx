@@ -6,11 +6,19 @@ import { SignInPage } from './SignInPage';
 
 const session: Session = { token: 't', user: { id: 'u', email: 'ana@acme.com', name: 'Ana' }, workspaces: [{ id: 'w', name: 'Acme' }] };
 
-function setup(signIn: AuthClient['signIn']) {
-  const auth: AuthClient = { signIn, signOut: vi.fn() };
+function setup(signIn: AuthClient['signIn'], overrides: Partial<AuthClient> = {}) {
+  const auth: AuthClient = {
+    signIn,
+    signInWithGoogle: vi.fn(),
+    sendPasswordReset: vi.fn().mockResolvedValue(undefined),
+    refresh: vi.fn(),
+    restore: vi.fn().mockResolvedValue(null),
+    signOut: vi.fn(),
+    ...overrides,
+  };
   const onSignedIn = vi.fn();
   render(<SignInPage auth={auth} onSignedIn={onSignedIn} />);
-  return { onSignedIn, signIn };
+  return { onSignedIn, signIn, auth };
 }
 
 describe('SignInPage', () => {
@@ -66,5 +74,67 @@ describe('SignInPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Show password' }));
     expect(screen.getByLabelText('Password')).toHaveAttribute('type', 'text');
     expect(screen.getByRole('button', { name: 'Hide password' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('continues with Google', async () => {
+    const signInWithGoogle = vi.fn().mockResolvedValue(session);
+    const { onSignedIn, signIn } = setup(vi.fn(), { signInWithGoogle });
+    await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    await waitFor(() => expect(onSignedIn).toHaveBeenCalledWith(session));
+    expect(signIn).not.toHaveBeenCalled();
+  });
+
+  it('stays quiet when the Google window is closed, but reports other Google errors', async () => {
+    const signInWithGoogle = vi
+      .fn()
+      .mockRejectedValueOnce(new AuthError('cancelled'))
+      .mockRejectedValueOnce(new AuthError('popup_blocked'));
+    setup(vi.fn(), { signInWithGoogle });
+    await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeEnabled());
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/blocked the Google sign-in window/);
+  });
+
+  it('disables every sign-in option while one is in progress', async () => {
+    setup(vi.fn(), { signInWithGoogle: vi.fn(() => new Promise<Session>(() => {})) });
+    await userEvent.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    expect(screen.getByRole('button', { name: 'Continue with Google' })).toHaveAttribute('aria-busy', 'true');
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeDisabled();
+    expect(screen.getByLabelText('Work email')).toBeDisabled();
+  });
+
+  it('sends a password reset link without revealing whether the account exists', async () => {
+    const sendPasswordReset = vi.fn().mockResolvedValue(undefined);
+    setup(vi.fn(), { sendPasswordReset });
+    await userEvent.type(screen.getByLabelText('Work email'), 'ana@acme.com');
+    await userEvent.click(screen.getByRole('button', { name: 'Forgot password?' }));
+
+    expect(screen.getByRole('heading', { name: 'Reset your password' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Work email')).toHaveValue('ana@acme.com');
+    await userEvent.click(screen.getByRole('button', { name: 'Send reset link' }));
+
+    expect(sendPasswordReset).toHaveBeenCalledWith('ana@acme.com');
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      "If an account exists for ana@acme.com, you'll receive an email with a link to reset your password shortly."
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Back to sign in' }));
+    expect(screen.getByRole('heading', { name: 'Sign in to Proba' })).toBeInTheDocument();
+  });
+
+  it('validates the reset email and reports reset errors', async () => {
+    const sendPasswordReset = vi.fn().mockRejectedValue(new AuthError('rate_limited'));
+    setup(vi.fn(), { sendPasswordReset });
+    await userEvent.click(screen.getByRole('button', { name: 'Forgot password?' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Send reset link' }));
+    expect(screen.getByText('Enter your work email address.')).toBeInTheDocument();
+    expect(sendPasswordReset).not.toHaveBeenCalled();
+
+    await userEvent.type(screen.getByLabelText('Work email'), 'ana@acme.com');
+    await userEvent.click(screen.getByRole('button', { name: 'Send reset link' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Too many sign-in attempts/);
   });
 });

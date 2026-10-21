@@ -19,12 +19,15 @@
     "dev:demo": "VITE_DEMO_MODE=true vite",
     "build:demo": "VITE_DEMO_MODE=true vite build --outDir dist-demo",
     "preview:demo": "vite preview --outDir dist-demo --port 5173 --strictPort",
+    "build:e2e": "VITE_DEMO_MODE=false VITE_API_BASE_URL=http://127.0.0.1:3999 VITE_FIREBASE_API_KEY=e2e-api-key VITE_FIREBASE_AUTH_DOMAIN=proba-e2e.firebaseapp.com VITE_FIREBASE_PROJECT_ID=proba-e2e VITE_FIREBASE_APP_ID=1:000000000000:web:e2e vite build --outDir dist-e2e",
+    "preview:e2e": "vite preview --outDir dist-e2e --port 4180 --strictPort",
     "check:bundle": "node scripts/check-production-bundle.mjs",
     "screenshots": "playwright test --config playwright.screenshots.config.ts"
   },
   "dependencies": {
     "@smallseedlabs/proba-protocol": "github:smallseedlabs/proba-protocol#v0.1.2",
     "clsx": "^2.1.1",
+    "firebase": "^12.19.0",
     "lucide-react": "^1.59.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

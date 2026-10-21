@@ -1,10 +1,15 @@
-import { HubAuthClient, type AuthClient, type Session } from './auth';
+import { FirebaseAuthClient, HubSessionApi, type AuthClient, type Session } from './auth';
 import type { AppConfig } from './config';
 import { SSETransport, type TransportClient } from './transport';
 
+export interface TransportCallbacks {
+  /** The Hub rejected the session token (revoked or expired). */
+  onUnauthorized?: () => void;
+}
+
 export interface Services {
   auth: AuthClient;
-  createTransport(session: Session, workspaceId: string): TransportClient;
+  createTransport(session: Session, workspaceId: string, callbacks?: TransportCallbacks): TransportClient;
 }
 
 export async function createServices(config: AppConfig): Promise<Services> {
@@ -19,7 +24,11 @@ export async function createServices(config: AppConfig): Promise<Services> {
   }
 
   return {
-    auth: new HubAuthClient({ apiBaseUrl: config.apiBaseUrl, loginPath: config.authLoginPath }),
-    createTransport: (session) => new SSETransport({ apiBaseUrl: config.apiBaseUrl, token: session.token }),
+    auth: new FirebaseAuthClient({
+      firebase: config.firebase,
+      hub: new HubSessionApi({ apiBaseUrl: config.apiBaseUrl }),
+    }),
+    createTransport: (session, _workspaceId, callbacks) =>
+      new SSETransport({ apiBaseUrl: config.apiBaseUrl, token: session.token, onUnauthorized: callbacks?.onUnauthorized }),
   };
 }

@@ -150,6 +150,7 @@ vite.config.ts.timestamp-*
 
 # Build and test output
 dist-demo
+dist-e2e
 playwright-report/
 test-results/
 blob-report/

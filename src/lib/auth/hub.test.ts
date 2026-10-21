@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { HubAuthClient } from './hub';
+import { HubSessionApi } from './hub';
 import { AuthError } from './types';
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -9,59 +9,71 @@ function jsonResponse(status: number, body: unknown): Response {
   });
 }
 
-describe('HubAuthClient', () => {
-  it('posts credentials to the configured login path and returns a session', async () => {
+describe('HubSessionApi', () => {
+  it('exchanges a Firebase ID token for a Hub session', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(
-      jsonResponse(200, { token: 'tok', user: { id: 'u1', email: 'ana@acme.com', name: 'Ana Ruiz' } })
+      jsonResponse(200, {
+        token: 'hub-token',
+        user: { id: 'u1', email: 'ana@acme.com', name: 'Ana Ruiz' },
+        expiresAt: '2030-01-01T00:00:00Z',
+      })
     );
-    const client = new HubAuthClient({ apiBaseUrl: 'https://hub.example.com', fetchImpl });
+    const hub = new HubSessionApi({ apiBaseUrl: 'https://hub.example.com', fetchImpl });
 
-    const session = await client.signIn({ email: 'ana@acme.com', password: 'secret-pass' });
+    const session = await hub.exchange('firebase-id-token');
 
     expect(fetchImpl).toHaveBeenCalledWith(
-      'https://hub.example.com/v1/auth/login',
-      expect.objectContaining({ method: 'POST', body: JSON.stringify({ email: 'ana@acme.com', password: 'secret-pass' }) })
+      'https://hub.example.com/v1/auth/session',
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ idToken: 'firebase-id-token' }) })
     );
-    expect(session.token).toBe('tok');
-    expect(session.user.name).toBe('Ana Ruiz');
-    expect(session.workspaces).toEqual([{ id: 'default', name: 'My workspace' }]);
+    expect(session).toEqual({
+      token: 'hub-token',
+      user: { id: 'u1', email: 'ana@acme.com', name: 'Ana Ruiz', role: undefined },
+      workspaces: [{ id: 'default', name: 'My workspace' }],
+      expiresAt: '2030-01-01T00:00:00Z',
+    });
   });
 
   it.each([
-    [401, 'invalid_credentials'],
-    [400, 'invalid_credentials'],
-    [429, 'rate_limited'],
-    [404, 'unavailable'],
-    [503, 'unavailable'],
-  ])('maps HTTP %i to %s', async (status, code) => {
-    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse(status, {}));
-    const client = new HubAuthClient({ apiBaseUrl: 'http://localhost:3000', fetchImpl });
-    await expect(client.signIn({ email: 'a@b.co', password: 'x' })).rejects.toMatchObject({ code });
+    [401, { error: 'token_expired' }, 'session_expired'],
+    [401, { error: 'invalid_token' }, 'session_expired'],
+    [403, { error: 'not_allowed' }, 'not_allowed'],
+    [403, { error: 'email_not_verified' }, 'email_not_verified'],
+    [409, { error: 'account_conflict' }, 'account_exists'],
+    [429, { error: 'rate_limited' }, 'rate_limited'],
+    [503, { error: 'auth_not_configured' }, 'unavailable'],
+    [404, {}, 'unavailable'],
+    [500, {}, 'unavailable'],
+    [400, { error: 'invalid_request' }, 'unknown'],
+  ])('maps HTTP %i %j to %s', async (status, body, code) => {
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse(status, body));
+    const hub = new HubSessionApi({ apiBaseUrl: 'http://localhost:3000', fetchImpl });
+    await expect(hub.exchange('t')).rejects.toMatchObject({ code });
   });
 
   it('reports network failures', async () => {
     const fetchImpl = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
-    const client = new HubAuthClient({ apiBaseUrl: 'http://localhost:3000', fetchImpl });
-    const error = await client.signIn({ email: 'a@b.co', password: 'x' }).catch((e) => e);
+    const hub = new HubSessionApi({ apiBaseUrl: 'http://localhost:3000', fetchImpl });
+    const error = await hub.exchange('t').catch((e: unknown) => e);
     expect(error).toBeInstanceOf(AuthError);
-    expect(error.code).toBe('network');
+    expect((error as AuthError).code).toBe('network');
   });
 
   it('rejects malformed success responses', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(jsonResponse(200, { user: { id: 'u1' } }));
-    const client = new HubAuthClient({ apiBaseUrl: 'http://localhost:3000', fetchImpl });
-    await expect(client.signIn({ email: 'a@b.co', password: 'x' })).rejects.toMatchObject({ code: 'unknown' });
+    const hub = new HubSessionApi({ apiBaseUrl: 'http://localhost:3000', fetchImpl });
+    await expect(hub.exchange('t')).rejects.toMatchObject({ code: 'unknown' });
   });
 
-  it('signs out with the bearer token and never throws', async () => {
+  it('logs out with the Hub bearer token and never throws', async () => {
     const fetchImpl = vi.fn().mockRejectedValue(new TypeError('offline'));
-    const client = new HubAuthClient({ apiBaseUrl: 'http://localhost:3000', loginPath: '/auth', fetchImpl });
+    const hub = new HubSessionApi({ apiBaseUrl: 'http://localhost:3000', fetchImpl });
     await expect(
-      client.signOut({ token: 't', user: { id: 'u', email: 'a@b.co', name: 'A' }, workspaces: [] })
+      hub.logout({ token: 't', user: { id: 'u', email: 'a@b.co', name: 'A' }, workspaces: [] })
     ).resolves.toBeUndefined();
     expect(fetchImpl).toHaveBeenCalledWith(
       'http://localhost:3000/v1/auth/logout',
-      expect.objectContaining({ headers: { Authorization: 'Bearer t' } })
+      expect.objectContaining({ method: 'POST', headers: { Authorization: 'Bearer t' } })
     );
   });
 });

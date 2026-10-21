@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Sign-in uses Firebase Authentication (email/password, Continue with Google,
+  password reset). The Firebase ID token is exchanged for a revocable Hub
+  session (`POST /v1/auth/session`); an expired or revoked session is refreshed
+  once, then the user returns to sign-in instead of retrying forever. Sign-out
+  also signs out of Firebase. Configure `VITE_FIREBASE_*` (see `.env.example`).
+
+### Removed
+
+- `VITE_AUTH_LOGIN_PATH` / `AUTH_LOGIN_PATH` and the Hub password sign-in client.
+- Default `API_BASE_URL` in `public/env-config.js`, which overrode build-time values.
+
+### Changed
+
 - Pinned `@smallseedlabs/proba-protocol` to the `v0.1.2` release tag (same commit `c643d52`).
 
 ### Added
