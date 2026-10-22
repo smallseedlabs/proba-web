@@ -1,3 +1,4 @@
 export * from './types';
-export { HubAuthClient } from './hub';
+export { HubSessionApi } from './hub';
+export { FirebaseAuthClient, type FirebaseWebConfig } from './firebase';
 export { sessionStore } from './storage';

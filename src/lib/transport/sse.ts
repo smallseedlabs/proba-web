@@ -22,6 +22,11 @@ export interface SSETransportOptions {
   /** Bearer token issued at sign-in. */
   token?: string;
   onError?: (error: Error) => void;
+  /**
+   * Called once when the Hub rejects the token (401). The stream then stops
+   * reconnecting instead of retrying a revoked or expired session forever.
+   */
+  onUnauthorized?: () => void;
   fetchImpl?: typeof fetch;
 }
 
@@ -39,6 +44,7 @@ export class SSETransport implements TransportClient {
   private reconnectDelay = 1000;
   private readonly maxReconnectDelay = 30000;
   private hasOpened = false;
+  private unauthorized = false;
   private _status: ConnectionStatus = 'closed';
 
   constructor(private readonly options: SSETransportOptions) {}
@@ -48,6 +54,7 @@ export class SSETransport implements TransportClient {
   }
 
   connect(): void {
+    if (this.unauthorized) return;
     if (this.eventSource) {
       this.eventSource.close();
     }
@@ -121,6 +128,7 @@ export class SSETransport implements TransportClient {
     }
 
     if (response.status === 401) {
+      this.markUnauthorized();
       throw new TransportError('unauthorized', 'Your session has expired. Please sign in again.', 401);
     }
     if (response.status >= 400 && response.status < 500) {
@@ -171,15 +179,45 @@ export class SSETransport implements TransportClient {
     });
   }
 
+  private markUnauthorized(): void {
+    if (this.unauthorized) return;
+    this.unauthorized = true;
+    this.disconnect();
+    this.options.onUnauthorized?.();
+  }
+
+  /**
+   * EventSource cannot see HTTP status codes, so after a stream error check
+   * whether the session is still valid before reconnecting.
+   */
+  private async sessionRejected(): Promise<boolean> {
+    if (!this.options.token) return false;
+    try {
+      const doFetch = this.options.fetchImpl ?? fetch;
+      const response = await doFetch(new URL('/v1/auth/me', this.options.apiBaseUrl).toString(), {
+        headers: { Authorization: `Bearer ${this.options.token}` },
+      });
+      return response.status === 401;
+    } catch {
+      return false;
+    }
+  }
+
   private scheduleReconnect(): void {
-    if (this.reconnectTimer) {
+    if (this.reconnectTimer || this.unauthorized) {
       return;
     }
     this.eventSource?.close();
     this.eventSource = null;
     this.setStatus(this.hasOpened ? 'reconnecting' : 'connecting');
 
-    this.reconnectTimer = setTimeout(() => {
+    this.reconnectTimer = setTimeout(async () => {
+      if (await this.sessionRejected()) {
+        this.reconnectTimer = null;
+        this.markUnauthorized();
+        return;
+      }
+      if (!this.reconnectTimer) return; // disconnected while checking
       this.reconnectTimer = null;
       this.connect();
       this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay);

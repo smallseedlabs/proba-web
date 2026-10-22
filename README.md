@@ -8,7 +8,7 @@ Web client for **Proba**, an AI-native platform for product launch and ad-testin
 
 ## Features
 
-- **Sign-in** with work email and password, validation, loading and error states, behind a pluggable `AuthClient` (`src/lib/auth/`).
+- **Sign-in** with Firebase Authentication: work email and password, Continue with Google and password reset, with validation, loading and error states, behind a pluggable `AuthClient` (`src/lib/auth/`).
 - **App shell** with a sidebar (Goals, Approvals, Activity, Campaigns, Settings) and a top bar with a workspace switcher, user menu, **Pause all** and **Emergency stop** (with confirmation).
 - **Empty, loading, error and reconnecting states** throughout.
 - **Accessibility**: WCAG 2.2 AA, checked with axe in the E2E suite; full keyboard navigation, skip link, ARIA menus, dialogs with focus trapping, and reduced-motion support.
@@ -70,19 +70,37 @@ Sign in with any email address and a password of at least 8 characters.
 | Build time (Vite)       | Runtime (Docker)  | Default            | Purpose                                     |
 | ----------------------- | ----------------- | ------------------ | ------------------------------------------- |
 | `VITE_API_BASE_URL`     | `API_BASE_URL`    | `http://localhost:3000` | Hub base URL                           |
-| `VITE_AUTH_LOGIN_PATH`  | `AUTH_LOGIN_PATH` | `/v1/auth/login`   | Hub sign-in endpoint                        |
+| `VITE_FIREBASE_API_KEY` | `FIREBASE_API_KEY` | none              | Firebase web app `apiKey`                   |
+| `VITE_FIREBASE_AUTH_DOMAIN` | `FIREBASE_AUTH_DOMAIN` | none      | Firebase `authDomain`                       |
+| `VITE_FIREBASE_PROJECT_ID` | `FIREBASE_PROJECT_ID` | none        | Firebase `projectId` (same as the Hub's)    |
+| `VITE_FIREBASE_APP_ID`  | `FIREBASE_APP_ID` | none               | Firebase web app `appId`                    |
 | `VITE_DEMO_MODE`        | n/a               | `false`            | Development-only demo data                  |
 
 Runtime values are injected into `window.ENV` by `docker/env.sh` and take precedence over build-time values.
 
 ## Authentication
 
-`HubAuthClient` (`src/lib/auth/hub.ts`) expects the Hub to provide:
+Sign-in uses [Firebase Authentication](https://firebase.google.com/docs/auth/web/start)
+(modular `firebase/auth`, loaded on demand): email and password, Continue with
+Google (popup) and password reset emails (`sendPasswordResetEmail`). Firebase
+state is kept per browser tab, like the Hub session.
 
-- `POST /v1/auth/login` with `{ email, password }`, returning `{ token, user, workspaces? }`
-- `POST /v1/auth/logout` (Bearer token)
+After Firebase signs the user in, the client exchanges the Firebase ID token for
+a revocable Hub session (`POST /v1/auth/session { idToken }` on proba-hub) and
+uses that Hub token for `GET /v1/events` (SSE) and `POST /v1/commands`.
 
-The Hub does not provide these endpoints yet. Until it does, sign-in against a live Hub reports that the service is unavailable. The session token is used for `GET /v1/events` (SSE) and `POST /v1/commands`.
+- When the Hub rejects the session (401 on a command, or on the session check
+  the SSE transport makes after a dropped stream), the client gets a fresh ID
+  token from Firebase (`getIdToken`, forcing one refresh if the Hub reports it
+  expired) and exchanges it once. If that fails, or the new session is rejected
+  again within a minute, the user is signed out and returned to sign-in.
+- On reload, a signed-in Firebase user is resumed without asking again.
+- Sign-out revokes the Hub session (`POST /v1/auth/logout`) and calls Firebase `signOut`.
+
+Firebase project setup: enable the Email/Password and Google providers, register
+a web app, and add your domains (and `localhost` for development) under
+Authentication > Settings > Authorized domains. The Hub needs the same project
+ID in `FIREBASE_PROJECT_ID`.
 
 ## Scripts
 
@@ -95,7 +113,7 @@ The Hub does not provide these endpoints yet. Until it does, sign-in against a l
 | `npm run lint`         | ESLint (zero warnings)                                |
 | `npm run typecheck`    | TypeScript                                            |
 | `npm run test`         | Unit tests                                            |
-| `npm run test:e2e`     | Playwright E2E and accessibility tests                |
+| `npm run test:e2e`     | Playwright E2E and accessibility tests (demo build, plus the production build with Firebase and the Hub mocked at the network level) |
 | `npm run screenshots`  | Regenerate `docs/screenshots/` at 1440×900            |
 | `npm run validate`     | Everything above, in order                            |
 

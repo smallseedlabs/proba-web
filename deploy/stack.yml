@@ -26,7 +26,10 @@ services:
           memory: 64M
     environment:
       - API_BASE_URL=${API_BASE_URL:-http://proba-hub:3000}
-      - AUTH_LOGIN_PATH=${AUTH_LOGIN_PATH:-/v1/auth/login}
+      - FIREBASE_API_KEY=${FIREBASE_API_KEY:-}
+      - FIREBASE_AUTH_DOMAIN=${FIREBASE_AUTH_DOMAIN:-}
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID:-}
+      - FIREBASE_APP_ID=${FIREBASE_APP_ID:-}
     ports:
       - "5173:8080"
     networks:

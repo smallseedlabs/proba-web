@@ -23,6 +23,27 @@ export class DemoAuthClient implements AuthClient {
     if (password.length < 8) {
       throw new AuthError('invalid_credentials');
     }
+    return this.session(email);
+  }
+
+  async signInWithGoogle(): Promise<Session> {
+    await new Promise((resolve) => setTimeout(resolve, this.latencyMs));
+    return this.session('alex.morgan@northwindoutdoor.com');
+  }
+
+  async sendPasswordReset(): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, this.latencyMs));
+  }
+
+  async refresh(): Promise<Session> {
+    throw new AuthError('session_expired');
+  }
+
+  async restore(): Promise<Session | null> {
+    return null;
+  }
+
+  private session(email: string): Session {
     return {
       token: 'local-session',
       user: { id: 'u-local', email, name: nameFromEmail(email), role: 'Workspace admin' },

@@ -9,6 +9,7 @@ describe('SSETransport', () => {
   let handlers: Record<string, Handler>;
   let mockEventSource: { addEventListener: ReturnType<typeof vi.fn>; close: ReturnType<typeof vi.fn> };
   let EventSourceMock: ReturnType<typeof vi.fn>;
+  let meFetch: ReturnType<typeof vi.fn>;
 
   const command: OutgoingCommand = {
     kind: 'command',
@@ -29,7 +30,8 @@ describe('SSETransport', () => {
     };
     EventSourceMock = vi.fn(() => mockEventSource);
     global.EventSource = EventSourceMock as unknown as typeof EventSource;
-    transport = new SSETransport({ apiBaseUrl: 'http://hub.test', token: 'tok-1' });
+    meFetch = vi.fn().mockResolvedValue({ ok: true, status: 200 });
+    transport = new SSETransport({ apiBaseUrl: 'http://hub.test', token: 'tok-1', fetchImpl: meFetch });
   });
 
   afterEach(() => {
@@ -104,7 +106,7 @@ describe('SSETransport', () => {
     expect(onError).toHaveBeenCalled();
   });
 
-  it('moves through connecting, open and reconnecting states with back-off', () => {
+  it('moves through connecting, open and reconnecting states with back-off', async () => {
     const statuses: string[] = [];
     transport.onStatusChange((s) => statuses.push(s));
     transport.connect();
@@ -113,10 +115,44 @@ describe('SSETransport', () => {
     expect(transport.status).toBe('reconnecting');
     expect(EventSourceMock).toHaveBeenCalledTimes(1);
 
-    vi.advanceTimersByTime(1000);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(meFetch).toHaveBeenCalledWith('http://hub.test/v1/auth/me', { headers: { Authorization: 'Bearer tok-1' } });
     expect(EventSourceMock).toHaveBeenCalledTimes(2);
     handlers.open();
     expect(statuses).toEqual(['connecting', 'open', 'reconnecting', 'open']);
+  });
+
+  it('stops reconnecting and reports once when the Hub rejects the session', async () => {
+    const onUnauthorized = vi.fn();
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 401 });
+    transport = new SSETransport({ apiBaseUrl: 'http://hub.test', token: 'revoked', fetchImpl, onUnauthorized });
+    transport.connect();
+    handlers.error();
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    expect(EventSourceMock).toHaveBeenCalledTimes(1);
+    expect(transport.status).toBe('closed');
+    transport.connect();
+    expect(EventSourceMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps reconnecting when the session check itself fails (offline)', async () => {
+    const onUnauthorized = vi.fn();
+    const fetchImpl = vi.fn().mockRejectedValue(new TypeError('offline'));
+    transport = new SSETransport({ apiBaseUrl: 'http://hub.test', token: 'tok', fetchImpl, onUnauthorized });
+    transport.connect();
+    handlers.error();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(EventSourceMock).toHaveBeenCalledTimes(2);
+    expect(onUnauthorized).not.toHaveBeenCalled();
+  });
+
+  it('reports a rejected command token as unauthorized', async () => {
+    const onUnauthorized = vi.fn();
+    const fetchImpl = vi.fn().mockResolvedValue({ ok: false, status: 401 });
+    transport = new SSETransport({ apiBaseUrl: 'http://hub.test', token: 'revoked', fetchImpl, onUnauthorized });
+    await expect(transport.sendCommand(command)).rejects.toMatchObject({ code: 'unauthorized' });
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
   });
 
   it('sends commands with the bearer token', async () => {
