@@ -28,8 +28,8 @@ function SignedInApp({
   onSignOut: () => void;
   onSessionExpired: () => void;
 }) {
-  const [workspaceId, setWorkspaceId] = useState(session.workspaces[0]?.id ?? 'default');
-  const workspace = session.workspaces.find((w) => w.id === workspaceId) ?? session.workspaces[0] ?? { id: 'default', name: 'My workspace' };
+  const [workspaceId, setWorkspaceId] = useState(session.workspaces[0]?.id ?? 'seedbed');
+  const workspace = session.workspaces.find((w) => w.id === workspaceId) ?? session.workspaces[0] ?? { id: 'seedbed', name: 'Seedbed' };
   const transport = useMemo(
     () => services.createTransport(session, workspace.id, { onUnauthorized: onSessionExpired }),
     [services, session, workspace.id, onSessionExpired]

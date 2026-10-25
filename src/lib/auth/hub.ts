@@ -83,7 +83,7 @@ export class HubSessionApi {
       user: { id: body.user.id, email: body.user.email, name, role: body.user.role },
       // The Hub returns a single default workspace today; keep a fallback.
       workspaces:
-        body.workspaces && body.workspaces.length > 0 ? body.workspaces : [{ id: 'default', name: 'My workspace' }],
+        body.workspaces && body.workspaces.length > 0 ? body.workspaces : [{ id: 'seedbed', name: 'Seedbed' }],
       expiresAt: body.expiresAt,
     };
   }

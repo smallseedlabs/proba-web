@@ -159,7 +159,7 @@ export async function mockBackends(page: Page): Promise<MockState> {
         return json(route, 200, {
           token,
           user: { id: 'hub-user-1', email: ACCOUNT.email, name: ACCOUNT.name },
-          workspaces: [{ id: 'default', name: 'My workspace' }],
+          workspaces: [{ id: 'seedbed', name: 'Seedbed' }],
           expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
         });
       }
