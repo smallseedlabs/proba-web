@@ -22,4 +22,18 @@ describe('sessionStore', () => {
     window.sessionStorage.setItem('proba.session', '{oops');
     expect(sessionStore.load()).toBeNull();
   });
+
+  it('renames a stored legacy default workspace to seedbed', () => {
+    sessionStore.save({
+      ...session,
+      workspaces: [
+        { id: 'default', name: 'My workspace' },
+        { id: 'other', name: 'Other' },
+      ],
+    });
+    expect(sessionStore.load()?.workspaces).toEqual([
+      { id: 'seedbed', name: 'Seedbed' },
+      { id: 'other', name: 'Other' },
+    ]);
+  });
 });
