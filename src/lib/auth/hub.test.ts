@@ -29,7 +29,7 @@ describe('HubSessionApi', () => {
     expect(session).toEqual({
       token: 'hub-token',
       user: { id: 'u1', email: 'ana@acme.com', name: 'Ana Ruiz', role: undefined },
-      workspaces: [{ id: 'default', name: 'My workspace' }],
+      workspaces: [{ id: 'seedbed', name: 'Seedbed' }],
       expiresAt: '2030-01-01T00:00:00Z',
     });
   });
