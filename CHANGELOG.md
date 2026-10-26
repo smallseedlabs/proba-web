@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Pin `@smallseedlabs/proba-protocol` to v0.3.3 (from v0.2.0): additive audit catalog and event fields only; no change to the types the app uses.
 - Sign-in uses Firebase Authentication (email/password, Continue with Google,
   password reset). The Firebase ID token is exchanged for a revocable Hub
   session (`POST /v1/auth/session`); an expired or revoked session is refreshed
