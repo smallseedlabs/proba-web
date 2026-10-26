@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Container healthcheck (`Dockerfile`, `docker-compose.yml`, `deploy/stack.yml`) probes `http://127.0.0.1:8080/health`. It used `localhost`, which the Alpine `wget` resolves to IPv6 (`::1`) while nginx listens on IPv4 only, so a working container was reported unhealthy.
+
 ### Changed
 
 - Sign-in uses Firebase Authentication (email/password, Continue with Google,
