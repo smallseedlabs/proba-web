@@ -39,6 +39,10 @@ export class DemoAuthClient implements AuthClient {
     throw new AuthError('session_expired');
   }
 
+  async getIdToken(): Promise<string> {
+    return 'demo-id-token';
+  }
+
   async restore(): Promise<Session | null> {
     return null;
   }

@@ -69,4 +69,14 @@ describe('DemoAuthClient', () => {
     expect(session.workspaces.length).toBeGreaterThan(1);
     await expect(auth.signIn({ email: 'a@b.co', password: 'short' })).rejects.toMatchObject({ code: 'invalid_credentials' });
   });
+
+  it('reports control through status events carrying the execution state, like the Hub', () => {
+    const { transport, events } = connect('harbor');
+    const states = () => events.filter((e) => e.type === 'status').map((e) => (e.payload as { executionState: string }).executionState);
+    void transport.sendCommand(command('control', { action: 'pause' }));
+    void transport.sendCommand(command('control', { action: 'kill' }));
+    void transport.sendCommand(command('control', { action: 'pause' })); // a pause never lifts an emergency stop
+    void transport.sendCommand(command('control', { action: 'resume' }));
+    expect(states()).toEqual(['paused', 'stopped', 'stopped', 'running']);
+  });
 });

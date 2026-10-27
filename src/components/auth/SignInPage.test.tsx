@@ -13,6 +13,7 @@ function setup(signIn: AuthClient['signIn'], overrides: Partial<AuthClient> = {}
     sendPasswordReset: vi.fn().mockResolvedValue(undefined),
     refresh: vi.fn(),
     restore: vi.fn().mockResolvedValue(null),
+    getIdToken: vi.fn().mockResolvedValue('id-token'),
     signOut: vi.fn(),
     ...overrides,
   };

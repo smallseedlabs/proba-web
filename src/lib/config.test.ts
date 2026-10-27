@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { firebaseConfig, loadConfig } from './config';
+import { firebaseConfig, loadConfig, parseHttpUrl } from './config';
 
 const FULL = {
   FIREBASE_API_KEY: 'key',
@@ -43,5 +43,22 @@ describe('firebaseConfig', () => {
       apiBaseUrl: 'https://hub.example.com',
       firebase: { projectId: 'proba' },
     });
+  });
+});
+
+describe('audit API address', () => {
+  it('reads AUDIT_API_BASE_URL at runtime, trimming trailing slashes', () => {
+    expect(loadConfig({ AUDIT_API_BASE_URL: 'https://audit.example.com/' }).auditApiBaseUrl).toBe('https://audit.example.com');
+  });
+
+  it('falls back to the build-time VITE_AUDIT_API_BASE_URL', () => {
+    vi.stubEnv('VITE_AUDIT_API_BASE_URL', 'http://localhost:4000');
+    expect(loadConfig({}).auditApiBaseUrl).toBe('http://localhost:4000');
+    expect(loadConfig({ AUDIT_API_BASE_URL: 'https://audit.example.com' }).auditApiBaseUrl).toBe('https://audit.example.com');
+  });
+
+  it('is null (charts unavailable) when unset or not an http(s) address', () => {
+    expect(loadConfig({}).auditApiBaseUrl).toBeNull();
+    for (const bad of ['', '  ', '/relative', 'ftp://audit', 'not a url']) expect(parseHttpUrl(bad)).toBeNull();
   });
 });

@@ -7,6 +7,7 @@ set -e
 cat > /usr/share/nginx/html/env-config.js << EOF2
 window.ENV = {
   API_BASE_URL: "${API_BASE_URL:-http://localhost:3000}",
+  AUDIT_API_BASE_URL: "${AUDIT_API_BASE_URL:-}",
   FIREBASE_API_KEY: "${FIREBASE_API_KEY:-}",
   FIREBASE_AUTH_DOMAIN: "${FIREBASE_AUTH_DOMAIN:-}",
   FIREBASE_PROJECT_ID: "${FIREBASE_PROJECT_ID:-}",

@@ -123,6 +123,19 @@ describe('FirebaseAuthClient', () => {
     });
   });
 
+  it('hands out the Firebase ID token for services that verify it themselves, refreshing on request', async () => {
+    const { client, signedIn } = setup();
+    await expect(client.getIdToken()).resolves.toBe('id-1');
+    expect(signedIn.getIdToken).toHaveBeenLastCalledWith(false);
+    await expect(client.getIdToken(true)).resolves.toBe('id-2');
+    expect(signedIn.getIdToken).toHaveBeenLastCalledWith(true);
+  });
+
+  it('has no ID token when nobody is signed in', async () => {
+    const { client } = setup({ currentUser: vi.fn().mockResolvedValue(null) });
+    await expect(client.getIdToken()).rejects.toMatchObject({ code: 'session_expired' });
+  });
+
   it('restores a Firebase user after a reload, or returns null', async () => {
     await expect(setup().client.restore()).resolves.toBe(SESSION);
     await expect(setup({ currentUser: vi.fn().mockResolvedValue(null) }).client.restore()).resolves.toBeNull();

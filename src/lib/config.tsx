@@ -4,6 +4,12 @@ import type { FirebaseWebConfig } from './auth/firebase';
 export interface AppConfig {
   /** Base URL of proba-hub. */
   apiBaseUrl: string;
+  /**
+   * Base URL of the audit API (proba-audit, apps/audit-api). Source of the campaign charts
+   * (GET /v1/analytics/summary); null when not configured, in which case charts show that
+   * analytics are unavailable instead of inventing data.
+   */
+  auditApiBaseUrl: string | null;
   /** Firebase Authentication web config; null when incomplete (sign-in unavailable). */
   firebase: FirebaseWebConfig | null;
   /**
@@ -16,6 +22,7 @@ export interface AppConfig {
 
 interface RuntimeEnv {
   API_BASE_URL?: string;
+  AUDIT_API_BASE_URL?: string;
   FIREBASE_API_KEY?: string;
   FIREBASE_AUTH_DOMAIN?: string;
   FIREBASE_PROJECT_ID?: string;
@@ -38,12 +45,26 @@ export function firebaseConfig(env: RuntimeEnv | undefined): FirebaseWebConfig |
   return Object.values(config).every(Boolean) ? config : null;
 }
 
+/** A usable http(s) address, or null. Anything else (blank, relative, another scheme) switches the feature off. */
+// eslint-disable-next-line react-refresh/only-export-components
+export function parseHttpUrl(value: string | undefined): string | null {
+  const raw = (value ?? '').trim();
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? raw.replace(/\/+$/, '') : null;
+  } catch {
+    return null;
+  }
+}
+
 export const DEMO_MODE: boolean = __DEMO_MODE__;
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function loadConfig(env: RuntimeEnv | undefined = (window as { ENV?: RuntimeEnv }).ENV): AppConfig {
   return {
     apiBaseUrl: env?.API_BASE_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
+    auditApiBaseUrl: parseHttpUrl(env?.AUDIT_API_BASE_URL || import.meta.env.VITE_AUDIT_API_BASE_URL),
     firebase: firebaseConfig(env),
     demoMode: DEMO_MODE,
   };

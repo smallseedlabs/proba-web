@@ -84,6 +84,12 @@ export interface AuthClient {
   refresh(): Promise<Session>;
   /** Resume a signed-in identity after a reload, or null if there is none. */
   restore(): Promise<Session | null>;
+  /**
+   * The signed-in user's identity (Firebase ID) token, refreshed when it is about to expire. Used to call
+   * services that verify the identity token themselves (the audit API) rather than a Hub session token.
+   * Rejects with AuthError('session_expired') when nobody is signed in.
+   */
+  getIdToken(forceRefresh?: boolean): Promise<string>;
   /** Revoke the Hub session (when given) and sign out of the identity provider. */
   signOut(session: Session | null): Promise<void>;
 }

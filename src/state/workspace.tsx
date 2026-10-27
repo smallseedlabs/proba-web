@@ -5,6 +5,7 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   type ReactNode,
 } from 'react';
 import type { ControlAction } from '../lib/protocol';
@@ -34,6 +35,27 @@ const WorkspaceContext = createContext<WorkspaceApi | null>(null);
 
 const ASK_CHOICES = ['approve', 'reject', 'edit'] as const;
 
+/** How long a control press waits for the Hub's status event before telling the user it is unconfirmed. */
+export const CONTROL_CONFIRM_TIMEOUT_MS = 10_000;
+
+const CONTROL_TOASTS: Record<OperationsState, { tone: 'danger' | 'warning' | 'success'; title: string; description: string }> = {
+  stopped: {
+    tone: 'danger',
+    title: 'Emergency stop engaged',
+    description: 'All campaigns have been halted and no further spend will occur.',
+  },
+  paused: {
+    tone: 'warning',
+    title: 'All activity paused',
+    description: 'Proba will not launch or change campaigns until you resume.',
+  },
+  running: {
+    tone: 'success',
+    title: 'Activity resumed',
+    description: 'Proba is working on your goals again.',
+  },
+};
+
 export function WorkspaceProvider({
   transport,
   onSessionExpired,
@@ -45,6 +67,25 @@ export function WorkspaceProvider({
 }) {
   const [state, dispatch] = useReducer(workspaceReducer, initialWorkspaceState);
   const { notify } = useToast();
+  const awaitingControl = useRef<{ timer: ReturnType<typeof setTimeout> } | null>(null);
+
+  useEffect(
+    () => () => {
+      if (awaitingControl.current) clearTimeout(awaitingControl.current.timer);
+    },
+    []
+  );
+
+  // The Hub confirms a control by persisting the state and emitting a status event carrying
+  // executionState (reduced into state.operations). Only now do we tell the user it took effect.
+  useEffect(() => {
+    const outcome = state.lastControl;
+    const waiting = awaitingControl.current;
+    if (!outcome || !waiting) return;
+    clearTimeout(waiting.timer);
+    awaitingControl.current = null;
+    notify(CONTROL_TOASTS[outcome.executionState]);
+  }, [state.lastControl, notify]);
 
   useEffect(() => {
     const offEvents = transport.subscribe((event) => dispatch({ type: 'event', event }));
@@ -150,27 +191,26 @@ export function WorkspaceProvider({
   const control = useCallback(
     async (action: ControlAction) => {
       dispatch({ type: 'control_pending', action });
-      const ok = await send('control', { action });
-      dispatch({ type: 'control_pending', action: null });
-      if (ok) {
-        const next: OperationsState = action === 'pause' ? 'paused' : action === 'kill' ? 'stopped' : 'running';
-        dispatch({ type: 'operations', state: next });
+      if (awaitingControl.current) clearTimeout(awaitingControl.current.timer);
+      const timer = setTimeout(() => {
+        if (awaitingControl.current?.timer !== timer) return;
+        awaitingControl.current = null;
+        dispatch({ type: 'control_pending', action: null });
         notify({
-          tone: action === 'kill' ? 'danger' : action === 'pause' ? 'warning' : 'success',
-          title:
-            action === 'kill'
-              ? 'Emergency stop engaged'
-              : action === 'pause'
-                ? 'All activity paused'
-                : 'Activity resumed',
-          description:
-            action === 'kill'
-              ? 'All campaigns have been halted and no further spend will occur.'
-              : action === 'pause'
-                ? 'Proba will not launch or change campaigns until you resume.'
-                : 'Proba is working on your goals again.',
+          tone: 'warning',
+          title: 'Waiting for Proba to confirm',
+          description: 'The request was sent, but Proba has not confirmed it yet. The controls show the last confirmed state.',
         });
+      }, CONTROL_CONFIRM_TIMEOUT_MS);
+      awaitingControl.current = { timer };
+
+      const ok = await send('control', { action });
+      if (!ok && awaitingControl.current?.timer === timer) {
+        clearTimeout(timer);
+        awaitingControl.current = null;
+        dispatch({ type: 'control_pending', action: null });
       }
+      // Accepted is not applied: state.operations changes only when the Hub's status event arrives.
       return ok;
     },
     [send, notify]
