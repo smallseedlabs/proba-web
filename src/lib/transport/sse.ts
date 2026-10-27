@@ -137,6 +137,20 @@ export class SSETransport implements TransportClient {
     if (!response.ok) {
       throw new TransportError('server', 'Proba is having trouble right now. Please try again.', response.status);
     }
+    // The Hub answers 202 even when it refuses a command (validation, thread not found, ...), with
+    // { status: 'rejected', reason } in the body. Accepted means accepted, not "someone said 202".
+    if (response.status === 202 && (await this.wasRejected(response))) {
+      throw new TransportError('rejected', 'This request was not accepted.', response.status);
+    }
+  }
+
+  private async wasRejected(response: Response): Promise<boolean> {
+    try {
+      const body = (await response.json()) as { status?: unknown } | null;
+      return body?.status === 'rejected';
+    } catch {
+      return false;
+    }
   }
 
   subscribe(onEvent: (event: IncomingEvent) => void): () => void {

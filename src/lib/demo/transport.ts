@@ -20,6 +20,8 @@ export class DemoTransport implements TransportClient {
   private timers = new Set<ReturnType<typeof setTimeout>>();
   private seq = 0;
   private _status: ConnectionStatus = 'closed';
+  /** Mirrors the Hub's persisted execution state, which a reload or reconnect replays from status events. */
+  private executionState: 'running' | 'paused' | 'stopped' = 'running';
   private readonly latency: number;
   private readonly now: () => Date;
 
@@ -85,6 +87,17 @@ export class DemoTransport implements TransportClient {
           this.message(THREADS.jacket, 'Plan approved. I am producing the three creative variants now and will ask for your approval again before any spend goes live.')
         );
         break;
+      case 'control': {
+        // Like the Hub: pause never lifts an emergency stop, only resume does, and the state is
+        // reported on a status event.
+        const action = String(payload.action);
+        this.executionState =
+          action === 'kill' ? 'stopped' : action === 'pause' ? (this.executionState === 'stopped' ? 'stopped' : 'paused') : action === 'resume' ? 'running' : this.executionState;
+        this.later(200, () =>
+          this.emit({ type: 'status', threadId: command.threadId, payload: { state: action, executionState: this.executionState, message: `Execution ${action}` } })
+        );
+        break;
+      }
       case 'send_message':
         this.later(900, () =>
           this.message(command.threadId, 'Thanks, noted. I will take that into account and update you in this thread.')

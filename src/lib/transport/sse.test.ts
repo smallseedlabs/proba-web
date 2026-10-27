@@ -178,6 +178,20 @@ describe('SSETransport', () => {
     await expect(transport.sendCommand(command)).rejects.toMatchObject({ code });
   });
 
+  it('treats a 202 whose body says rejected as a rejected command, and an accepted one as sent', async () => {
+    const rejected = vi.fn().mockResolvedValue({ ok: true, status: 202, json: async () => ({ status: 'rejected', reason: 'validation_error' }) });
+    transport = new SSETransport({ apiBaseUrl: 'http://hub.test', fetchImpl: rejected });
+    await expect(transport.sendCommand(command)).rejects.toMatchObject({ code: 'rejected', status: 202 });
+
+    const accepted = vi.fn().mockResolvedValue({ ok: true, status: 202, json: async () => ({ status: 'accepted', clientMsgId: 'c-123' }) });
+    transport = new SSETransport({ apiBaseUrl: 'http://hub.test', fetchImpl: accepted });
+    await expect(transport.sendCommand(command)).resolves.toBeUndefined();
+
+    const unreadable = vi.fn().mockResolvedValue({ ok: true, status: 202, json: async () => Promise.reject(new SyntaxError('empty')) });
+    transport = new SSETransport({ apiBaseUrl: 'http://hub.test', fetchImpl: unreadable });
+    await expect(transport.sendCommand(command)).resolves.toBeUndefined();
+  });
+
   it('maps fetch failures to a network error', async () => {
     const fetchImpl = vi.fn().mockRejectedValue(new TypeError('offline'));
     transport = new SSETransport({ apiBaseUrl: 'http://hub.test', fetchImpl });

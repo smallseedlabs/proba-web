@@ -4,6 +4,26 @@ import type { AskDecision, LocalMessage } from './selectors';
 
 export type OperationsState = 'running' | 'paused' | 'stopped';
 
+const OPERATIONS_STATES: readonly OperationsState[] = ['running', 'paused', 'stopped'];
+
+/**
+ * The execution state the Hub persists and reports on every control status event
+ * (payload.executionState). Anything else, including status events that are not about
+ * control, carries no execution state.
+ */
+export function executionStateOf(event: IncomingEvent): OperationsState | null {
+  if (event.type !== 'status') return null;
+  const value = (event.payload as { executionState?: unknown }).executionState;
+  return OPERATIONS_STATES.includes(value as OperationsState) ? (value as OperationsState) : null;
+}
+
+/** A control command the Hub has applied: what was asked and the state it left the workspace in. */
+export interface ControlOutcome {
+  seq: number;
+  action?: string;
+  executionState: OperationsState;
+}
+
 export interface WorkspaceState {
   events: IncomingEvent[];
   connection: ConnectionStatus;
@@ -12,6 +32,8 @@ export interface WorkspaceState {
   decisions: Record<string, AskDecision>;
   operations: OperationsState;
   pendingControl: ControlAction | null;
+  /** The latest control the Hub confirmed in this session's event stream (null until one arrives). */
+  lastControl: ControlOutcome | null;
 }
 
 type Action =
@@ -20,8 +42,7 @@ type Action =
   | { type: 'local_message'; message: LocalMessage }
   | { type: 'local_message_status'; clientMsgId: string; status: LocalMessage['status'] }
   | { type: 'decision'; askId: string; decision: AskDecision | null }
-  | { type: 'control_pending'; action: ControlAction | null }
-  | { type: 'operations'; state: OperationsState };
+  | { type: 'control_pending'; action: ControlAction | null };
 
 export const initialWorkspaceState: WorkspaceState = {
   events: [],
@@ -31,6 +52,7 @@ export const initialWorkspaceState: WorkspaceState = {
   decisions: {},
   operations: 'running',
   pendingControl: null,
+  lastControl: null,
 };
 
 export function workspaceReducer(state: WorkspaceState, action: Action): WorkspaceState {
@@ -42,7 +64,21 @@ export function workspaceReducer(state: WorkspaceState, action: Action): Workspa
         const clientMsgId = (action.event.payload as { clientMsgId?: string }).clientMsgId;
         localMessages = localMessages.map((m) => (m.clientMsgId === clientMsgId ? { ...m, status: 'sent' } : m));
       }
-      return { ...state, events: [...state.events, action.event], localMessages, hasLoaded: true };
+      // The Hub is the source of truth for pause / emergency stop: events (live or replayed on
+      // reconnect) set the state, the UI never assumes it from a button press.
+      const executionState = executionStateOf(action.event);
+      const control: Partial<WorkspaceState> = executionState
+        ? {
+            operations: executionState,
+            pendingControl: null,
+            lastControl: {
+              seq: action.event.seq,
+              action: (action.event.payload as { state?: string }).state,
+              executionState,
+            },
+          }
+        : {};
+      return { ...state, ...control, events: [...state.events, action.event], localMessages, hasLoaded: true };
     }
     case 'connection':
       return { ...state, connection: action.status, hasLoaded: state.hasLoaded || action.status === 'open' };
@@ -63,8 +99,6 @@ export function workspaceReducer(state: WorkspaceState, action: Action): Workspa
     }
     case 'control_pending':
       return { ...state, pendingControl: action.action };
-    case 'operations':
-      return { ...state, operations: action.state };
     default:
       return state;
   }
