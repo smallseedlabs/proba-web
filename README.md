@@ -70,6 +70,7 @@ Sign in with any email address and a password of at least 8 characters.
 | Build time (Vite)       | Runtime (Docker)  | Default            | Purpose                                     |
 | ----------------------- | ----------------- | ------------------ | ------------------------------------------- |
 | `VITE_API_BASE_URL`     | `API_BASE_URL`    | `http://localhost:3000` | Hub base URL                           |
+| `VITE_AUDIT_API_BASE_URL` | `AUDIT_API_BASE_URL` | none           | Audit API base URL (campaign charts). Unset = charts show as unavailable |
 | `VITE_FIREBASE_API_KEY` | `FIREBASE_API_KEY` | none              | Firebase web app `apiKey`                   |
 | `VITE_FIREBASE_AUTH_DOMAIN` | `FIREBASE_AUTH_DOMAIN` | none      | Firebase `authDomain`                       |
 | `VITE_FIREBASE_PROJECT_ID` | `FIREBASE_PROJECT_ID` | none        | Firebase `projectId` (same as the Hub's)    |

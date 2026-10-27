@@ -189,6 +189,21 @@ export class FirebaseAuthClient implements AuthClient {
     }
   }
 
+  async getIdToken(forceRefresh = false): Promise<string> {
+    let user: IdentityUser | null;
+    try {
+      user = await (await this.provider()).currentUser();
+    } catch {
+      throw new AuthError('session_expired');
+    }
+    if (!user) throw new AuthError('session_expired');
+    try {
+      return await user.getIdToken(forceRefresh);
+    } catch (error) {
+      throw toAuthError(error);
+    }
+  }
+
   async restore(): Promise<Session | null> {
     if (!this.configured) return null;
     try {

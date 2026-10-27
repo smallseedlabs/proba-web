@@ -10,6 +10,7 @@ import { GoalStatusBadge, MetricTileComponent } from '../registry/cards';
 import { SpendBarComponent } from '../registry/spend-bar';
 import { Card, CardBody, CardHeader } from '../ui/card';
 import { EmptyState, Skeleton } from '../ui/feedback';
+import { AnalyticsCharts } from './AnalyticsCharts';
 import { Page, PageHeader } from './common';
 
 function kpis(goal: GoalView): Array<{ label: string; value: string }> {
@@ -128,7 +129,6 @@ export function CampaignsView({ selectedId }: { selectedId?: string }) {
   }
 
   const spendBars = reports.filter((r) => r.ui?.component === 'spend_bar');
-  const charts = reports.filter((r) => r.ui?.component === 'metric_chart');
   const tables = reports.filter((r) => r.ui?.component === 'table');
   const tiles = reports.filter((r) => r.ui?.component === 'metric_tile');
   const metrics = kpis(goal);
@@ -161,59 +161,47 @@ export function CampaignsView({ selectedId }: { selectedId?: string }) {
         </section>
       )}
 
-      {reports.length === 0 ? (
-        <Card className="mt-6">
-          <EmptyState
-            icon={<Megaphone className="h-6 w-6" />}
-            title="No performance data yet"
-            description="Results will appear here as soon as this campaign goes live."
-          />
-        </Card>
-      ) : (
-        <div className="mt-6 grid gap-6 xl:grid-cols-3">
-          <div className="space-y-6 xl:col-span-2">
-            {charts.map((e) => (
-              <ComponentRenderer key={e.seq} ui={e.ui as never} fallbackText={e.fallbackText ?? ''} />
-            ))}
-          </div>
-          <div className="space-y-6">
-            {spendBars.length > 0
-              ? spendBars.map((e) => <ComponentRenderer key={e.seq} ui={e.ui as never} fallbackText={e.fallbackText ?? ''} />)
-              : goal.metrics?.budget && (
-                  <SpendBarComponent
-                    ui={{ component: 'spend_bar', version: '1.0.0', props: { spent: goal.metrics.spend, budget: goal.metrics.budget, currency: goal.metrics.currency } }}
-                    fallbackText=""
-                  />
-                )}
-            {tiles.map((e) => (
-              <ComponentRenderer key={e.seq} ui={e.ui as never} fallbackText={e.fallbackText ?? ''} />
-            ))}
-            {updates.length > 0 && (
-              <Card>
-                <CardHeader title="Recent updates" titleAs="h2" />
-                <CardBody className="p-0">
-                  <ul className="divide-y">
-                    {updates.map((u) => (
-                      <li key={u.key} className="px-5 py-3">
-                        <p className="text-body font-medium text-foreground">{u.title}</p>
-                        {u.detail && <p className="mt-0.5 text-body text-muted-foreground">{u.detail}</p>}
-                        <time dateTime={u.at} className="mt-1 block text-caption text-muted-foreground">
-                          {formatRelativeTime(u.at)}
-                        </time>
-                      </li>
-                    ))}
-                  </ul>
-                </CardBody>
-              </Card>
-            )}
-          </div>
-          {tables.map((e) => (
-            <div key={e.seq} className="xl:col-span-3">
-              <ComponentRenderer ui={e.ui as never} fallbackText={e.fallbackText ?? ''} />
-            </div>
-          ))}
+      <div className="mt-6 grid gap-6 xl:grid-cols-3">
+        <div className="space-y-6 xl:col-span-2">
+          <AnalyticsCharts />
         </div>
-      )}
+        <div className="space-y-6">
+          {spendBars.length > 0
+            ? spendBars.map((e) => <ComponentRenderer key={e.seq} ui={e.ui as never} fallbackText={e.fallbackText ?? ''} />)
+            : goal.metrics?.budget && (
+                <SpendBarComponent
+                  ui={{ component: 'spend_bar', version: '1.0.0', props: { spent: goal.metrics.spend, budget: goal.metrics.budget, currency: goal.metrics.currency } }}
+                  fallbackText=""
+                />
+              )}
+          {tiles.map((e) => (
+            <ComponentRenderer key={e.seq} ui={e.ui as never} fallbackText={e.fallbackText ?? ''} />
+          ))}
+          {updates.length > 0 && (
+            <Card>
+              <CardHeader title="Recent updates" titleAs="h2" />
+              <CardBody className="p-0">
+                <ul className="divide-y">
+                  {updates.map((u) => (
+                    <li key={u.key} className="px-5 py-3">
+                      <p className="text-body font-medium text-foreground">{u.title}</p>
+                      {u.detail && <p className="mt-0.5 text-body text-muted-foreground">{u.detail}</p>}
+                      <time dateTime={u.at} className="mt-1 block text-caption text-muted-foreground">
+                        {formatRelativeTime(u.at)}
+                      </time>
+                    </li>
+                  ))}
+                </ul>
+              </CardBody>
+            </Card>
+          )}
+        </div>
+        {tables.map((e) => (
+          <div key={e.seq} className="xl:col-span-3">
+            <ComponentRenderer ui={e.ui as never} fallbackText={e.fallbackText ?? ''} />
+          </div>
+        ))}
+      </div>
     </Page>
   );
 }
