@@ -2,9 +2,9 @@ import type { ReactNode } from 'react';
 import { CircleHelp, ClipboardCheck, ShieldAlert } from 'lucide-react';
 import type { IncomingEvent } from '../../lib/transport';
 import { formatRelativeTime } from '../../lib/utils/format';
-import { askPayload } from '../../state/selectors';
+import { approvalUI, askPayload } from '../../state/selectors';
 import { useWorkspace } from '../../state/workspace';
-import { useResolvedAskIds } from '../../state/hooks';
+import { useGoals, useResolvedAskIds } from '../../state/hooks';
 import { ComponentRenderer } from '../registry';
 import { Badge } from '../ui/badge';
 import { Callout } from '../ui/feedback';
@@ -18,8 +18,10 @@ const typeMeta = {
 export function AskCard({ event, context, showTime = true }: { event: IncomingEvent; context?: ReactNode; showTime?: boolean }) {
   const { state, respond } = useWorkspace();
   const resolved = useResolvedAskIds();
+  const goals = useGoals();
   const ask = askPayload(event);
   if (!ask) return null;
+  const ui = approvalUI(event, goals);
 
   const meta = typeMeta[ask.askType] ?? typeMeta.action_approval;
   const Icon = meta.icon;
@@ -54,9 +56,9 @@ export function AskCard({ event, context, showTime = true }: { event: IncomingEv
         )}
       </div>
       {ask.askType === 'clarify' && ask.description && <p className="text-body text-muted-foreground">{ask.description}</p>}
-      {event.ui ? (
+      {ui ? (
         <ComponentRenderer
-          ui={event.ui as never}
+          ui={ui as never}
           fallbackText={event.fallbackText ?? ask.title}
           disabled={disabled}
           onAction={(request) => respond(event, request)}

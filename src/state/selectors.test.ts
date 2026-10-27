@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { IncomingEvent } from '../lib/transport';
-import { describeEvent, messageUI, selectActivity, selectGoals, selectOpenAsks, selectReports, selectThreadItems } from './selectors';
+import { approvalUI, describeEvent, messageUI, selectActivity, selectGoals, selectOpenAsks, selectReports, selectThreadItems } from './selectors';
 import { initialWorkspaceState, workspaceReducer } from './reducer';
 
 let seq = 0;
@@ -95,5 +95,65 @@ describe('messageUI', () => {
     expect(messageUI({ ...base, payload: { text: 'Hi', source: 'brain' }, ui })).toBe(ui);
     const different = { component: 'text' as const, version: '1.0.0', props: { text: 'Other' } };
     expect(messageUI({ ...base, payload: { text: 'Hi', source: 'brain' }, ui: different })).toBe(different);
+  });
+});
+
+describe('approvalUI (budget decisions)', () => {
+  const goals = selectGoals([
+    ev({ type: 'goal_updated', threadId: 'tb', payload: { goalId: 'gb', status: 'active' }, ui: { component: 'goal_summary', version: '1', props: { title: 'Boot', metrics: { spend: 10, budget: 100, currency: 'EUR' } } } }),
+  ]);
+  const ask = (threadId: string | undefined, payload: Record<string, unknown>, ui?: IncomingEvent['ui']) =>
+    ev({ type: 'ask', threadId, payload: { askId: 'a1', askType: 'action_approval', title: 'Adjust budget', blocking: true, risk: 'medium', questions: [], ...payload }, ui });
+  const props = (ui: IncomingEvent['ui']) => ui?.props as Record<string, unknown>;
+
+  it("replaces the protocol mapper's identical placeholder values with the ask's real current and proposed amounts", () => {
+    const json = '{\n  "dailyBudget": 120\n}';
+    const event = ask(
+      'tb',
+      { costEffect: { current: 100, proposed: 120, currency: 'USD', impact: '20.0%' } },
+      { component: 'approval_card', version: '1.0.0', props: { title: 'Tool: adjust_budget', currentValue: json, proposedValue: json, risk: 'medium' } }
+    );
+    const ui = approvalUI(event, goals);
+    expect(props(ui)).toMatchObject({
+      title: 'Tool: adjust_budget',
+      currentValue: '$100',
+      proposedValue: '$120',
+      costImpact: { current: 100, proposed: 120, currency: 'USD' },
+    });
+  });
+
+  it('keeps display text that already differs, but takes the cost from the ask', () => {
+    const event = ask(
+      'tb',
+      { costEffect: { current: 120, proposed: 145, currency: 'USD', impact: '+$25 per day' } },
+      { component: 'approval_card', version: '1.0.0', props: { currentValue: '$40 / day', proposedValue: '$65 / day', costImpact: { current: 1, proposed: 2, currency: 'USD' } } }
+    );
+    expect(props(approvalUI(event, goals))).toMatchObject({ currentValue: '$40 / day', proposedValue: '$65 / day', costImpact: { current: 120, proposed: 145 } });
+  });
+
+  it("falls back to the goal's own budget as the current value when the ask has none, in the goal's currency", () => {
+    const event = ask('tb', { costEffect: { proposed: 150, currency: '' } });
+    const ui = approvalUI(event, goals);
+    expect(ui?.component).toBe('approval_card');
+    expect(props(ui)).toMatchObject({ title: 'Adjust budget', currentValue: '€100', proposedValue: '€150', costImpact: { current: 100, proposed: 150, currency: 'EUR' } });
+  });
+
+  it('leaves everything else as the Hub sent it', () => {
+    const plain = ask('tb', {}, { component: 'approval_card', version: '1', props: { title: 'No cost' } });
+    expect(approvalUI(plain, goals)).toBe(plain.ui);
+    const noCurrent = ask('other-thread', { costEffect: { proposed: 150 } });
+    expect(approvalUI(noCurrent, goals)).toBeUndefined();
+    const other = ask('tb', { costEffect: { current: 1, proposed: 2 } }, { component: 'confirm', version: '1', props: {} });
+    expect(approvalUI(other, goals)).toBe(other.ui);
+    const plan = ask('tb', { askType: 'plan_approval', costEffect: { current: 1, proposed: 2 } });
+    expect(approvalUI(plan, goals)).toBeUndefined();
+  });
+});
+
+describe('control status events in the activity feed', () => {
+  it('describes them in plain words instead of "Execution pause"', () => {
+    const entry = describeEvent(ev({ type: 'status', payload: { state: 'kill', executionState: 'stopped', message: 'Execution kill' } }));
+    expect(entry).toMatchObject({ title: 'Emergency stop engaged', tone: 'danger', category: 'update' });
+    expect(describeEvent(ev({ type: 'status', payload: { state: 'executing', message: 'Working' } }))?.title).toBe('Working');
   });
 });

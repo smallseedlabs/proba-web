@@ -1,5 +1,7 @@
 import type { AskPayload, ComponentType, GoalUpdatedPayload, MessagePayload, StatusPayload } from '../lib/protocol';
 import type { IncomingEvent } from '../lib/transport';
+import { formatCurrency } from '../lib/utils/format';
+import { executionStateOf } from './reducer';
 
 export type GoalStatus = GoalUpdatedPayload['status'];
 
@@ -107,6 +109,45 @@ export function askPayload(event: IncomingEvent): AskPayload | null {
   return payload.askId ? payload : null;
 }
 
+const finiteNumber = (value: unknown): number | undefined => (typeof value === 'number' && Number.isFinite(value) ? value : undefined);
+
+/**
+ * What an approval card should show for a spend decision. The Hub stores the real current and proposed
+ * amounts on the ask (costEffect) and the goal's own budget on goal_updated; the card's own
+ * currentValue / proposedValue are display text the brain supplies, and the protocol's tool-call mapper
+ * fills both with the same parameters JSON. So for an action approval that carries a cost, current and
+ * proposed come from the ask (the goal's budget when the ask has no current amount) and replace display
+ * text that is missing or identical on both sides. Anything else renders exactly as sent.
+ */
+export function approvalUI(event: IncomingEvent, goals: GoalView[]): IncomingEvent['ui'] | undefined {
+  const ask = askPayload(event);
+  if (!ask || ask.askType !== 'action_approval') return event.ui;
+  if (event.ui && event.ui.component !== 'approval_card') return event.ui;
+
+  const proposed = finiteNumber(ask.costEffect?.proposed);
+  if (proposed === undefined) return event.ui;
+  const goal = event.threadId ? goals.find((g) => g.threadId === event.threadId) : undefined;
+  const current = finiteNumber(ask.costEffect?.current) ?? (goal?.metrics?.budget ? goal.metrics.budget : undefined);
+  if (current === undefined) return event.ui;
+  const currency = ask.costEffect?.currency || goal?.metrics?.currency || 'USD';
+
+  const base = (event.ui?.props ?? { title: ask.title, description: ask.description, risk: ask.risk }) as {
+    currentValue?: string;
+    proposedValue?: string;
+  };
+  const needsValues = !base.currentValue || !base.proposedValue || base.currentValue === base.proposedValue;
+  return {
+    component: 'approval_card',
+    version: event.ui?.version ?? '1.0.0',
+    props: {
+      ...base,
+      ...(needsValues ? { currentValue: formatCurrency(current, currency), proposedValue: formatCurrency(proposed, currency) } : {}),
+      costImpact: { current, proposed, currency },
+    },
+    ...(event.ui?.actions ? { actions: event.ui.actions } : {}),
+  } as IncomingEvent['ui'];
+}
+
 export function selectResolvedAskIds(events: IncomingEvent[]): Set<string> {
   const resolved = new Set<string>();
   for (const event of events) {
@@ -210,6 +251,11 @@ export function describeEvent(event: IncomingEvent): ActivityEntry | null {
     }
     case 'status': {
       const payload = event.payload as unknown as StatusPayload;
+      const executionState = executionStateOf(event);
+      if (executionState) {
+        const title = { running: 'Activity resumed', paused: 'All activity paused', stopped: 'Emergency stop engaged' }[executionState];
+        return { ...base, title, category: 'update', tone: executionState === 'stopped' ? 'danger' : executionState === 'paused' ? 'warning' : 'success' };
+      }
       return {
         ...base,
         title: payload.message || event.fallbackText || 'Status updated',
