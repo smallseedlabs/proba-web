@@ -223,9 +223,16 @@ export function describeEvent(event: IncomingEvent): ActivityEntry | null {
       const ask = askPayload(event);
       if (!ask) return null;
       const isQuestion = ask.askType === 'clarify';
+      const isResearch = ask.askType === 'research_review';
       return {
         ...base,
-        title: isQuestion ? 'Proba asked a question' : ask.askType === 'plan_approval' ? 'Plan submitted for approval' : 'Approval requested',
+        title: isQuestion
+          ? 'Proba asked a question'
+          : isResearch
+            ? 'Research review requested'
+            : ask.askType === 'plan_approval'
+              ? 'Plan submitted for approval'
+              : 'Approval requested',
         detail: ask.title,
         category: isQuestion ? 'question' : 'decision',
         tone: isQuestion ? 'info' : 'warning',

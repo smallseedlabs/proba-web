@@ -112,6 +112,13 @@ test.describe('Workspace', () => {
     await expect(dialog.getByText('Describe what you want to achieve.')).toBeVisible();
     await dialog.getByLabel('Goal').fill('Test demand for the Harbor canvas tote in Germany');
     await dialog.getByLabel('Daily budget cap').fill('120');
+    const landing = dialog.getByLabel('Landing page URL');
+    await expect(landing).toHaveValue('');
+    await expect(dialog).not.toContainText(/smallseedlabs\.com/i);
+    await landing.fill('javascript:alert(1)');
+    await dialog.getByRole('button', { name: 'Create goal' }).click();
+    await expect(dialog.getByText(/http or https|valid absolute URL|credentials/i)).toBeVisible();
+    await landing.fill('https://operator-entered.example/path');
     await dialog.getByRole('button', { name: 'Create goal' }).click();
     await expect(dialog).toHaveCount(0);
     await expect(page.getByRole('link', { name: /Test demand for the Harbor canvas tote in Germany/ })).toBeVisible();

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Operator landing-page URL on **Create a goal** (`userSuppliedInput.landingPageUrl` on `create_goal`). The field is blank by default: no hardcoded or prefilled destination (including no `smallseedlabs.com`). Empty omits the field; malformed URLs are rejected in the dialog.
+- Distinct **research review** card for `askType: "research_review"`: sourced findings, assumptions, unknowns, source links, and artifact / version / `inputRevision`. Approve / reject / edit send `researchAcceptance` for the currently displayed artifact. Edit requires a new operator URL and invalidates acceptance. Accepting research is **not** spend permission. Clarify, plan, and action-approval cards are unchanged.
+- Docs: [`docs/RESEARCH_REVIEW.md`](./docs/RESEARCH_REVIEW.md) (backend prerequisite, local test instructions, merge order). Demo mode does not emit research reviews or pretend to launch campaigns.
+
+### Changed
+
+- Pin `@smallseedlabs/proba-protocol` to unmerged PR23 head `298eeb4b4ba3fe14b4bf5077810ce2f433067984` (package 0.6.0: PR22 research schemas + Zod 4). There is no `v0.6.0` tag. Do not pin leftover `feat/context-bridge-v0.4.0`. App `zod` is `^4.6.6` in the same bump. Merge protocol #22 to `main` first, then retarget #23 to `main`, then this web PR.
+- Docker builder rewrites GitHub SSH URLs to HTTPS so `npm ci` can install the public protocol SHA without ssh keys.
+
 ### Fixed
 
 - Pause and Emergency stop in the top bar show the state the Hub persisted, not an assumption. `state.operations` is set from `executionState` on the Hub's `status` events (live, and replayed after a reconnect); pressing a button only sends the command and waits for the Hub's confirmation (an unconfirmed press says so after 10 s). A command the Hub answers with `202 { status: 'rejected' }` is now reported as rejected.

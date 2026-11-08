@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { ControlAction } from '../lib/protocol';
+import { buildCreateGoalPayload, type CreateGoalInput } from '../lib/research';
 import { TransportError, type IncomingEvent, type OutgoingCommand, type TransportClient } from '../lib/transport';
 import { createId } from '../lib/utils/id';
 import { useToast } from '../components/ui/toast';
@@ -28,7 +29,7 @@ export interface WorkspaceApi {
   sendMessage(text: string, threadId?: string): Promise<boolean>;
   respond(event: IncomingEvent, request: ActionRequest): Promise<void>;
   control(action: ControlAction): Promise<boolean>;
-  createGoal(input: { title: string; description?: string; dailyBudget?: number; currency: string }): Promise<boolean>;
+  createGoal(input: CreateGoalInput): Promise<boolean>;
 }
 
 const WorkspaceContext = createContext<WorkspaceApi | null>(null);
@@ -175,12 +176,21 @@ export function WorkspaceProvider({
             title:
               ask.askType === 'clarify'
                 ? 'Answer sent'
-                : choice === 'reject'
-                  ? 'Request declined'
-                  : ask.askType === 'plan_approval'
-                    ? 'Plan approved'
-                    : 'Change approved',
-            description: ask.title,
+                : ask.askType === 'research_review'
+                  ? choice === 'reject'
+                    ? 'Research left unaccepted'
+                    : choice === 'edit'
+                      ? 'Research revision invalidated'
+                      : 'Research accepted (not spend)'
+                  : choice === 'reject'
+                    ? 'Request declined'
+                    : ask.askType === 'plan_approval'
+                      ? 'Plan approved'
+                      : 'Change approved',
+            description:
+              ask.askType === 'research_review'
+                ? 'This does not approve spend or launch a campaign.'
+                : ask.title,
           });
         }
       }
@@ -217,13 +227,21 @@ export function WorkspaceProvider({
   );
 
   const createGoal = useCallback(
-    async (input: { title: string; description?: string; dailyBudget?: number; currency: string }) => {
-      const payload: Record<string, unknown> = { title: input.title };
-      if (input.description) payload.description = input.description;
-      if (input.dailyBudget) payload.budget = { daily: input.dailyBudget, currency: input.currency };
-      const ok = await send('create_goal', payload);
+    async (input: CreateGoalInput) => {
+      const built = buildCreateGoalPayload(input);
+      if (!built.ok) {
+        notify({ tone: 'danger', title: 'Landing page URL is not valid', description: built.message });
+        return false;
+      }
+      const ok = await send('create_goal', built.payload as unknown as Record<string, unknown>);
       if (ok) {
-        notify({ tone: 'success', title: 'Goal created', description: 'Proba is preparing a plan for your review.' });
+        notify({
+          tone: 'success',
+          title: 'Goal created',
+          description: built.payload.userSuppliedInput
+            ? 'The landing URL was sent with the goal. Research review still requires Hub and gateway; this is not spend approval.'
+            : 'Proba is preparing a plan for your review.',
+        });
       }
       return ok;
     },
