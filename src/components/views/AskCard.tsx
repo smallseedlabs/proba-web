@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { CircleHelp, ClipboardCheck, ShieldAlert } from 'lucide-react';
+import { BookOpen, CircleHelp, ClipboardCheck, ShieldAlert } from 'lucide-react';
 import type { IncomingEvent } from '../../lib/transport';
 import { formatRelativeTime } from '../../lib/utils/format';
 import { approvalUI, askPayload } from '../../state/selectors';
@@ -8,11 +8,13 @@ import { useGoals, useResolvedAskIds } from '../../state/hooks';
 import { ComponentRenderer } from '../registry';
 import { Badge } from '../ui/badge';
 import { Callout } from '../ui/feedback';
+import { ResearchReviewCard } from './ResearchReviewCard';
 
 const typeMeta = {
   clarify: { label: 'Question for you', icon: CircleHelp },
   plan_approval: { label: 'Plan awaiting approval', icon: ClipboardCheck },
   action_approval: { label: 'Approval required', icon: ShieldAlert },
+  research_review: { label: 'Research review', icon: BookOpen },
 } as const;
 
 export function AskCard({ event, context, showTime = true }: { event: IncomingEvent; context?: ReactNode; showTime?: boolean }) {
@@ -23,22 +25,29 @@ export function AskCard({ event, context, showTime = true }: { event: IncomingEv
   if (!ask) return null;
   const ui = approvalUI(event, goals);
 
-  const meta = typeMeta[ask.askType] ?? typeMeta.action_approval;
+  const meta = typeMeta[ask.askType as keyof typeof typeMeta] ?? typeMeta.action_approval;
   const Icon = meta.icon;
   const decision = state.decisions[ask.askId];
   const isResolved = resolved.has(ask.askId) || decision?.state === 'submitted';
   const disabled = isResolved || decision?.state === 'submitting';
+  const isResearch = ask.askType === 'research_review';
 
   const outcome =
-    decision?.choice === 'reject'
-      ? 'You declined this request.'
-      : decision?.choice === 'edit'
-        ? 'You asked for changes. Reply in this thread with what you would like revised.'
-        : ask.askType === 'clarify'
-          ? 'Answer sent. Proba is continuing with your choice.'
-          : ask.askType === 'plan_approval'
-            ? 'You approved this plan. Proba is proceeding.'
-            : 'You approved this change. Proba is applying it.';
+    isResearch && decision?.choice === 'reject'
+      ? 'You left this research unaccepted. Campaign create stays blocked. This was not a spend decision.'
+      : isResearch && decision?.choice === 'edit'
+        ? 'You invalidated this research revision. A new gather is required. This was not a spend decision.'
+        : isResearch
+          ? 'You accepted this sourced research revision. This does not approve spend or launch a campaign.'
+          : decision?.choice === 'reject'
+            ? 'You declined this request.'
+            : decision?.choice === 'edit'
+              ? 'You asked for changes. Reply in this thread with what you would like revised.'
+              : ask.askType === 'clarify'
+                ? 'Answer sent. Proba is continuing with your choice.'
+                : ask.askType === 'plan_approval'
+                  ? 'You approved this plan. Proba is proceeding.'
+                  : 'You approved this change. Proba is applying it.';
 
   return (
     <section aria-label={`${meta.label}: ${ask.title}`} className="space-y-2.5">
@@ -56,7 +65,9 @@ export function AskCard({ event, context, showTime = true }: { event: IncomingEv
         )}
       </div>
       {ask.askType === 'clarify' && ask.description && <p className="text-body text-muted-foreground">{ask.description}</p>}
-      {ui ? (
+      {isResearch ? (
+        <ResearchReviewCard ask={ask} event={event} disabled={disabled} onAction={(request) => respond(event, request)} />
+      ) : ui ? (
         <ComponentRenderer
           ui={ui as never}
           fallbackText={event.fallbackText ?? ask.title}

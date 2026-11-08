@@ -4,7 +4,10 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # git is needed to resolve the protocol package from GitHub.
-RUN apk add --no-cache git
+# Public repos: rewrite SSH to HTTPS so `npm ci` does not wait on ssh keys.
+RUN apk add --no-cache git \
+ && git config --global url."https://github.com/".insteadOf "ssh://git@github.com/" \
+ && git config --global url."https://github.com/".insteadOf "git@github.com:"
 
 COPY package*.json ./
 RUN npm ci

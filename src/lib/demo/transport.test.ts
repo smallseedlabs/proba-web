@@ -53,6 +53,21 @@ describe('DemoTransport', () => {
     expect(events.slice(mark).map((e) => e.type)).toEqual(['ack', 'ask_resolved', 'status', 'goal_updated', 'message']);
   });
 
+  it('records a landing URL on create_goal without pretending to gather research or launch a campaign', async () => {
+    const { events, transport } = connect('harbor');
+    await transport.sendCommand(
+      command('create_goal', {
+        title: 'Harbor tote',
+        userSuppliedInput: { landingPageUrl: 'https://operator-entered.example/path' },
+      })
+    );
+    expect(events.some((e) => e.type === 'ask' && (e.payload as { askType?: string }).askType === 'research_review')).toBe(false);
+    expect(events.some((e) => e.type === 'ask' && (e.payload as { askType?: string }).askType === 'action_approval')).toBe(false);
+    const texts = events.filter((e) => e.type === 'message').map((e) => (e.payload as { text?: string }).text ?? '');
+    expect(texts.some((text) => /does not gather research, accept research, or launch campaigns/.test(text))).toBe(true);
+    expect(JSON.stringify(events)).not.toMatch(/smallseedlabs\.com/i);
+  });
+
   it('acknowledges messages and replies', async () => {
     const { events, transport } = connect('harbor');
     await transport.sendCommand(command('send_message', { text: 'Hello' }, 't1'));

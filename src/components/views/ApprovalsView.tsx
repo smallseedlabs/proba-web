@@ -13,7 +13,11 @@ export function ApprovalsView() {
   const openAsks = useOpenAsks();
   const goals = useGoals();
   const goalByThread = new Map(goals.map((g) => [g.threadId, g]));
-  const decisions = openAsks.filter((e) => askPayload(e)?.askType !== 'clarify');
+  const research = openAsks.filter((e) => askPayload(e)?.askType === 'research_review');
+  const decisions = openAsks.filter((e) => {
+    const type = askPayload(e)?.askType;
+    return type && type !== 'clarify' && type !== 'research_review';
+  });
   const questions = openAsks.filter((e) => askPayload(e)?.askType === 'clarify');
 
   const goalLink = (threadId?: string) => {
@@ -30,7 +34,7 @@ export function ApprovalsView() {
     <Page className="max-w-4xl">
       <PageHeader
         title="Approvals"
-        description="Plans, spend changes and questions waiting on your decision. Nothing proceeds until you respond."
+        description="Plans, spend changes, sourced research reviews and questions waiting on your decision. Accepting research is not spend permission."
       />
       <div className="mt-8 space-y-10">
         {!state.hasLoaded ? (
@@ -43,11 +47,28 @@ export function ApprovalsView() {
             <EmptyState
               icon={<CheckCheck className="h-6 w-6" />}
               title="You're all caught up"
-              description="There are no plans, spend changes or questions waiting for you. New requests will appear here and in the goal they belong to."
+              description="There are no plans, spend changes, research reviews or questions waiting for you. New requests will appear here and in the goal they belong to."
             />
           </Card>
         ) : (
           <>
+            {research.length > 0 && (
+              <section aria-labelledby="approvals-research">
+                <h2 id="approvals-research" className="mb-4 text-title text-foreground">
+                  Research review <span className="text-muted-foreground">({research.length})</span>
+                </h2>
+                <p className="mb-4 text-body text-muted-foreground">
+                  Sourced findings only. Accepting a revision does not approve spend or launch a campaign.
+                </p>
+                <ul className="space-y-8">
+                  {research.map((event) => (
+                    <li key={event.seq}>
+                      <AskCard event={event} context={goalLink(event.threadId)} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
             {decisions.length > 0 && (
               <section aria-labelledby="approvals-decisions">
                 <h2 id="approvals-decisions" className="mb-4 text-title text-foreground">

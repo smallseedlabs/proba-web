@@ -49,6 +49,7 @@ describe('selectors', () => {
 
   it('describes events in business language for the activity log', () => {
     expect(describeEvent(ev({ type: 'ask', payload: { askId: 'x', askType: 'plan_approval', title: 'Launch plan' } }))?.title).toBe('Plan submitted for approval');
+    expect(describeEvent(ev({ type: 'ask', payload: { askId: 'r', askType: 'research_review', title: 'Review sourced research' } }))?.title).toBe('Research review requested');
     expect(describeEvent(ev({ type: 'ask_resolved', payload: { askId: 'x', answer: { choice: 'reject' } } }))?.title).toBe('Request declined');
     expect(describeEvent(ev({ type: 'message', payload: { text: 'Update', source: 'brain' } }))?.title).toBe('Proba posted an update');
     expect(describeEvent(ev({ type: 'ack', payload: {} }))).toBeNull();

@@ -57,7 +57,7 @@ VITE_API_BASE_URL=http://localhost:3000 npm run dev
 
 ### Demo mode (development only)
 
-Demo mode runs the full UI with sample data and no backend. It is a **build-time** flag that is off by default; the demo code is removed from normal builds entirely, and `npm run check:bundle` verifies that.
+Demo mode runs the full UI with sample data and no backend. It is a **build-time** flag that is off by default; the demo code is removed from normal builds entirely, and `npm run check:bundle` verifies that. Demo data is not research and does not launch campaigns; see [`docs/RESEARCH_REVIEW.md`](./docs/RESEARCH_REVIEW.md).
 
 ```bash
 npm run dev:demo
@@ -130,9 +130,13 @@ Docker Swarm: `docker network create --driver overlay proba-network && docker st
 
 ## Protocol
 
-Pinned to the `github:smallseedlabs/proba-protocol#v0.1.2` release tag.
+Pinned to unmerged [proba-protocol PR23](https://github.com/smallseedlabs/proba-protocol/pull/23) head `298eeb4b4ba3fe14b4bf5077810ce2f433067984` (package **0.6.0** = [PR22](https://github.com/smallseedlabs/proba-protocol/pull/22) research schemas + Zod 4). There is **no** `v0.6.0` tag; do not pin a nonexistent tag or leftover `feat/context-bridge-v0.4.0`. Merge protocol #22 to `main` first, then retarget #23 onto `main`, then this web PR. App `zod` is `^4.6.6` in the same bump.
 
 All 17 protocol components are implemented: `text`, `plan_card`, `approval_card`, `question_choice`, `question_text`, `status_banner`, `metric_tile`, `metric_chart`, `table`, `spend_bar`, `timeline_item`, `goal_summary`, `alert`, `form`, `number_input`, `select` and `confirm`.
+
+`askType: "research_review"` is **not** a protocol UI component. Web renders it as a dedicated research card (findings, assumptions, unknowns, sources) instead of a budget `approval_card`. See [`docs/RESEARCH_REVIEW.md`](./docs/RESEARCH_REVIEW.md).
+
+Hub does not yet forward `userSuppliedInput` or persist research review. Full research → accept → create-campaign E2E is **not** available. Do not enable a live gateway or paid Ads path from this client.
 
 ## Screenshots
 

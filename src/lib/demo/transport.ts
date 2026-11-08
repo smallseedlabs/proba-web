@@ -117,6 +117,15 @@ export class DemoTransport implements TransportClient {
           })
         );
         this.later(800, () => this.message(threadId, `I am drafting a plan for “${title}”. I will share it here for your approval before anything goes live.`));
+        const landing = (payload.userSuppliedInput as { landingPageUrl?: unknown } | undefined)?.landingPageUrl;
+        if (typeof landing === 'string' && landing.length > 0) {
+          this.later(950, () =>
+            this.message(
+              threadId,
+              'The landing page URL was recorded on this development-only goal. This demo does not gather research, accept research, or launch campaigns.'
+            )
+          );
+        }
         break;
       }
       default:

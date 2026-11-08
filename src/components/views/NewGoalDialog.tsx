@@ -1,5 +1,6 @@
 import { useId, useState, type FormEvent } from 'react';
 import { Target } from 'lucide-react';
+import { parseOptionalLandingPageUrl } from '../../lib/research';
 import { useWorkspace } from '../../state/workspace';
 import { Button } from '../ui/button';
 import { Dialog } from '../ui/dialog';
@@ -11,14 +12,28 @@ export function NewGoalDialog({ open, onClose }: { open: boolean; onClose: () =>
   const [description, setDescription] = useState('');
   const [budget, setBudget] = useState('');
   const [currency, setCurrency] = useState('USD');
-  const [errors, setErrors] = useState<{ title?: string; budget?: string }>({});
+  const [landingPageUrl, setLandingPageUrl] = useState('');
+  const [errors, setErrors] = useState<{ title?: string; budget?: string; landingPageUrl?: string }>({});
   const [submitting, setSubmitting] = useState(false);
-  const ids = { title: useId(), description: useId(), budget: useId(), currency: useId(), titleError: useId(), budgetError: useId(), budgetHint: useId(), form: useId() };
+  const ids = {
+    title: useId(),
+    description: useId(),
+    budget: useId(),
+    currency: useId(),
+    landingPageUrl: useId(),
+    titleError: useId(),
+    budgetError: useId(),
+    budgetHint: useId(),
+    landingError: useId(),
+    landingHint: useId(),
+    form: useId(),
+  };
 
   const reset = () => {
     setTitle('');
     setDescription('');
     setBudget('');
+    setLandingPageUrl('');
     setErrors({});
   };
 
@@ -29,10 +44,18 @@ export function NewGoalDialog({ open, onClose }: { open: boolean; onClose: () =>
     else if (title.trim().length > 200) next.title = 'Keep the goal under 200 characters.';
     const amount = budget.trim() ? Number(budget) : undefined;
     if (amount !== undefined && (Number.isNaN(amount) || amount <= 0)) next.budget = 'Enter a daily budget greater than zero.';
+    const landing = parseOptionalLandingPageUrl(landingPageUrl);
+    if (!landing.ok) next.landingPageUrl = landing.message;
     setErrors(next);
     if (Object.keys(next).length) return;
     setSubmitting(true);
-    const ok = await createGoal({ title: title.trim(), description: description.trim() || undefined, dailyBudget: amount, currency });
+    const ok = await createGoal({
+      title: title.trim(),
+      description: description.trim() || undefined,
+      dailyBudget: amount,
+      currency,
+      landingPageUrl: landing.ok ? landing.url : undefined,
+    });
     setSubmitting(false);
     if (ok) {
       reset();
@@ -109,6 +132,27 @@ export function NewGoalDialog({ open, onClose }: { open: boolean; onClose: () =>
         </div>
         <FieldError id={ids.budgetError}>{errors.budget}</FieldError>
         <FieldHint id={ids.budgetHint}>Proba will never exceed this cap. Any spend still requires your approval.</FieldHint>
+        <div className="space-y-1.5">
+          <Label htmlFor={ids.landingPageUrl}>Landing page URL</Label>
+          <Input
+            id={ids.landingPageUrl}
+            type="text"
+            inputMode="url"
+            autoComplete="url"
+            spellCheck={false}
+            value={landingPageUrl}
+            placeholder="https://"
+            aria-invalid={errors.landingPageUrl ? true : undefined}
+            aria-describedby={[errors.landingPageUrl ? ids.landingError : null, ids.landingHint].filter(Boolean).join(' ')}
+            onChange={(e) => setLandingPageUrl(e.target.value)}
+          />
+          <FieldError id={ids.landingError}>{errors.landingPageUrl}</FieldError>
+          <FieldHint id={ids.landingHint}>
+            Optional. Enter the page Proba should research. Leave blank if you do not have one yet — there is no default
+            destination. Research gather and campaign create stay blocked until you supply and accept a URL. This field
+            is not spend approval.
+          </FieldHint>
+        </div>
       </form>
     </Dialog>
   );
