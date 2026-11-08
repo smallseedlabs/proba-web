@@ -11,9 +11,12 @@ updates:
       minor-and-patch:
         update-types: ["minor", "patch"]
     # Major upgrades (TypeScript, zod, eslint, vitest, ...) are done deliberately, by hand, not by bot.
+    # eslint-plugin-react-refresh 0.5+ requires eslint 9/10; that lands with the eslint major, not as a grouped minor.
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint-plugin-react-refresh"
+        versions: [">=0.5.0"]
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
