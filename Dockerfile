@@ -16,7 +16,7 @@ COPY . .
 RUN npm run build && npm run check:bundle
 
 # Stage 2: Production
-FROM nginx:1.25-alpine
+FROM nginx:1.31-alpine
 
 RUN addgroup -g 1001 -S probauser && \
     adduser -u 1001 -S probauser -G probauser
