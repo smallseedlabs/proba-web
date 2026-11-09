@@ -104,6 +104,44 @@ const creativeResponseSchema = z.object({
   approvedAt: z.string().nullable(),
 });
 
+const providerAccountSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  currency: z.string().optional(),
+  businessId: z.string().optional(),
+  businessName: z.string().optional(),
+});
+
+const connectionSchema = z.object({
+  provider: z.string(),
+  displayName: z.string(),
+  available: z.boolean(),
+  status: z.enum(['not_connected', 'pending_account', 'connected', 'needs_reconnect']),
+  connectionId: z.string().optional(),
+  connectedByMe: z.boolean().optional(),
+  accountId: z.string().nullable().optional(),
+  accountName: z.string().nullable().optional(),
+  accounts: z.array(providerAccountSchema).optional(),
+  scopes: z.array(z.string()).optional(),
+  connectedAt: z.string().optional(),
+  lastErrorCode: z.string().nullable().optional(),
+});
+
+const connectionsResponseSchema = z.object({
+  enabled: z.boolean(),
+  workspaceId: z.string().optional(),
+  connections: z.array(connectionSchema),
+});
+
+export type ProviderAccount = z.infer<typeof providerAccountSchema>;
+export type PlatformConnection = z.infer<typeof connectionSchema>;
+export type ConnectionsState = z.infer<typeof connectionsResponseSchema>;
+export interface OAuthCallbackParams {
+  state: string;
+  code?: string;
+  error?: string;
+}
+
 export type MetricRow = z.infer<typeof metricRowSchema>;
 export type ReviewRules = z.infer<typeof rulesSchema>;
 export type ReviewCampaign = z.infer<typeof campaignSchema>;
@@ -150,6 +188,12 @@ export interface ActionsClient {
   decide(proposalId: string, decision: 'approve' | 'reject'): Promise<Proposal>;
   getCreative(goalId: string, signal?: AbortSignal): Promise<CreativeRecord>;
   saveCreative(goalId: string, creative: ApprovedCreative, targeting?: Record<string, unknown>): Promise<CreativeRecord>;
+  /** Marketing: ad platform connections for this workspace (Hub keeps all provider secrets). */
+  listConnections(signal?: AbortSignal): Promise<ConnectionsState>;
+  startConnection(provider: string): Promise<{ authorizeUrl: string; expiresAt: string }>;
+  completeConnection(provider: string, params: OAuthCallbackParams): Promise<PlatformConnection>;
+  selectConnectionAccount(provider: string, accountId: string): Promise<PlatformConnection>;
+  disconnectConnection(provider: string): Promise<PlatformConnection>;
 }
 
 /** Plain-language messages for Hub error codes the owner can act on. */
@@ -164,6 +208,16 @@ const CODE_MESSAGES: Record<string, string> = {
   goal_not_found: 'That goal was not found.',
   campaign_not_found: 'That campaign was not found.',
   review_disabled: 'Scheduled reviews are turned off for this campaign.',
+  connections_unavailable: 'Ad platform connections are not set up on this Hub yet.',
+  provider_unavailable: 'That ad platform cannot be reached right now. Try again shortly.',
+  connected_by_other: 'Another member connected this platform. They need to disconnect it first.',
+  invalid_state: 'This sign-in link expired or was already used. Start Connect again.',
+  access_denied: 'Access was not granted on the platform, so nothing was connected.',
+  invalid_grant: 'The platform did not accept the sign-in. Start Connect again.',
+  insufficient_scope: 'The platform did not grant the ad permissions Proba needs.',
+  needs_reconnect: 'This connection needs to be reconnected.',
+  not_connected: 'This platform is not connected.',
+  unknown_account: 'That ad account is not available on this connection.',
 };
 
 export interface HubActionsClientOptions {
@@ -225,6 +279,30 @@ export class HubActionsClient implements ActionsClient {
       ...(targeting ? { targeting } : {}),
     });
     return this.parse(creativeResponseSchema, body);
+  }
+
+  async listConnections(signal?: AbortSignal) {
+    return this.parse(connectionsResponseSchema, await this.request('GET', '/v1/connections', undefined, signal));
+  }
+
+  async startConnection(provider: string) {
+    const body = await this.request('POST', `/v1/connections/${encodeURIComponent(provider)}/start`, {});
+    return this.parse(z.object({ authorizeUrl: z.string().url(), expiresAt: z.string() }), body);
+  }
+
+  async completeConnection(provider: string, params: OAuthCallbackParams) {
+    const body = await this.request('POST', `/v1/connections/${encodeURIComponent(provider)}/callback`, params);
+    return this.parse(z.object({ connection: connectionSchema }), body).connection;
+  }
+
+  async selectConnectionAccount(provider: string, accountId: string) {
+    const body = await this.request('PUT', `/v1/connections/${encodeURIComponent(provider)}/account`, { accountId });
+    return this.parse(z.object({ connection: connectionSchema }), body).connection;
+  }
+
+  async disconnectConnection(provider: string) {
+    const body = await this.request('DELETE', `/v1/connections/${encodeURIComponent(provider)}`);
+    return this.parse(z.object({ connection: connectionSchema }), body).connection;
   }
 
   private parse<T>(schema: z.ZodType<T>, body: unknown): T {

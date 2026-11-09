@@ -5,6 +5,11 @@ import App from './App';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { ToastProvider } from './components/ui/toast';
 import { ConfigProvider } from './lib/config';
+import { captureOAuthCallback } from './lib/connections/callback';
+
+// Provider OAuth redirects land on /marketing/<provider>/callback; stash and strip the
+// one-time code from the address bar before anything renders.
+captureOAuthCallback(window);
 
 const root = document.getElementById('root');
 if (!root) throw new Error('Root element not found');
