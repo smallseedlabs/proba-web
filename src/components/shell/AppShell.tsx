@@ -12,6 +12,7 @@ import { ActivityView } from '../views/ActivityView';
 import { ApprovalsView } from '../views/ApprovalsView';
 import { CampaignsView } from '../views/CampaignsView';
 import { GoalsView } from '../views/GoalsView';
+import { MarketingView } from '../views/MarketingView';
 import { SettingsView } from '../views/SettingsView';
 import { NAV_ITEMS } from './nav';
 import { Sidebar, type NavItem } from './Sidebar';
@@ -23,6 +24,7 @@ const TITLES: Record<string, string> = {
   activity: 'Activity',
   campaigns: 'Campaigns',
   actions: 'Reviews',
+  marketing: 'Marketing',
   settings: 'Settings',
 };
 
@@ -163,6 +165,7 @@ export function AppShell({
           {route.section === 'activity' && <ActivityView />}
           {route.section === 'campaigns' && <CampaignsView selectedId={route.id} />}
           {route.section === 'actions' && <ActionsView />}
+          {route.section === 'marketing' && <MarketingView />}
           {route.section === 'settings' && <SettingsView session={session} workspace={workspace} onSignOut={onSignOut} />}
         </main>
       </div>
