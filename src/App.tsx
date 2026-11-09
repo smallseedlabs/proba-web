@@ -6,6 +6,7 @@ import { SignInPage } from './components/auth/SignInPage';
 import { AppShell } from './components/shell/AppShell';
 import { LogoMark } from './components/brand/Logo';
 import { Spinner } from './components/ui/feedback';
+import { ActionsProvider } from './state/actions';
 import { AnalyticsProvider } from './state/analytics';
 import { WorkspaceProvider } from './state/workspace';
 
@@ -35,12 +36,18 @@ function SignedInApp({
     () => services.createTransport(session, workspace.id, { onUnauthorized: onSessionExpired }),
     [services, session, workspace.id, onSessionExpired]
   );
+  const actions = useMemo(
+    () => services.createActions(session, { onUnauthorized: onSessionExpired }),
+    [services, session, onSessionExpired]
+  );
 
   return (
     <AnalyticsProvider client={services.analytics}>
-      <WorkspaceProvider key={workspace.id} transport={transport} onSessionExpired={onSessionExpired}>
-        <AppShell session={session} workspace={workspace} onSwitchWorkspace={setWorkspaceId} onSignOut={onSignOut} />
-      </WorkspaceProvider>
+      <ActionsProvider client={actions}>
+        <WorkspaceProvider key={workspace.id} transport={transport} onSessionExpired={onSessionExpired}>
+          <AppShell session={session} workspace={workspace} onSwitchWorkspace={setWorkspaceId} onSignOut={onSignOut} />
+        </WorkspaceProvider>
+      </ActionsProvider>
     </AnalyticsProvider>
   );
 }

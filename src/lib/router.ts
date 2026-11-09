@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 
-export type Section = 'goals' | 'approvals' | 'activity' | 'campaigns' | 'settings';
+export type Section = 'goals' | 'approvals' | 'activity' | 'campaigns' | 'actions' | 'settings';
 
 export interface Route {
   section: Section;
   id?: string;
 }
 
-const SECTIONS: Section[] = ['goals', 'approvals', 'activity', 'campaigns', 'settings'];
+const SECTIONS: Section[] = ['goals', 'approvals', 'activity', 'campaigns', 'actions', 'settings'];
 
 export function parseHash(hash: string): Route {
   const [section, id] = hash.replace(/^#\/?/, '').split('/');

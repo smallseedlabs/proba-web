@@ -11,6 +11,7 @@ import { SpendBarComponent } from '../registry/spend-bar';
 import { Card, CardBody, CardHeader } from '../ui/card';
 import { EmptyState, Skeleton } from '../ui/feedback';
 import { AnalyticsCharts } from './AnalyticsCharts';
+import { PostCreativeCard } from './PostCreativeCard';
 import { Page, PageHeader } from './common';
 
 function kpis(goal: GoalView): Array<{ label: string; value: string }> {
@@ -177,6 +178,7 @@ export function CampaignsView({ selectedId }: { selectedId?: string }) {
           {tiles.map((e) => (
             <ComponentRenderer key={e.seq} ui={e.ui as never} fallbackText={e.fallbackText ?? ''} />
           ))}
+          <PostCreativeCard goalId={goal.goalId} />
           {updates.length > 0 && (
             <Card>
               <CardHeader title="Recent updates" titleAs="h2" />

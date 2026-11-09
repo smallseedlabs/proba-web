@@ -7,6 +7,7 @@ import { useWorkspace } from '../../state/workspace';
 import { Button } from '../ui/button';
 import { Dialog } from '../ui/dialog';
 import { Callout } from '../ui/feedback';
+import { ActionsView } from '../views/ActionsView';
 import { ActivityView } from '../views/ActivityView';
 import { ApprovalsView } from '../views/ApprovalsView';
 import { CampaignsView } from '../views/CampaignsView';
@@ -21,6 +22,7 @@ const TITLES: Record<string, string> = {
   approvals: 'Approvals',
   activity: 'Activity',
   campaigns: 'Campaigns',
+  actions: 'Reviews',
   settings: 'Settings',
 };
 
@@ -160,6 +162,7 @@ export function AppShell({
           {route.section === 'approvals' && <ApprovalsView />}
           {route.section === 'activity' && <ActivityView />}
           {route.section === 'campaigns' && <CampaignsView selectedId={route.id} />}
+          {route.section === 'actions' && <ActionsView />}
           {route.section === 'settings' && <SettingsView session={session} workspace={workspace} onSignOut={onSignOut} />}
         </main>
       </div>
