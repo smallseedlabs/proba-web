@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Reviews** section (analytics and action bot): register a campaign for review on one platform and ad account, see reports where unknown metrics show as **Unknown** and never as zero, and approve or reject proposed **pause** or **lower budget cap** actions. Nothing changes until you approve, and every approve is confirmed first. Needs the Hub `/v1/analytics/*` API; demo mode shows that reviews are not available.
+- **Reddit post** card on a campaign: owner-approved headline, text, image address and subreddits (`PUT /v1/goals/:id/creative`). No field is prefilled, and the image must be a public https address you enter.
 - Operator landing-page URL on **Create a goal** (`userSuppliedInput.landingPageUrl` on `create_goal`). The field is blank by default: no hardcoded or prefilled destination (including no `smallseedlabs.com`). Empty omits the field; malformed URLs are rejected in the dialog.
 - Distinct **research review** card for `askType: "research_review"`: sourced findings, assumptions, unknowns, source links, and artifact / version / `inputRevision`. Approve / reject / edit send `researchAcceptance` for the currently displayed artifact. Edit requires a new operator URL and invalidates acceptance. Accepting research is **not** spend permission. Clarify, plan, and action-approval cards are unchanged.
 - Docs: [`docs/RESEARCH_REVIEW.md`](./docs/RESEARCH_REVIEW.md) (backend prerequisite, local test instructions, merge order). Demo mode does not emit research reviews or pretend to launch campaigns.
