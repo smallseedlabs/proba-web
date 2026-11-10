@@ -64,6 +64,14 @@ export function workspaceReducer(state: WorkspaceState, action: Action): Workspa
         const clientMsgId = (action.event.payload as { clientMsgId?: string }).clientMsgId;
         localMessages = localMessages.map((m) => (m.clientMsgId === clientMsgId ? { ...m, status: 'sent' } : m));
       }
+      let decisions = state.decisions;
+      if (action.event.type === 'error') {
+        const askId = (action.event.payload as { askId?: unknown }).askId;
+        if (typeof askId === 'string' && askId in decisions) {
+          decisions = { ...decisions };
+          delete decisions[askId];
+        }
+      }
       // The Hub is the source of truth for pause / emergency stop: events (live or replayed on
       // reconnect) set the state, the UI never assumes it from a button press.
       const executionState = executionStateOf(action.event);
@@ -78,7 +86,7 @@ export function workspaceReducer(state: WorkspaceState, action: Action): Workspa
             },
           }
         : {};
-      return { ...state, ...control, events: [...state.events, action.event], localMessages, hasLoaded: true };
+      return { ...state, ...control, events: [...state.events, action.event], localMessages, decisions, hasLoaded: true };
     }
     case 'connection':
       return { ...state, connection: action.status, hasLoaded: state.hasLoaded || action.status === 'open' };

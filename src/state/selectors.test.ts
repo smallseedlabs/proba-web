@@ -81,6 +81,25 @@ describe('workspaceReducer', () => {
     expect(workspaceReducer(initialWorkspaceState, { type: 'connection', status: 'open' }).hasLoaded).toBe(true);
     expect(workspaceReducer(initialWorkspaceState, { type: 'connection', status: 'reconnecting' }).hasLoaded).toBe(false);
   });
+
+  it('reopens an ask card when the Hub emits an error bound to its askId', () => {
+    let state = workspaceReducer(initialWorkspaceState, {
+      type: 'decision',
+      askId: 'ask-1',
+      decision: { state: 'submitted', choice: 'approve' },
+    });
+    state = workspaceReducer(state, {
+      type: 'decision',
+      askId: 'ask-2',
+      decision: { state: 'submitted', choice: 'approve' },
+    });
+    state = workspaceReducer(state, {
+      type: 'event',
+      event: ev({ type: 'error', payload: { code: 'brain_error', message: 'failed', askId: 'ask-1', retryable: true } }),
+    });
+    expect(state.decisions['ask-1']).toBeUndefined();
+    expect(state.decisions['ask-2']).toEqual({ state: 'submitted', choice: 'approve' });
+  });
 });
 
 describe('messageUI', () => {
