@@ -36,7 +36,7 @@ describe('PostCreativeCard', () => {
       expect(c.saveCreative).toHaveBeenCalledWith(
         'g1',
         { type: 'IMAGE', headline: 'My headline', mediaUrl: 'https://images.operator-entered.example/a.png' },
-        { subreddits: ['r/one', 'r/two'] }
+        { communities: ['one', 'two'] }
       )
     );
   });

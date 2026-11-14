@@ -147,7 +147,7 @@ export function SignInPage({
   );
 
   return (
-    <div className="flex min-h-screen bg-surface">
+    <div className="flex h-full min-h-dvh overflow-y-auto bg-surface">
       <aside className="relative hidden w-[46%] max-w-[640px] flex-col justify-between overflow-hidden bg-sidebar px-12 py-10 text-sidebar-foreground lg:flex">
         <div
           className="pointer-events-none absolute inset-0 opacity-90"

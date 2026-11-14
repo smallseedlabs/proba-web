@@ -58,6 +58,13 @@ describe('AppShell', () => {
     window.location.hash = '';
   });
 
+  it('fills the viewport with a percentage-height shell, not a stale 100vh', () => {
+    renderShell(new DemoTransport({ workspaceId: 'northwind', latency: 0 }));
+    const skip = screen.getByText('Skip to main content');
+    expect(skip.parentElement).toHaveClass('h-full', 'min-h-dvh');
+    expect(skip.parentElement).not.toHaveClass('h-screen');
+  });
+
   it('renders the primary navigation with the current page marked', () => {
     renderShell(new DemoTransport({ workspaceId: 'northwind', latency: 0 }));
     const nav = screen.getAllByRole('navigation', { name: 'Main' })[0];
