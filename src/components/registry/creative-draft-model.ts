@@ -16,3 +16,29 @@ export function isCreativeDraft(value: unknown): value is CreativeDraftProps {
 
 export const HEADLINE_MAX = 300;
 export const BODY_MAX = 10_000;
+
+export const SUCCESS_METRICS: Array<{ value: string; label: string }> = [
+  { value: 'clicks', label: 'Clicks' },
+  { value: 'ctr', label: 'Click-through rate (%)' },
+  { value: 'cpc', label: 'Cost per click' },
+  { value: 'landing_page_views', label: 'Landing page views' },
+  { value: 'signups', label: 'Sign-ups' },
+  { value: 'conversions', label: 'Conversions' },
+];
+
+export interface DraftPlanProps {
+  platform: 'reddit';
+  successMetric: string;
+  successTarget?: number;
+  durationDays?: number;
+  reasons?: Record<string, string>;
+}
+
+export interface DraftTargetingProps {
+  communities?: string[];
+  geolocations?: string[];
+  interests?: string[];
+  keywords?: string[];
+  platforms?: string[];
+  languages?: string[];
+}
