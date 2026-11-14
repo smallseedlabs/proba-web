@@ -50,7 +50,8 @@ export function PostCreativeCard({ goalId }: { goalId: string }) {
           setMediaUrl(c.mediaUrl);
           setCallToAction(c.callToAction ?? '');
         }
-        const subs = record.targeting?.subreddits;
+        // Ads expects `communities` (subreddit names); older saves used `subreddits`.
+        const subs = record.targeting?.communities ?? record.targeting?.subreddits;
         if (Array.isArray(subs)) setSubreddits(subs.filter((s): s is string => typeof s === 'string').join(', '));
       })
       .catch(() => undefined);
@@ -79,11 +80,11 @@ export function PostCreativeCard({ goalId }: { goalId: string }) {
     }
     const subs = subreddits
       .split(',')
-      .map((s) => s.trim())
+      .map((s) => s.trim().replace(/^\/?r\//i, ''))
       .filter(Boolean);
     setSaving(true);
     try {
-      const saved = await client.saveCreative(goalId, creative, subs.length ? { subreddits: subs } : undefined);
+      const saved = await client.saveCreative(goalId, creative, subs.length ? { communities: subs } : undefined);
       setApprovedAt(saved.approvedAt);
       setError(null);
     } catch (err) {
