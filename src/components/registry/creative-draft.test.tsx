@@ -54,6 +54,31 @@ describe('CreativeDraftCard', () => {
     expect(screen.getByText('Tool: page.attach_user_page')).toBeInTheDocument();
     expect(screen.queryByLabelText(/Headline/)).toBeNull();
   });
+
+  it('previews a landing-page imageUrl and lets the operator remove it before approving', () => {
+    const onAction = vi.fn();
+    const withImg = {
+      component: 'approval_card',
+      version: '1.0.0',
+      props: {
+        title: 'Review the Reddit post Proba drafted',
+        risk: 'medium',
+        creativeDraft: {
+          type: 'TEXT',
+          headline: 'Waterproof boots for muddy UK trails',
+          body: 'Light, grippy and dry on wet ground.',
+          landingPageUrl: 'https://example.com/offer',
+          imageUrl: 'https://example.com/og.png',
+        },
+      },
+    } as never;
+    render(<ComponentRenderer fallbackText="draft" ui={withImg} onAction={onAction} />);
+    expect(screen.getByAltText('Landing page preview')).toHaveAttribute('src', 'https://example.com/og.png');
+    fireEvent.click(screen.getByRole('button', { name: 'Remove image' }));
+    expect(screen.queryByAltText('Landing page preview')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Save my edits and approve' }));
+    expect(onAction).toHaveBeenCalledWith({ id: 'approve', values: { useImage: false } });
+  });
 });
 
 describe('plan card', () => {

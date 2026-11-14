@@ -25,15 +25,17 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
   const initialCommunities = (targeting?.communities ?? []).join(', ');
   const [headline, setHeadline] = useState(draft.headline);
   const [body, setBody] = useState(draft.body);
+  const [useImage, setUseImage] = useState(Boolean(draft.imageUrl));
   const [communities, setCommunities] = useState(initialCommunities);
   const [metric, setMetric] = useState(plan?.successMetric ?? '');
   const [target, setTarget] = useState(plan?.successTarget !== undefined ? String(plan.successTarget) : '');
   const [error, setError] = useState<string | null>(null);
   const id = useId();
   const copyEdited = headline.trim() !== draft.headline || body.trim() !== draft.body;
+  const imageEdited = Boolean(draft.imageUrl) && !useImage;
   const communitiesEdited = targeting !== undefined && communities.trim() !== initialCommunities;
   const planEdited = plan !== undefined && (metric !== plan.successMetric || target.trim() !== (plan.successTarget !== undefined ? String(plan.successTarget) : ''));
-  const edited = copyEdited || communitiesEdited || planEdited;
+  const edited = copyEdited || imageEdited || communitiesEdited || planEdited;
 
   const approve = () => {
     const h = headline.trim();
@@ -44,6 +46,7 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
     setError(null);
     const values: Record<string, unknown> = {};
     if (copyEdited) Object.assign(values, { headline: h, body: b });
+    if (imageEdited) values.useImage = false;
     if (communitiesEdited) values.communities = communities;
     if (planEdited) Object.assign(values, { successMetric: metric, ...(target.trim() ? { successTarget: target.trim() } : {}) });
     onAction?.({ id: 'approve', ...(edited ? { values } : {}) });
@@ -73,6 +76,34 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
           <FieldHint id={`${id}-url`}>
             Clicks go to your page: <span className="break-all font-medium text-foreground">{draft.landingPageUrl}</span>
           </FieldHint>
+        )}
+        {draft.imageUrl && (
+          <div className="space-y-2 rounded-lg border bg-surface-sunken/60 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-caption font-medium text-foreground">
+                {useImage ? 'Landing-page image (included with post)' : 'Landing-page image removed (will post as text only)'}
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setUseImage((prev) => !prev)}
+                disabled={disabled}
+              >
+                {useImage ? 'Remove image' : 'Use image'}
+              </Button>
+            </div>
+            {useImage && (
+              <img
+                src={draft.imageUrl}
+                alt="Landing page preview"
+                className="max-h-48 w-auto rounded border object-contain"
+              />
+            )}
+            <FieldHint id={`${id}-image-url`}>
+              Source: <span className="break-all">{draft.imageUrl}</span>
+            </FieldHint>
+          </div>
         )}
         {plan && (
           <div className="grid gap-3 rounded-lg border bg-surface-sunken/60 p-3 sm:grid-cols-2">

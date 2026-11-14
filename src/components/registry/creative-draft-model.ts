@@ -6,6 +6,7 @@ export interface CreativeDraftProps {
   rationale?: string;
   claims?: Array<{ text: string; findingId: string }>;
   landingPageUrl?: string;
+  imageUrl?: string;
 }
 
 export function isCreativeDraft(value: unknown): value is CreativeDraftProps {
