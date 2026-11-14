@@ -338,7 +338,7 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                     goalStatus={goalStatus}
                     onOpenCopilot={() => setCopilotOverride(true)}
                   />
-                  <GoalStatusPanel goalId={selected.goalId} refreshKey={state.events.length} />
+                  <GoalStatusPanel key={selected.goalId} goalId={selected.goalId} refreshKey={state.events.length} />
                   {hasLiveCampaigns && (
                     <AnalyticsCharts campaignIds={campaignIds} platforms={platforms} />
                   )}

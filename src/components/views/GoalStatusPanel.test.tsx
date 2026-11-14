@@ -196,4 +196,37 @@ describe('GoalStatusPanel', () => {
     expect(await screen.findByText(/Goal cancelled\./)).toBeInTheDocument();
     expect(screen.getByText('CPC is twice the plan.')).toBeInTheDocument();
   });
+
+  it('resets cancel confirmation when switching goals and supports per-platform cancel', async () => {
+    const cancelGoal = vi.fn(async () => ({ goalId: 'g1', status: 'cancelled', paused: 1, failed: 0, proposalsCancelled: 0 }));
+    const cancelCampaign = vi.fn(async () => ({ probaCampaignId: 'c1', paused: 1, failed: 0, proposalsCancelled: 0 }));
+    const client = {
+      getGoalStatus: vi.fn(async (gid: string) => ({ ...STATUS, goal: { ...STATUS.goal, id: gid } })),
+      cancelGoal,
+      cancelCampaign,
+    } as unknown as ActionsClient;
+
+    const { rerender } = render(
+      <ActionsProvider client={client}>
+        <GoalStatusPanel goalId="g1" />
+      </ActionsProvider>
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel goal' }));
+    expect(screen.getByRole('button', { name: 'Confirm cancel goal' })).toBeInTheDocument();
+
+    // Switching to another goal must clear the previous goal's confirmation state.
+    rerender(
+      <ActionsProvider client={client}>
+        <GoalStatusPanel goalId="g2" />
+      </ActionsProvider>
+    );
+    expect(await screen.findByRole('button', { name: 'Cancel goal' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Confirm cancel goal' })).not.toBeInTheDocument();
+
+    // Per-platform cancel triggers only for that platform campaign.
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel Reddit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm cancel Reddit' }));
+    await vi.waitFor(() => expect(cancelCampaign).toHaveBeenCalledWith('c1'));
+  });
 });

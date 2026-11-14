@@ -251,6 +251,7 @@ export interface ActionsClient {
   pauseGoal?(goalId: string): Promise<{ paused: number; failed: number }>;
   cancelGoal?(goalId: string): Promise<{ goalId: string; status: string; paused: number; failed: number; proposalsCancelled: number }>;
   pauseCampaign?(campaignId: string): Promise<{ paused: number; failed: number }>;
+  cancelCampaign?(campaignId: string): Promise<{ probaCampaignId: string; paused: number; failed: number; proposalsCancelled: number }>;
   saveCreative(goalId: string, creative: ApprovedCreative, targeting?: Record<string, unknown>): Promise<CreativeRecord>;
   /** Marketing: ad platform connections for this workspace (Hub keeps all provider secrets). */
   listConnections(signal?: AbortSignal): Promise<ConnectionsState>;
@@ -364,6 +365,19 @@ export class HubActionsClient implements ActionsClient {
   async pauseCampaign(campaignId: string) {
     const body = await this.request('POST', `/v1/campaigns/${encodeURIComponent(campaignId)}/pause`, {});
     return this.parse(z.object({ paused: z.number(), failed: z.number() }), body);
+  }
+
+  async cancelCampaign(campaignId: string) {
+    const body = await this.request('POST', `/v1/campaigns/${encodeURIComponent(campaignId)}/cancel`, {});
+    return this.parse(
+      z.object({
+        probaCampaignId: z.string(),
+        paused: z.number(),
+        failed: z.number(),
+        proposalsCancelled: z.number(),
+      }),
+      body
+    );
   }
 
   async saveCreative(goalId: string, creative: ApprovedCreative, targeting?: Record<string, unknown>) {

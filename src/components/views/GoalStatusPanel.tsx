@@ -45,6 +45,9 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
   const [localRefresh, setLocalRefresh] = useState(0);
 
   useEffect(() => {
+    setConfirmingCancel(false);
+    setPausingTarget(null);
+    setPauseError(null);
     if (!client) return;
     const controller = new AbortController();
     setStatus(null);
@@ -100,6 +103,20 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
       setLocalRefresh((n) => n + 1);
     } catch (err) {
       setPauseError(err instanceof Error ? err.message : 'Failed to cancel goal.');
+    } finally {
+      setPausingTarget(null);
+    }
+  };
+
+  const handleCancelCampaign = async (probaCampaignId: string) => {
+    if (!client || typeof client.cancelCampaign !== 'function') return;
+    setPausingTarget(probaCampaignId);
+    setPauseError(null);
+    try {
+      await client.cancelCampaign(probaCampaignId);
+      setLocalRefresh((n) => n + 1);
+    } catch (err) {
+      setPauseError(err instanceof Error ? err.message : 'Failed to cancel platform campaign.');
     } finally {
       setPausingTarget(null);
     }
@@ -218,6 +235,7 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
         <PlatformDeliveryMatrix
           campaigns={now.campaigns}
           onPauseCampaign={!isCancelled && client && typeof client.pauseCampaign === 'function' ? handlePauseCampaign : undefined}
+          onCancelCampaign={!isCancelled && client && typeof client.cancelCampaign === 'function' ? handleCancelCampaign : undefined}
           pausingId={pausingTarget}
         />
       </div>

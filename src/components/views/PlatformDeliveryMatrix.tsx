@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { GoalStatus } from '../../lib/actions/client';
 import { getPlatformSpec } from '../../lib/platforms/registry';
 import { formatCurrency } from '../../lib/utils/format';
@@ -32,12 +33,15 @@ function formatNativeMetric(value: number, format: 'number' | 'percent' | 'curre
 export function PlatformDeliveryMatrix({
   campaigns,
   onPauseCampaign,
+  onCancelCampaign,
   pausingId,
 }: {
   campaigns: CampaignItem[];
   onPauseCampaign?: (probaCampaignId: string) => void;
+  onCancelCampaign?: (probaCampaignId: string) => void;
   pausingId?: string | null;
 }) {
+  const [confirmingCancelId, setConfirmingCancelId] = useState<string | null>(null);
   if (campaigns.length === 0) {
     return (
       <p className="mt-1 text-body text-muted-foreground">
@@ -79,12 +83,46 @@ export function PlatformDeliveryMatrix({
                 {onPauseCampaign && c.providerCampaignId && delivery?.state !== 'paused' ? (
                   <button
                     type="button"
-                    disabled={pausingId === c.probaCampaignId || pausingId === 'goal'}
+                    disabled={pausingId === c.probaCampaignId || pausingId === 'goal' || pausingId === 'cancel_goal'}
                     onClick={() => onPauseCampaign(c.probaCampaignId)}
                     className="rounded border border-input/70 bg-surface px-2 py-0.5 text-caption font-medium text-foreground hover:bg-muted disabled:opacity-50"
                   >
                     {pausingId === c.probaCampaignId ? 'Pausing…' : `Pause ${spec.shortLabel}`}
                   </button>
+                ) : null}
+                {onCancelCampaign && (c.reviewEnabled || (c.providerCampaignId && delivery?.state !== 'paused')) ? (
+                  confirmingCancelId === c.probaCampaignId ? (
+                    <span className="inline-flex items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={pausingId !== null && pausingId !== undefined}
+                        onClick={() => {
+                          setConfirmingCancelId(null);
+                          onCancelCampaign(c.probaCampaignId);
+                        }}
+                        className="rounded border border-danger/50 bg-danger/10 px-2 py-0.5 text-caption font-semibold text-danger hover:bg-danger/20 disabled:opacity-50"
+                      >
+                        Confirm cancel {spec.shortLabel}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={pausingId !== null && pausingId !== undefined}
+                        onClick={() => setConfirmingCancelId(null)}
+                        className="rounded border border-input/70 bg-surface px-1.5 py-0.5 text-caption text-muted-foreground hover:text-foreground disabled:opacity-50"
+                      >
+                        Keep
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={pausingId !== null && pausingId !== undefined}
+                      onClick={() => setConfirmingCancelId(c.probaCampaignId)}
+                      className="rounded border border-danger/30 bg-surface px-2 py-0.5 text-caption font-medium text-danger hover:bg-danger/10 disabled:opacity-50"
+                    >
+                      Cancel {spec.shortLabel}
+                    </button>
+                  )
                 ) : null}
               </div>
             </div>

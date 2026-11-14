@@ -207,7 +207,7 @@ export function CampaignsView({ selectedId }: { selectedId?: string }) {
       )}
 
       <div className="mt-6">
-        <GoalStatusPanel goalId={goal.goalId} refreshKey={state.events.length} />
+        <GoalStatusPanel key={goal.goalId} goalId={goal.goalId} refreshKey={state.events.length} />
       </div>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
