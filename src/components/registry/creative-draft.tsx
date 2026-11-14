@@ -4,7 +4,15 @@ import { Card, CardBody, CardFooter, CardHeader } from '../ui/card';
 import { FieldError, FieldHint, Input, Label, NativeSelect, Textarea } from '../ui/field';
 import { RiskBadge } from './cards';
 import type { ComponentRendererProps } from './types';
-import { BODY_MAX, HEADLINE_MAX, SUCCESS_METRICS, type CreativeDraftProps, type DraftPlanProps, type DraftTargetingProps } from './creative-draft-model';
+import {
+  BODY_MAX,
+  CTA_OPTIONS,
+  HEADLINE_MAX,
+  SUCCESS_METRICS,
+  type CreativeDraftProps,
+  type DraftPlanProps,
+  type DraftTargetingProps,
+} from './creative-draft-model';
 
 /**
  * The Reddit post Proba drafted, as an editable approval card. Approving saves the copy shown (with any
@@ -26,6 +34,8 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
   const [headline, setHeadline] = useState(draft.headline);
   const [body, setBody] = useState(draft.body);
   const [useImage, setUseImage] = useState(Boolean(draft.imageUrl));
+  const [videoUrl, setVideoUrl] = useState(draft.videoUrl ?? '');
+  const [ctaType, setCtaType] = useState(draft.ctaType ?? 'LEARN_MORE');
   const [communities, setCommunities] = useState(initialCommunities);
   const [metric, setMetric] = useState(plan?.successMetric ?? '');
   const [target, setTarget] = useState(plan?.successTarget !== undefined ? String(plan.successTarget) : '');
@@ -33,9 +43,10 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
   const id = useId();
   const copyEdited = headline.trim() !== draft.headline || body.trim() !== draft.body;
   const imageEdited = Boolean(draft.imageUrl) && !useImage;
+  const mediaEdited = videoUrl.trim() !== (draft.videoUrl ?? '') || ctaType !== (draft.ctaType ?? 'LEARN_MORE');
   const communitiesEdited = targeting !== undefined && communities.trim() !== initialCommunities;
   const planEdited = plan !== undefined && (metric !== plan.successMetric || target.trim() !== (plan.successTarget !== undefined ? String(plan.successTarget) : ''));
-  const edited = copyEdited || imageEdited || communitiesEdited || planEdited;
+  const edited = copyEdited || imageEdited || mediaEdited || communitiesEdited || planEdited;
 
   const approve = () => {
     const h = headline.trim();
@@ -47,12 +58,15 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
     const values: Record<string, unknown> = {};
     if (copyEdited) Object.assign(values, { headline: h, body: b });
     if (imageEdited) values.useImage = false;
+    if (mediaEdited) Object.assign(values, { ...(videoUrl.trim() ? { videoUrl: videoUrl.trim() } : {}), ctaType });
     if (communitiesEdited) values.communities = communities;
     if (planEdited) Object.assign(values, { successMetric: metric, ...(target.trim() ? { successTarget: target.trim() } : {}) });
     onAction?.({ id: 'approve', ...(edited ? { values } : {}) });
   };
 
-  const platformLabel = plan?.platform === 'meta' ? 'Meta Ads' : 'Reddit';
+  const isMeta = plan?.platform === 'meta';
+  const platformLabel = isMeta ? 'Meta Ads' : 'Reddit';
+  const ctaLabel = CTA_OPTIONS.find((c) => c.value === ctaType)?.label ?? 'Learn More';
   const landingHost = (() => {
     try {
       return draft.landingPageUrl ? new URL(draft.landingPageUrl).hostname.replace(/^www\./, '') : '';
@@ -69,23 +83,60 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
         actions={props.risk ? <RiskBadge risk={props.risk} /> : undefined}
       />
       <CardBody className="space-y-3">
-        <div className="rounded-lg border bg-surface p-3 shadow-xs">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <span className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
-              Live {platformLabel} Ad Preview
-            </span>
-            {landingHost && <span className="text-caption text-muted-foreground">{landingHost}</span>}
+        {isMeta ? (
+          <div className="overflow-hidden rounded-xl border bg-surface shadow-xs">
+            <div className="flex items-center justify-between border-b bg-surface-sunken/40 px-3 py-2">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-caption font-semibold text-surface">
+                  M
+                </span>
+                <div>
+                  <p className="text-caption font-semibold text-foreground">{landingHost || 'Your Brand'}</p>
+                  <p className="text-[11px] text-muted-foreground">Sponsored · Facebook &amp; Instagram</p>
+                </div>
+              </div>
+              <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Live Meta Preview</span>
+            </div>
+            <p className="px-3 py-2 text-body text-foreground">{body || 'Primary text preview'}</p>
+            {videoUrl.trim() ? (
+              <video src={videoUrl.trim()} controls className="max-h-56 w-full bg-black object-contain" />
+            ) : useImage && draft.imageUrl ? (
+              <img src={draft.imageUrl} alt="Meta ad creative preview" className="max-h-56 w-full object-cover" />
+            ) : (
+              <div className="flex h-32 items-center justify-center bg-surface-sunken text-caption text-muted-foreground">
+                Add an image or video URL below for your Meta feed visual
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-3 border-t bg-surface-sunken/50 px-3 py-2.5">
+              <div className="min-w-0">
+                {landingHost && <p className="truncate text-[11px] uppercase text-muted-foreground">{landingHost}</p>}
+                <p className="truncate text-body font-semibold text-foreground">{headline || 'Headline preview'}</p>
+              </div>
+              <span className="shrink-0 rounded-md border bg-surface px-3 py-1.5 text-caption font-semibold text-foreground">
+                {ctaLabel}
+              </span>
+            </div>
           </div>
-          <p className="text-body font-semibold text-foreground">{headline || 'Headline preview'}</p>
-          {useImage && draft.imageUrl && (
-            <img
-              src={draft.imageUrl}
-              alt="Ad creative preview"
-              className="mt-2 max-h-44 w-full rounded border object-cover"
-            />
-          )}
-          <p className="mt-2 line-clamp-3 text-body text-muted-foreground">{body || 'Post text preview'}</p>
-        </div>
+        ) : (
+          <div className="rounded-lg border bg-surface p-3 shadow-xs">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <span className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
+                Live {platformLabel} Ad Preview
+              </span>
+              {landingHost && <span className="text-caption text-muted-foreground">{landingHost}</span>}
+            </div>
+            <p className="text-body font-semibold text-foreground">{headline || 'Headline preview'}</p>
+            {videoUrl.trim() ? (
+              <video src={videoUrl.trim()} controls className="mt-2 max-h-48 w-full rounded border bg-black object-contain" />
+            ) : (
+              useImage &&
+              draft.imageUrl && (
+                <img src={draft.imageUrl} alt="Ad creative preview" className="mt-2 max-h-44 w-full rounded border object-cover" />
+              )
+            )}
+            <p className="mt-2 line-clamp-3 text-body text-muted-foreground">{body || 'Post text preview'}</p>
+          </div>
+        )}
         <div>
           <Label htmlFor={`${id}-headline`} required>
             Headline
@@ -129,6 +180,36 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
             <FieldHint id={`${id}-image-url`}>
               Source: <span className="break-all">{draft.imageUrl}</span>
             </FieldHint>
+          </div>
+        )}
+        {(isMeta || draft.videoUrl) && (
+          <div className="grid gap-3 rounded-lg border bg-surface-sunken/60 p-3 sm:grid-cols-2">
+            <div>
+              <Label htmlFor={`${id}-cta`}>Call-to-action button</Label>
+              <NativeSelect id={`${id}-cta`} value={ctaType} onChange={(e) => setCtaType(e.target.value)} disabled={disabled}>
+                {CTA_OPTIONS.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+            <div>
+              <Label htmlFor={`${id}-video`}>Video URL (optional MP4/MOV)</Label>
+              <Input
+                id={`${id}-video`}
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                placeholder="https://…/promo.mp4"
+                disabled={disabled}
+              />
+            </div>
+            {draft.visualBrief && (
+              <p className="text-caption text-muted-foreground sm:col-span-2">
+                <span className="font-medium text-foreground">Visual direction: </span>
+                {draft.visualBrief}
+              </p>
+            )}
           </div>
         )}
         {plan && (

@@ -1,4 +1,12 @@
 /** Brain-drafted Reddit post carried on an approval card (ui props.creativeDraft). */
+export const CTA_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'LEARN_MORE', label: 'Learn More' },
+  { value: 'SIGN_UP', label: 'Sign Up' },
+  { value: 'SHOP_NOW', label: 'Shop Now' },
+  { value: 'GET_QUOTE', label: 'Get Quote' },
+  { value: 'DOWNLOAD', label: 'Download' },
+];
+
 export interface CreativeDraftProps {
   type: 'TEXT';
   headline: string;
@@ -7,6 +15,9 @@ export interface CreativeDraftProps {
   claims?: Array<{ text: string; findingId: string }>;
   landingPageUrl?: string;
   imageUrl?: string;
+  videoUrl?: string;
+  ctaType?: string;
+  visualBrief?: string;
 }
 
 export function isCreativeDraft(value: unknown): value is CreativeDraftProps {
