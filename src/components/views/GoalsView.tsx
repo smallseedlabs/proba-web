@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ChartColumn, Plus, Target } from 'lucide-react';
 import type { Session } from '../../lib/auth';
 import { routeHref } from '../../lib/router';
 import { cn } from '../../lib/utils/cn';
+import { SHORT_VIEWPORT_QUERY, useMediaQuery } from '../../lib/utils/useMediaQuery';
 import { formatCurrency, formatNumber, formatRelativeTime } from '../../lib/utils/format';
 import { selectLatestStatus, type GoalView } from '../../state/selectors';
 import { useGoals, useOpenAsks } from '../../state/hooks';
@@ -74,11 +75,81 @@ function GoalStats({ goal }: { goal: GoalView }) {
   );
 }
 
+
+function GoalHeader({
+  goal,
+  status,
+  compact,
+}: {
+  goal: GoalView;
+  status: ReturnType<typeof selectLatestStatus>;
+  compact: boolean;
+}) {
+  const [expanded, setExpanded] = useState(!compact);
+  useEffect(() => {
+    setExpanded(!compact);
+  }, [compact]);
+
+  const detailsOpen = !compact || expanded;
+  const spend = goal.metrics && goal.metrics.spend > 0 ? goal.metrics : undefined;
+
+  return (
+    <div data-testid="goal-header" className={cn('border-b bg-surface px-4 md:px-6', detailsOpen ? 'py-5' : 'py-2.5')}>
+      <a href={routeHref({ section: 'goals' })} className="mb-2 inline-flex items-center gap-1 text-body font-medium text-primary hover:underline lg:hidden">
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        All goals
+      </a>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className={cn('flex items-center gap-2', detailsOpen ? 'mb-1.5' : 'mb-0.5')}>
+            <GoalStatusBadge status={goal.status} />
+          </div>
+          <h2 className={cn('text-foreground', detailsOpen ? 'text-heading' : 'truncate text-title')}>{goal.title}</h2>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {compact && (
+            <Button type="button" size="sm" variant="outline" aria-expanded={detailsOpen} onClick={() => setExpanded((open) => !open)}>
+              {detailsOpen ? 'Hide details' : 'Show details'}
+            </Button>
+          )}
+          {spend && (
+            <a
+              href={routeHref({ section: 'campaigns', id: goal.goalId })}
+              className="inline-flex h-9 items-center gap-2 rounded-md border border-input/60 bg-surface px-4 text-body font-medium text-foreground shadow-sm hover:bg-muted"
+            >
+              <ChartColumn className="h-4 w-4" aria-hidden="true" />
+              View performance
+            </a>
+          )}
+        </div>
+      </div>
+      {detailsOpen && <GoalStats goal={goal} />}
+      {detailsOpen && status && (
+        <div className="mt-4">
+          <StatusBannerComponent
+            ui={{
+              component: 'status_banner',
+              version: '1.0.0',
+              props: {
+                status: status.state,
+                message: status.message,
+                progress: status.progress && status.progress.total > 0 ? Math.round((status.progress.current / status.progress.total) * 100) : undefined,
+              },
+            }}
+            fallbackText={status.message ?? ''}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function GoalsView({ selectedId, session }: { selectedId?: string; session: Session }) {
   const { state } = useWorkspace();
   const goals = useGoals();
   const openAsks = useOpenAsks();
   const [creating, setCreating] = useState(false);
+  const shortViewport = useMediaQuery(SHORT_VIEWPORT_QUERY);
   const selected = goals.find((g) => g.goalId === selectedId) ?? (selectedId ? undefined : goals[0]);
   const pendingByThread = useMemo(() => {
     const counts = new Map<string, number>();
@@ -173,47 +244,8 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
       <section aria-label={selected ? `Goal: ${selected.title}` : 'Goal'} className={cn('min-h-0 min-w-0 flex-1 flex-col', selectedId ? 'flex' : 'hidden lg:flex')}>
         {selected ? (
           <>
-            <div className="border-b bg-surface px-4 py-5 md:px-6">
-              <a href={routeHref({ section: 'goals' })} className="mb-3 inline-flex items-center gap-1 text-body font-medium text-primary hover:underline lg:hidden">
-                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                All goals
-              </a>
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="mb-1.5 flex items-center gap-2">
-                    <GoalStatusBadge status={selected.status} />
-                  </div>
-                  <h2 className="text-heading text-foreground">{selected.title}</h2>
-                </div>
-                {selected.metrics && selected.metrics.spend > 0 && (
-                  <a
-                    href={routeHref({ section: 'campaigns', id: selected.goalId })}
-                    className="inline-flex h-9 items-center gap-2 rounded-md border border-input/60 bg-surface px-4 text-body font-medium text-foreground shadow-sm hover:bg-muted"
-                  >
-                    <ChartColumn className="h-4 w-4" aria-hidden="true" />
-                    View performance
-                  </a>
-                )}
-              </div>
-              <GoalStats goal={selected} />
-              {status && (
-                <div className="mt-4">
-                  <StatusBannerComponent
-                    ui={{
-                      component: 'status_banner',
-                      version: '1.0.0',
-                      props: {
-                        status: status.state,
-                        message: status.message,
-                        progress: status.progress && status.progress.total > 0 ? Math.round((status.progress.current / status.progress.total) * 100) : undefined,
-                      },
-                    }}
-                    fallbackText={status.message ?? ''}
-                  />
-                </div>
-              )}
-            </div>
-            <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-6 md:px-6">
+            <GoalHeader goal={selected} status={status} compact={shortViewport} />
+            <div data-testid="goal-thread-scroller" className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-6 md:px-6">
               <div className="mx-auto w-full min-w-0 max-w-3xl">
                 <ThreadView threadId={selected.threadId} userName={session.user.name} />
               </div>
