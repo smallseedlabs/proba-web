@@ -61,3 +61,28 @@ describe('execution state from the Hub', () => {
     expect(apply(initialWorkspaceState, message).operations).toBe('running');
   });
 });
+
+describe('error events bound to an ask', () => {
+  const error = (payload: Record<string, unknown>): IncomingEvent => ({
+    kind: 'event',
+    seq: ++seq,
+    at: new Date(Date.UTC(2026, 9, 1, 11, seq)).toISOString(),
+    type: 'error',
+    payload,
+  });
+  const submitted = workspaceReducer(initialWorkspaceState, {
+    type: 'decision',
+    askId: 'a1',
+    decision: { state: 'submitted', choice: 'approve' },
+  });
+
+  it('reopens the card when the Hub says the answer can be given again', () => {
+    const next = apply(submitted, error({ code: 'brain_error', message: 'x', askId: 'a1', retryable: true }));
+    expect(next.decisions.a1).toBeUndefined();
+  });
+
+  it('keeps the card closed when the run behind it is gone (retryable:false)', () => {
+    const next = apply(submitted, error({ code: 'brain_error', message: 'x', askId: 'a1', retryable: false }));
+    expect(next.decisions.a1).toBeDefined();
+  });
+});

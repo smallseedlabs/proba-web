@@ -159,6 +159,17 @@ export function selectResolvedAskIds(events: IncomingEvent[]): Set<string> {
   return resolved;
 }
 
+/** Asks the Hub closed as expired (e.g. the gateway run behind them can no longer continue). */
+export function selectExpiredAskIds(events: IncomingEvent[]): Set<string> {
+  const expired = new Set<string>();
+  for (const event of events) {
+    if (event.type !== 'ask_resolved') continue;
+    const payload = event.payload as { askId?: string; resolution?: string };
+    if (payload.askId && payload.resolution === 'expired') expired.add(payload.askId);
+  }
+  return expired;
+}
+
 export function selectOpenAsks(events: IncomingEvent[], decisions: Record<string, AskDecision>): IncomingEvent[] {
   const resolved = selectResolvedAskIds(events);
   return events.filter((event) => {
