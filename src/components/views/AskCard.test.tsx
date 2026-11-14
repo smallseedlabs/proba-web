@@ -55,3 +55,21 @@ describe('AskCard budget decisions', () => {
     expect(card).not.toHaveTextContent('dailyBudget');
   });
 });
+
+describe('AskCard closed by the Hub', () => {
+  it('shows an expired outcome (not "applying it") when the run behind the ask has ended', () => {
+    const resolvedExpired: IncomingEvent = {
+      kind: 'event', seq: 3, at: '2026-10-26T10:02:00Z', type: 'ask_resolved', threadId: 't1',
+      payload: { askId: 'a1', resolution: 'expired' },
+    };
+    const error: IncomingEvent = {
+      kind: 'event', seq: 4, at: '2026-10-26T10:02:01Z', type: 'error', threadId: 't1',
+      payload: { code: 'brain_error', message: 'This approval is no longer pending in Proba, so nothing was run.', askId: 'a1', retryable: false },
+    };
+    renderAsk([goal, ask, resolvedExpired, error]);
+    const card = screen.getByRole('region', { name: /Approval required/ });
+    expect(within(card).getByRole('status')).toHaveTextContent(/This request expired because the run behind it can no longer continue/);
+    expect(card).not.toHaveTextContent(/applying it/);
+    expect(within(card).queryByText('Awaiting your decision')).toBeNull();
+  });
+});

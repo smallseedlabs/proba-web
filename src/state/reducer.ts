@@ -66,8 +66,10 @@ export function workspaceReducer(state: WorkspaceState, action: Action): Workspa
       }
       let decisions = state.decisions;
       if (action.event.type === 'error') {
-        const askId = (action.event.payload as { askId?: unknown }).askId;
-        if (typeof askId === 'string' && askId in decisions) {
+        const { askId, retryable } = action.event.payload as { askId?: unknown; retryable?: unknown };
+        // Reopen the card only when the Hub says the same ask can be answered again. retryable:false
+        // means the run behind it is gone (the Hub also sends ask_resolved expired), so keep it closed.
+        if (typeof askId === 'string' && askId in decisions && retryable !== false) {
           decisions = { ...decisions };
           delete decisions[askId];
         }

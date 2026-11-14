@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useWorkspace } from './workspace';
-import { selectActivity, selectGoals, selectOpenAsks, selectResolvedAskIds } from './selectors';
+import { selectActivity, selectExpiredAskIds, selectGoals, selectOpenAsks, selectResolvedAskIds } from './selectors';
 
 export function useGoals() {
   const { state } = useWorkspace();
@@ -15,6 +15,11 @@ export function useOpenAsks() {
 export function useResolvedAskIds() {
   const { state } = useWorkspace();
   return useMemo(() => selectResolvedAskIds(state.events), [state.events]);
+}
+
+export function useExpiredAskIds() {
+  const { state } = useWorkspace();
+  return useMemo(() => selectExpiredAskIds(state.events), [state.events]);
 }
 
 export function useActivity() {
