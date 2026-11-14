@@ -11,7 +11,7 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, { error
   render() {
     if (!this.state.error) return this.props.children;
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center bg-background px-6 text-center">
+      <main className="flex min-h-dvh flex-col items-center justify-center bg-background px-6 text-center">
         <LogoMark className="h-10 w-10" />
         <h1 className="mt-6 text-heading text-foreground">Something went wrong</h1>
         <p className="mt-2 max-w-md text-body text-muted-foreground">

@@ -12,7 +12,7 @@ import { WorkspaceProvider } from './state/workspace';
 
 function Splash() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background">
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background">
       <LogoMark className="h-10 w-10" />
       <Spinner label="Loading Proba" />
     </div>

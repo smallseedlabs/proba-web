@@ -24,7 +24,7 @@ function AssistantMessage({ at, children }: { at: string; children: ReactNode })
             {formatRelativeTime(at)}
           </time>
         </p>
-        <div className="mt-1 space-y-3">{children}</div>
+        <div className="mt-1 min-w-0 space-y-3 break-words [overflow-wrap:anywhere]">{children}</div>
       </div>
     </div>
   );
@@ -49,7 +49,7 @@ function UserMessage({ text, at, userName, status }: { text: string; at: string;
             status === 'failed' ? 'border border-destructive/40 bg-destructive-subtle' : 'bg-primary-subtle'
           )}
         >
-          <p className="whitespace-pre-line">{text}</p>
+          <p className="whitespace-pre-line break-words [overflow-wrap:anywhere]">{text}</p>
         </div>
       </div>
     </div>
@@ -115,7 +115,20 @@ export function ThreadView({ threadId, userName }: { threadId?: string; userName
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView?.({ block: 'end' });
+    const node = endRef.current;
+    if (!node) return;
+    // Walk to the thread's own overflow container. scrollIntoView({ block: 'end' })
+    // also scrolls the document, and html's scrollHeight stays taller than the
+    // viewport, which slides the 100%-tall shell up and leaves a white gap below.
+    let el: HTMLElement | null = node.parentElement;
+    while (el && el !== document.body) {
+      const { overflowY } = getComputedStyle(el);
+      if (overflowY === 'auto' || overflowY === 'scroll') {
+        el.scrollTop = el.scrollHeight;
+        return;
+      }
+      el = el.parentElement;
+    }
   }, [items.length]);
 
   if (items.length === 0) {
@@ -124,7 +137,7 @@ export function ThreadView({ threadId, userName }: { threadId?: string; userName
 
   return (
     <>
-    <ol className="space-y-6" aria-label="Conversation">
+    <ol className="min-w-0 space-y-6" aria-label="Conversation">
       {items.map((item) => (
         <li key={item.key}>
           {item.kind === 'local' ? (

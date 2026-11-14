@@ -15,7 +15,7 @@ function renderInline(text: string): ReactNode[] {
 export function RichText({ text, className }: { text: string; className?: string }) {
   const blocks = text.split(/\n{2,}/);
   return (
-    <div className={cn('space-y-2 text-body leading-relaxed text-foreground', className)}>
+    <div className={cn('space-y-2 break-words text-body leading-relaxed text-foreground [overflow-wrap:anywhere]', className)}>
       {blocks.map((block, i) => {
         const lines = block.split('\n');
         if (lines.every((l) => /^\s*[-*]\s+/.test(l))) {
@@ -42,7 +42,7 @@ export function TextComponent({ ui, fallbackText }: ComponentRendererProps) {
   const text = props.text || fallbackText;
   const emphasis = props.emphasis === 'bold' ? 'font-semibold' : props.emphasis === 'italic' ? 'italic' : '';
   if (props.markdown) return <RichText text={text} className={emphasis} />;
-  return <p className={cn('whitespace-pre-line text-body leading-relaxed text-foreground', emphasis)}>{text}</p>;
+  return <p className={cn('whitespace-pre-line break-words text-body leading-relaxed text-foreground [overflow-wrap:anywhere]', emphasis)}>{text}</p>;
 }
 
 export function AlertComponent({ ui, fallbackText }: ComponentRendererProps) {
