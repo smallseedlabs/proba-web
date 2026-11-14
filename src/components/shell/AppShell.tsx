@@ -69,7 +69,7 @@ export function AppShell({
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-full min-h-dvh overflow-hidden bg-background">
       <a
         href="#main-content"
         onClick={(e) => {
@@ -101,7 +101,7 @@ export function AppShell({
         </div>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <TopBar
           session={session}
           workspace={workspace}

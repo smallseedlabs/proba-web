@@ -213,8 +213,8 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                 </div>
               )}
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-6 md:px-6">
-              <div className="mx-auto max-w-3xl">
+            <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-6 md:px-6">
+              <div className="mx-auto w-full min-w-0 max-w-3xl">
                 <ThreadView threadId={selected.threadId} userName={session.user.name} />
               </div>
             </div>

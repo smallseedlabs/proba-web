@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The app shell fills the browser window: `html`, `body` and `#root` are `height: 100%` / `min-height: 100dvh`, and the shell uses `h-full min-h-dvh` instead of `h-screen`. Safari can leave `100vh` short after a window resize, which showed a white gap below the sidebar and content.
+- Conversation messages wrap long unbroken strings (URLs, sha256 hashes, `code` / `pre`) instead of widening the column and adding a horizontal scrollbar.
+
 - Pause and Emergency stop in the top bar show the state the Hub persisted, not an assumption. `state.operations` is set from `executionState` on the Hub's `status` events (live, and replayed after a reconnect); pressing a button only sends the command and waits for the Hub's confirmation (an unconfirmed press says so after 10 s). A command the Hub answers with `202 { status: 'rejected' }` is now reported as rejected.
 - Approval cards for spend decisions show the ask's real current and proposed amounts (`costEffect`, falling back to the goal's budget) instead of the same tool parameters on both sides.
 - Campaign charts come from the audit API (`GET /v1/analytics/summary`), not from `metric_chart` events in the conversation. Configure `VITE_AUDIT_API_BASE_URL` / `AUDIT_API_BASE_URL`; without it the charts say they are not connected. The audit API is called with the user's Firebase ID token (`AuthClient.getIdToken`).

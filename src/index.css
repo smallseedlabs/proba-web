@@ -74,6 +74,16 @@
     @apply border-border;
   }
 
+  /* Percentage height so the shell fills the window on resize.
+   * 100vh (h-screen) can lag behind the window size in Safari.
+   * min-height: 100dvh covers the dynamic viewport (mobile toolbars). */
+  html,
+  body,
+  #root {
+    height: 100%;
+    min-height: 100dvh;
+  }
+
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -83,6 +93,18 @@
   body {
     @apply bg-background text-body text-foreground;
     font-feature-settings: 'cv11', 'ss01';
+  }
+
+  pre {
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  :not(pre) > code {
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   :focus-visible {
