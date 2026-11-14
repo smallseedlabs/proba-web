@@ -18,6 +18,8 @@ export interface CreativeDraftProps {
   videoUrl?: string;
   ctaType?: string;
   visualBrief?: string;
+  linkDescription?: string;
+  placements?: string[];
 }
 
 export function isCreativeDraft(value: unknown): value is CreativeDraftProps {

@@ -34,6 +34,7 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
   const [headline, setHeadline] = useState(draft.headline);
   const [body, setBody] = useState(draft.body);
   const [useImage, setUseImage] = useState(Boolean(draft.imageUrl));
+  const [imageUrl, setImageUrl] = useState(draft.imageUrl ?? '');
   const [videoUrl, setVideoUrl] = useState(draft.videoUrl ?? '');
   const [ctaType, setCtaType] = useState(draft.ctaType ?? 'LEARN_MORE');
   const [communities, setCommunities] = useState(initialCommunities);
@@ -42,11 +43,18 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
   const [error, setError] = useState<string | null>(null);
   const id = useId();
   const copyEdited = headline.trim() !== draft.headline || body.trim() !== draft.body;
-  const imageEdited = Boolean(draft.imageUrl) && !useImage;
-  const mediaEdited = videoUrl.trim() !== (draft.videoUrl ?? '') || ctaType !== (draft.ctaType ?? 'LEARN_MORE');
-  const communitiesEdited = targeting !== undefined && communities.trim() !== initialCommunities;
+  const effectiveImageUrl = useImage ? imageUrl.trim() : '';
+  const imageEdited = effectiveImageUrl !== (draft.imageUrl ?? '');
+  const ctaEdited = ctaType !== (draft.ctaType ?? 'LEARN_MORE');
+  const videoEdited = videoUrl.trim() !== (draft.videoUrl ?? '');
+  const mediaEdited = imageEdited || videoEdited || ctaEdited;
+  const communitiesEdited = targeting !== undefined && !isMetaCheck(plan) && communities.trim() !== initialCommunities;
   const planEdited = plan !== undefined && (metric !== plan.successMetric || target.trim() !== (plan.successTarget !== undefined ? String(plan.successTarget) : ''));
   const edited = copyEdited || imageEdited || mediaEdited || communitiesEdited || planEdited;
+
+  function isMetaCheck(p?: DraftPlanProps): boolean {
+    return p?.platform === 'meta';
+  }
 
   const approve = () => {
     const h = headline.trim();
@@ -57,8 +65,12 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
     setError(null);
     const values: Record<string, unknown> = {};
     if (copyEdited) Object.assign(values, { headline: h, body: b });
-    if (imageEdited) values.useImage = false;
-    if (mediaEdited) Object.assign(values, { ...(videoUrl.trim() ? { videoUrl: videoUrl.trim() } : {}), ctaType });
+    if (imageEdited) {
+      if (!effectiveImageUrl) values.useImage = false;
+      else values.imageUrl = effectiveImageUrl;
+    }
+    if (videoEdited && videoUrl.trim()) values.videoUrl = videoUrl.trim();
+    if (ctaEdited) values.ctaType = ctaType;
     if (communitiesEdited) values.communities = communities;
     if (planEdited) Object.assign(values, { successMetric: metric, ...(target.trim() ? { successTarget: target.trim() } : {}) });
     onAction?.({ id: 'approve', ...(edited ? { values } : {}) });
@@ -67,6 +79,11 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
   const isMeta = plan?.platform === 'meta';
   const platformLabel = isMeta ? 'Meta Ads' : 'Reddit';
   const ctaLabel = CTA_OPTIONS.find((c) => c.value === ctaType)?.label ?? 'Learn More';
+  const primarySubreddit =
+    communities
+      .split(',')
+      .map((s) => s.trim().replace(/^r\//, ''))
+      .find(Boolean) ?? 'promoted';
   const landingHost = (() => {
     try {
       return draft.landingPageUrl ? new URL(draft.landingPageUrl).hostname.replace(/^www\./, '') : '';
@@ -87,65 +104,99 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
           <div className="overflow-hidden rounded-xl border bg-surface shadow-xs">
             <div className="flex items-center justify-between border-b bg-surface-sunken/40 px-3 py-2">
               <div className="flex items-center gap-2">
-                <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-caption font-semibold text-surface">
-                  M
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-caption font-semibold text-surface">
+                  {(landingHost[0] ?? 'M').toUpperCase()}
                 </span>
                 <div>
                   <p className="text-caption font-semibold text-foreground">{landingHost || 'Your Brand'}</p>
-                  <p className="text-[11px] text-muted-foreground">Sponsored · Facebook &amp; Instagram</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Sponsored · {(draft.placements?.length ? draft.placements : ['Facebook Feed', 'Instagram Feed']).join(' · ')}
+                  </p>
                 </div>
               </div>
-              <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Live Meta Preview</span>
+              <span className="rounded-full border bg-surface px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Meta Feed Preview
+              </span>
             </div>
-            <p className="px-3 py-2 text-body text-foreground">{body || 'Primary text preview'}</p>
+            <p className="whitespace-pre-line px-3 py-2.5 text-body text-foreground">{body || 'Primary text preview'}</p>
             {videoUrl.trim() ? (
-              <video src={videoUrl.trim()} controls className="max-h-56 w-full bg-black object-contain" />
-            ) : useImage && draft.imageUrl ? (
-              <img src={draft.imageUrl} alt="Meta ad creative preview" className="max-h-56 w-full object-cover" />
+              <video src={videoUrl.trim()} controls className="max-h-60 w-full bg-black object-contain" />
+            ) : effectiveImageUrl ? (
+              <img src={effectiveImageUrl} alt="Meta ad creative preview" className="max-h-60 w-full object-cover" />
             ) : (
-              <div className="flex h-32 items-center justify-center bg-surface-sunken text-caption text-muted-foreground">
-                Add an image or video URL below for your Meta feed visual
+              <div className="flex h-36 flex-col items-center justify-center gap-1 bg-surface-sunken px-4 text-center text-caption text-muted-foreground">
+                <span className="font-medium text-foreground">Visual asset needed for Meta Feed</span>
+                <span>Add an Image URL or Video URL below so Meta can publish this ad.</span>
               </div>
             )}
             <div className="flex items-center justify-between gap-3 border-t bg-surface-sunken/50 px-3 py-2.5">
               <div className="min-w-0">
                 {landingHost && <p className="truncate text-[11px] uppercase text-muted-foreground">{landingHost}</p>}
                 <p className="truncate text-body font-semibold text-foreground">{headline || 'Headline preview'}</p>
+                {draft.linkDescription && (
+                  <p className="truncate text-caption text-muted-foreground">{draft.linkDescription}</p>
+                )}
               </div>
-              <span className="shrink-0 rounded-md border bg-surface px-3 py-1.5 text-caption font-semibold text-foreground">
+              <span className="shrink-0 rounded-md border bg-surface px-3 py-1.5 text-caption font-semibold text-foreground shadow-2xs">
                 {ctaLabel}
               </span>
             </div>
+            <div className="flex items-center justify-around border-t px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
+              <span>Like</span>
+              <span>Comment</span>
+              <span>Share</span>
+            </div>
           </div>
         ) : (
-          <div className="rounded-lg border bg-surface p-3 shadow-xs">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <span className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
-                Live {platformLabel} Ad Preview
-              </span>
-              {landingHost && <span className="text-caption text-muted-foreground">{landingHost}</span>}
+          <div className="overflow-hidden rounded-xl border bg-surface shadow-xs">
+            <div className="flex">
+              <div className="flex w-10 shrink-0 flex-col items-center gap-1 border-r bg-surface-sunken/40 py-2.5 text-[11px] font-semibold text-muted-foreground">
+                <span>▲</span>
+                <span className="text-foreground">1</span>
+                <span>▼</span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center justify-between gap-2 px-3 pt-2.5 text-[11px] text-muted-foreground">
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-600 text-[10px] font-bold text-white">
+                      r/
+                    </span>
+                    <span className="font-semibold text-foreground">r/{primarySubreddit}</span>
+                    <span>·</span>
+                    <span className="rounded bg-surface-sunken px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-foreground">
+                      Promoted
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                    Reddit Feed Preview
+                  </span>
+                </div>
+                <p className="px-3 pt-1.5 text-body font-semibold text-foreground">{headline || 'Headline preview'}</p>
+                {videoUrl.trim() ? (
+                  <video src={videoUrl.trim()} controls className="mt-2 max-h-56 w-full bg-black object-contain" />
+                ) : effectiveImageUrl ? (
+                  <img src={effectiveImageUrl} alt="Reddit ad creative preview" className="mt-2 max-h-56 w-full object-cover" />
+                ) : null}
+                <p className="whitespace-pre-line px-3 py-2 text-body text-muted-foreground">{body || 'Post text preview'}</p>
+                <div className="flex items-center justify-between gap-2 border-t bg-surface-sunken/40 px-3 py-2">
+                  <span className="truncate text-caption text-muted-foreground">{landingHost || 'reddit.com'}</span>
+                  <span className="shrink-0 rounded-full border bg-surface px-3 py-1 text-caption font-semibold text-foreground">
+                    {ctaLabel}
+                  </span>
+                </div>
+              </div>
             </div>
-            <p className="text-body font-semibold text-foreground">{headline || 'Headline preview'}</p>
-            {videoUrl.trim() ? (
-              <video src={videoUrl.trim()} controls className="mt-2 max-h-48 w-full rounded border bg-black object-contain" />
-            ) : (
-              useImage &&
-              draft.imageUrl && (
-                <img src={draft.imageUrl} alt="Ad creative preview" className="mt-2 max-h-44 w-full rounded border object-cover" />
-              )
-            )}
-            <p className="mt-2 line-clamp-3 text-body text-muted-foreground">{body || 'Post text preview'}</p>
           </div>
         )}
         <div>
           <Label htmlFor={`${id}-headline`} required>
-            Headline
+            {isMeta ? `Headline (${headline.trim().length}/40 recommended)` : 'Headline'}
           </Label>
           <Input id={`${id}-headline`} value={headline} onChange={(e) => setHeadline(e.target.value)} maxLength={HEADLINE_MAX} disabled={disabled} />
         </div>
         <div>
           <Label htmlFor={`${id}-body`} required>
-            Post text
+            {isMeta ? 'Primary text' : 'Post text'}
           </Label>
           <Textarea id={`${id}-body`} value={body} onChange={(e) => setBody(e.target.value)} rows={5} disabled={disabled} />
         </div>
@@ -182,36 +233,47 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
             </FieldHint>
           </div>
         )}
-        {(isMeta || draft.videoUrl) && (
-          <div className="grid gap-3 rounded-lg border bg-surface-sunken/60 p-3 sm:grid-cols-2">
-            <div>
-              <Label htmlFor={`${id}-cta`}>Call-to-action button</Label>
-              <NativeSelect id={`${id}-cta`} value={ctaType} onChange={(e) => setCtaType(e.target.value)} disabled={disabled}>
-                {CTA_OPTIONS.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </NativeSelect>
-            </div>
-            <div>
-              <Label htmlFor={`${id}-video`}>Video URL (optional MP4/MOV)</Label>
-              <Input
-                id={`${id}-video`}
-                value={videoUrl}
-                onChange={(e) => setVideoUrl(e.target.value)}
-                placeholder="https://…/promo.mp4"
-                disabled={disabled}
-              />
-            </div>
-            {draft.visualBrief && (
-              <p className="text-caption text-muted-foreground sm:col-span-2">
-                <span className="font-medium text-foreground">Visual direction: </span>
-                {draft.visualBrief}
-              </p>
-            )}
+        <div className="grid gap-3 rounded-lg border bg-surface-sunken/60 p-3 sm:grid-cols-2">
+          <div>
+            <Label htmlFor={`${id}-cta`}>Call-to-action button</Label>
+            <NativeSelect id={`${id}-cta`} value={ctaType} onChange={(e) => setCtaType(e.target.value)} disabled={disabled}>
+              {CTA_OPTIONS.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </NativeSelect>
           </div>
-        )}
+          <div>
+            <Label htmlFor={`${id}-image-input`}>Image URL{isMeta ? ' (required unless video set)' : ' (optional)'}</Label>
+            <Input
+              id={`${id}-image-input`}
+              value={imageUrl}
+              onChange={(e) => {
+                setImageUrl(e.target.value);
+                if (e.target.value.trim()) setUseImage(true);
+              }}
+              placeholder="https://…/hero.jpg"
+              disabled={disabled}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <Label htmlFor={`${id}-video`}>Video URL (optional MP4/MOV)</Label>
+            <Input
+              id={`${id}-video`}
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              placeholder="https://…/promo.mp4"
+              disabled={disabled}
+            />
+          </div>
+          {draft.visualBrief && (
+            <p className="text-caption text-muted-foreground sm:col-span-2">
+              <span className="font-medium text-foreground">Visual direction: </span>
+              {draft.visualBrief}
+            </p>
+          )}
+        </div>
         {plan && (
           <div className="grid gap-3 rounded-lg border bg-surface-sunken/60 p-3 sm:grid-cols-2">
             <div>
@@ -236,11 +298,13 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
         )}
         {targeting && (
           <div className="space-y-2">
-            <div>
-              <Label htmlFor={`${id}-communities`}>Subreddits</Label>
-              <Input id={`${id}-communities`} value={communities} onChange={(e) => setCommunities(e.target.value)} disabled={disabled} aria-describedby={`${id}-communities-hint`} />
-              <FieldHint id={`${id}-communities-hint`}>Comma-separated names. Leave empty to let Reddit find the audience.</FieldHint>
-            </div>
+            {!isMeta && (
+              <div>
+                <Label htmlFor={`${id}-communities`}>Subreddits</Label>
+                <Input id={`${id}-communities`} value={communities} onChange={(e) => setCommunities(e.target.value)} disabled={disabled} aria-describedby={`${id}-communities-hint`} />
+                <FieldHint id={`${id}-communities-hint`}>Comma-separated names. Leave empty to let Reddit find the audience.</FieldHint>
+              </div>
+            )}
             {(['geolocations', 'interests', 'keywords', 'languages'] as const).map((key) =>
               targeting[key]?.length ? (
                 <p key={key} className="text-body">
