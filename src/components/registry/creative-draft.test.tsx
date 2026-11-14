@@ -55,3 +55,36 @@ describe('CreativeDraftCard', () => {
     expect(screen.queryByLabelText(/Headline/)).toBeNull();
   });
 });
+
+describe('plan card', () => {
+  const planUi = {
+    component: 'approval_card',
+    version: '1.0.0',
+    props: {
+      title: 'Review the campaign plan Proba drafted',
+      creativeDraft: { type: 'TEXT', headline: 'Boots', body: 'Dry feet.', landingPageUrl: 'https://example.com/offer' },
+      targeting: { communities: ['UKhiking'], geolocations: ['GB'] },
+      plan: { platform: 'reddit', successMetric: 'clicks', successTarget: 200, durationDays: 14, reasons: { successMetric: 'Chose clicks because the page has no sign-up form.' } },
+    },
+  } as never;
+
+  it('shows the chosen defaults with reasons and approves the plan as is', () => {
+    const onAction = vi.fn();
+    render(<ComponentRenderer fallbackText="plan" ui={planUi} onAction={onAction} />);
+    expect(screen.getByText('Chose clicks because the page has no sign-up form.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Subreddits')).toHaveValue('UKhiking');
+    expect(screen.getByText(/GB/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Approve plan' }));
+    expect(onAction).toHaveBeenCalledWith({ id: 'approve' });
+  });
+
+  it('sends overrides for subreddits and the success metric', () => {
+    const onAction = vi.fn();
+    render(<ComponentRenderer fallbackText="plan" ui={planUi} onAction={onAction} />);
+    fireEvent.change(screen.getByLabelText('Subreddits'), { target: { value: 'hiking, camping' } });
+    fireEvent.change(screen.getByLabelText('Success metric'), { target: { value: 'ctr' } });
+    fireEvent.change(screen.getByLabelText(/Target/), { target: { value: '1.5' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save my edits and approve' }));
+    expect(onAction).toHaveBeenCalledWith({ id: 'approve', values: { communities: 'hiking, camping', successMetric: 'ctr', successTarget: '1.5' } });
+  });
+});
