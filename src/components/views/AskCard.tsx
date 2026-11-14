@@ -4,7 +4,7 @@ import type { IncomingEvent } from '../../lib/transport';
 import { formatRelativeTime } from '../../lib/utils/format';
 import { approvalUI, askPayload } from '../../state/selectors';
 import { useWorkspace } from '../../state/workspace';
-import { useGoals, useResolvedAskIds } from '../../state/hooks';
+import { useExpiredAskIds, useGoals, useResolvedAskIds } from '../../state/hooks';
 import { ComponentRenderer } from '../registry';
 import { Badge } from '../ui/badge';
 import { Callout } from '../ui/feedback';
@@ -20,6 +20,7 @@ const typeMeta = {
 export function AskCard({ event, context, showTime = true }: { event: IncomingEvent; context?: ReactNode; showTime?: boolean }) {
   const { state, respond } = useWorkspace();
   const resolved = useResolvedAskIds();
+  const expiredAsks = useExpiredAskIds();
   const goals = useGoals();
   const ask = askPayload(event);
   if (!ask) return null;
@@ -28,6 +29,7 @@ export function AskCard({ event, context, showTime = true }: { event: IncomingEv
   const meta = typeMeta[ask.askType as keyof typeof typeMeta] ?? typeMeta.action_approval;
   const Icon = meta.icon;
   const decision = state.decisions[ask.askId];
+  const expired = expiredAsks.has(ask.askId);
   const isResolved = resolved.has(ask.askId) || decision?.state === 'submitted';
   const disabled = isResolved || decision?.state === 'submitting';
   const isResearch = ask.askType === 'research_review';
@@ -83,9 +85,13 @@ export function AskCard({ event, context, showTime = true }: { event: IncomingEv
         />
       )}
       {isResolved && (
-        <Callout tone={decision?.choice === 'reject' ? 'info' : 'success'} role="status">
+        <Callout tone={expired || decision?.choice === 'reject' ? 'info' : 'success'} role="status">
           <span className="inline-flex items-center gap-1.5">
-            {decision ? outcome : 'This request has been resolved.'}
+            {expired
+              ? 'This request expired because the run behind it can no longer continue. Nothing was run from it.'
+              : decision
+                ? outcome
+                : 'This request has been resolved.'}
           </span>
         </Callout>
       )}
