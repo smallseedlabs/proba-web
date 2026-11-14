@@ -28,7 +28,7 @@ export const SUCCESS_METRICS: Array<{ value: string; label: string }> = [
 ];
 
 export interface DraftPlanProps {
-  platform: 'reddit';
+  platform: 'reddit' | 'meta' | string;
   successMetric: string;
   successTarget?: number;
   durationDays?: number;

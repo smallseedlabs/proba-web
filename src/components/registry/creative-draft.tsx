@@ -52,14 +52,40 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
     onAction?.({ id: 'approve', ...(edited ? { values } : {}) });
   };
 
+  const platformLabel = plan?.platform === 'meta' ? 'Meta Ads' : 'Reddit';
+  const landingHost = (() => {
+    try {
+      return draft.landingPageUrl ? new URL(draft.landingPageUrl).hostname.replace(/^www\./, '') : '';
+    } catch {
+      return draft.landingPageUrl ?? '';
+    }
+  })();
+
   return (
     <Card>
       <CardHeader
-        title={props.title || 'Review the Reddit post Proba drafted'}
+        title={props.title || `Review the ${platformLabel} ad Proba drafted`}
         description={props.description || fallbackText}
         actions={props.risk ? <RiskBadge risk={props.risk} /> : undefined}
       />
       <CardBody className="space-y-3">
+        <div className="rounded-lg border bg-surface p-3 shadow-xs">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
+              Live {platformLabel} Ad Preview
+            </span>
+            {landingHost && <span className="text-caption text-muted-foreground">{landingHost}</span>}
+          </div>
+          <p className="text-body font-semibold text-foreground">{headline || 'Headline preview'}</p>
+          {useImage && draft.imageUrl && (
+            <img
+              src={draft.imageUrl}
+              alt="Ad creative preview"
+              className="mt-2 max-h-44 w-full rounded border object-cover"
+            />
+          )}
+          <p className="mt-2 line-clamp-3 text-body text-muted-foreground">{body || 'Post text preview'}</p>
+        </div>
         <div>
           <Label htmlFor={`${id}-headline`} required>
             Headline
@@ -121,7 +147,10 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
               <Label htmlFor={`${id}-target`}>Target{plan.durationDays ? ` over ${plan.durationDays} days` : ''}</Label>
               <Input id={`${id}-target`} inputMode="decimal" value={target} onChange={(e) => setTarget(e.target.value)} disabled={disabled} />
             </div>
-            <p className="text-caption text-muted-foreground sm:col-span-2">Platform: Reddit{plan.durationDays ? ` · Runs ${plan.durationDays} days` : ''}</p>
+            <p className="text-caption text-muted-foreground sm:col-span-2">
+              Platform: {platformLabel}
+              {plan.durationDays ? ` · Runs ${plan.durationDays} days` : ''}
+            </p>
           </div>
         )}
         {targeting && (

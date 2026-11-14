@@ -46,7 +46,10 @@ const REGISTRY: Record<string, PlatformSpec> = {
     nativeMetricDefs: [
       { key: 'reach', label: 'Reach', format: 'number' },
       { key: 'frequency', label: 'Frequency', format: 'number' },
-      { key: 'hook_rate', label: 'Hook rate', format: 'percent' },
+      { key: 'ctr', label: 'CTR', format: 'percent' },
+      { key: 'cpc', label: 'CPC', format: 'currency' },
+      { key: 'ecpm', label: 'CPM', format: 'currency' },
+      { key: 'conversions', label: 'Conversions', format: 'number' },
     ],
   },
   google: {

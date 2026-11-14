@@ -244,6 +244,33 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
       </div>
 
       <div className="mt-4 border-t pt-3">
+        <h2 className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">What Proba did for you</h2>
+        <div className="mt-1.5 grid gap-2 rounded-lg border bg-surface-sunken/50 p-3 text-body sm:grid-cols-3">
+          <div>
+            <p className="text-caption text-muted-foreground">Platforms managed</p>
+            <p className="font-semibold text-foreground">
+              {now.campaigns.length === 0
+                ? 'Awaiting launch'
+                : `${now.campaigns.filter((c) => c.delivery?.state === 'delivering').length} active · ${now.campaigns.length} total`}
+            </p>
+          </div>
+          <div>
+            <p className="text-caption text-muted-foreground">Autonomous checks</p>
+            <p className="font-semibold text-foreground">
+              {decisions.length === 0 ? 'Monitoring live metrics' : `${decisions.length} review${decisions.length === 1 ? '' : 's'} logged`}
+            </p>
+          </div>
+          <div>
+            <p className="text-caption text-muted-foreground">Spend &amp; pacing</p>
+            <p className="font-semibold text-foreground">
+              {money(spend.spent, spend.currency)}{' '}
+              {(spend.totalCap ?? spend.dailyCap) !== null ? `/ ${money(spend.totalCap ?? spend.dailyCap, spend.currency)}` : ''}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 border-t pt-3">
         <h2 className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">Recent decisions</h2>
         {decisions.length === 0 ? (
           <p className="mt-1 text-body text-muted-foreground">No reviews yet. Proba reviews the campaign once it has been live long enough to judge.</p>
