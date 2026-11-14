@@ -60,7 +60,7 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
 
   if (!status) return null;
   const { now, next, spend, progress, decisions, plan, goal } = status;
-  const isCancelled = goal.status === 'cancelled';
+  const isCancelled = goal.status === 'cancelled' || goal.status === 'inactive';
   const metric = progress.metric;
   const reasons = plan && typeof plan.reasons === 'object' && plan.reasons !== null ? (plan.reasons as Record<string, unknown>) : {};
   const hasPausableCampaign = !isCancelled && now.campaigns.some((c) => c.providerCampaignId && c.delivery?.state !== 'paused');
@@ -126,7 +126,10 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
     <section aria-label="Goal status" className="mb-6 rounded-xl border bg-card p-4 shadow-card">
       {isCancelled ? (
         <div className="mb-3 rounded-lg border border-border bg-muted/40 px-3 py-2 text-body text-foreground">
-          <span className="font-semibold">Goal cancelled.</span> All platform campaigns, pending proposals, and scheduled reviews are halted. Historical activity and metrics remain below.
+          <span className="font-semibold">{goal.status === 'inactive' ? 'Goal inactive.' : 'Goal cancelled.'}</span>{' '}
+          {goal.status === 'inactive'
+            ? 'This goal had no attached campaigns and has been marked inactive. Historical activity remains below.'
+            : 'All platform campaigns, pending proposals, and scheduled reviews are halted. Historical activity and metrics remain below.'}
         </div>
       ) : null}
       <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

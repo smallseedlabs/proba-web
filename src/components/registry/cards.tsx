@@ -231,6 +231,7 @@ const goalStatus: Record<string, { label: string; tone: Tone }> = {
   paused: { label: 'Paused', tone: 'warning' },
   completed: { label: 'Completed', tone: 'primary' },
   cancelled: { label: 'Cancelled', tone: 'neutral' },
+  inactive: { label: 'Inactive', tone: 'neutral' },
 };
 
 export function GoalStatusBadge({ status }: { status?: string }) {
