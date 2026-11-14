@@ -170,7 +170,7 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
         </ul>
       </section>
 
-      <section aria-label={selected ? `Goal: ${selected.title}` : 'Goal'} className={cn('min-w-0 flex-1 flex-col', selectedId ? 'flex' : 'hidden lg:flex')}>
+      <section aria-label={selected ? `Goal: ${selected.title}` : 'Goal'} className={cn('min-h-0 min-w-0 flex-1 flex-col', selectedId ? 'flex' : 'hidden lg:flex')}>
         {selected ? (
           <>
             <div className="border-b bg-surface px-4 py-5 md:px-6">

@@ -62,4 +62,49 @@ describe('ThreadView wrapping', () => {
     expect(userText.tagName).toBe('P');
     expect(userText).toHaveClass('break-words', '[overflow-wrap:anywhere]');
   });
+
+  it('scrolls the thread overflow container and does not call scrollIntoView on the document', () => {
+    const scrollIntoView = vi.fn();
+    const original = HTMLElement.prototype.scrollIntoView;
+    HTMLElement.prototype.scrollIntoView = scrollIntoView;
+
+    const long = `Source sha256 ${SHA} at ${URL} `.repeat(20);
+    const { container } = render(
+      <div data-testid="thread-scroller" style={{ overflowY: 'auto', height: 80 }}>
+        <ToastProvider>
+          <WorkspaceProvider
+            transport={{
+              status: 'open',
+              connect: vi.fn(),
+              disconnect: vi.fn(),
+              sendCommand: vi.fn(),
+              subscribe: (l) => {
+                l({
+                  kind: 'event',
+                  seq: 1,
+                  at: '2026-11-14T02:30:00Z',
+                  type: 'message',
+                  threadId: 't1',
+                  payload: { source: 'assistant', text: long },
+                });
+                return () => {};
+              },
+              onStatusChange: () => () => {},
+            }}
+            onSessionExpired={vi.fn()}
+          >
+            <ThreadView threadId="t1" userName="Alex Morgan" />
+          </WorkspaceProvider>
+        </ToastProvider>
+      </div>
+    );
+
+    try {
+      expect(scrollIntoView).not.toHaveBeenCalled();
+      expect(document.documentElement.scrollTop).toBe(0);
+      expect(container.querySelector('[aria-label="Conversation"]')).toBeTruthy();
+    } finally {
+      HTMLElement.prototype.scrollIntoView = original;
+    }
+  });
 });

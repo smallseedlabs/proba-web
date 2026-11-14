@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- The app shell fills the browser window: `html`, `body` and `#root` are `height: 100%` / `min-height: 100dvh`, and the shell uses `h-full min-h-dvh` instead of `h-screen`. Safari can leave `100vh` short after a window resize, which showed a white gap below the sidebar and content.
+- The goal/thread view no longer leaves a white gap under the sidebar and composer. `html.scrollHeight` was taller than the viewport (`1297px` vs `593px` at a 1024×593 window). `ThreadView` called `scrollIntoView({ block: 'end' })`, which can scroll the document; at `scrollTop = 138` the 593px-tall shell's bottom sits at `y = 455` and `body`'s background (`rgb(246, 247, 249)`) fills the rest. `html, body, #root` now use `overflow: clip`, and `#root` is `position: fixed; inset: 0` (and `height: 100%` / `min-height: 100dvh`; the shell uses `h-full min-h-dvh`). The thread scrolls only its own overflow container. The sign-in screen uses `h-full min-h-dvh overflow-y-auto` so it can still scroll inside the locked viewport.
 - Conversation messages wrap long unbroken strings (URLs, sha256 hashes, `code` / `pre`) instead of widening the column and adding a horizontal scrollbar.
 
 - Pause and Emergency stop in the top bar show the state the Hub persisted, not an assumption. `state.operations` is set from `executionState` on the Hub's `status` events (live, and replayed after a reconnect); pressing a button only sends the command and waits for the Hub's confirmation (an unconfirmed press says so after 10 s). A command the Hub answers with `202 { status: 'rejected' }` is now reported as rejected.

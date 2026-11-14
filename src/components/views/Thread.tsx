@@ -115,7 +115,20 @@ export function ThreadView({ threadId, userName }: { threadId?: string; userName
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView?.({ block: 'end' });
+    const node = endRef.current;
+    if (!node) return;
+    // Walk to the thread's own overflow container. scrollIntoView({ block: 'end' })
+    // also scrolls the document, and html's scrollHeight stays taller than the
+    // viewport, which slides the 100%-tall shell up and leaves a white gap below.
+    let el: HTMLElement | null = node.parentElement;
+    while (el && el !== document.body) {
+      const { overflowY } = getComputedStyle(el);
+      if (overflowY === 'auto' || overflowY === 'scroll') {
+        el.scrollTop = el.scrollHeight;
+        return;
+      }
+      el = el.parentElement;
+    }
   }, [items.length]);
 
   if (items.length === 0) {

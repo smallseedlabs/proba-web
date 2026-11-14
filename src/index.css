@@ -82,6 +82,15 @@
   #root {
     height: 100%;
     min-height: 100dvh;
+    /* clip, not hidden: hidden still allows programmatic scrollTop / scrollIntoView
+     * on the document, which slides the 100%-tall shell up and leaves a gap. */
+    overflow: clip;
+  }
+
+  #root {
+    position: fixed;
+    inset: 0;
+    width: 100%;
   }
 
   html {
