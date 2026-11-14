@@ -15,6 +15,7 @@ import { Button } from '../ui/button';
 import { EmptyState, Skeleton } from '../ui/feedback';
 import { Composer, ThreadView } from './Thread';
 import { NewGoalDialog } from './NewGoalDialog';
+import { GoalStatusPanel } from './GoalStatusPanel';
 
 function GoalListItem({ goal, selected, pending }: { goal: GoalView; selected: boolean; pending: number }) {
   return (
@@ -247,6 +248,7 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
             <GoalHeader goal={selected} status={status} compact={shortViewport} />
             <div data-testid="goal-thread-scroller" className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-6 md:px-6">
               <div className="mx-auto w-full min-w-0 max-w-3xl">
+                <GoalStatusPanel goalId={selected.goalId} refreshKey={state.events.length} />
                 <ThreadView threadId={selected.threadId} userName={session.user.name} />
               </div>
             </div>

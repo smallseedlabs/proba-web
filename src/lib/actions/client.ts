@@ -104,6 +104,44 @@ const creativeResponseSchema = z.object({
   approvedAt: z.string().nullable(),
 });
 
+const nullableNumber = z.number().nullable();
+const goalStatusSchema = z.object({
+  goal: z.object({ id: z.string(), title: z.string(), status: z.string() }),
+  plan: z.record(z.string(), z.unknown()).nullable(),
+  now: z.object({
+    state: z.enum(['no_campaign', 'awaiting_approval', 'running']),
+    campaigns: z.array(
+      z.object({
+        probaCampaignId: z.string(),
+        platform: z.string(),
+        currentDailyBudget: nullableNumber,
+        currency: z.string().nullable(),
+        reviewEnabled: z.boolean(),
+        lastReviewedAt: z.string().nullable(),
+      })
+    ),
+    pendingProposals: z.number(),
+  }),
+  next: z.object({ checkAt: z.string(), reason: z.string().nullable(), probaCampaignId: z.string() }).nullable(),
+  spend: z.object({ spent: nullableNumber, dailyCap: nullableNumber, totalCap: nullableNumber, currency: z.string().nullable() }),
+  progress: z.object({ metric: z.string().nullable(), target: nullableNumber, actual: nullableNumber, checkpointsDone: z.array(z.string()) }),
+  decisions: z.array(
+    z.object({
+      at: z.string(),
+      probaCampaignId: z.string(),
+      trigger: z.string(),
+      kind: z.string(),
+      decision: z.string().nullable(),
+      summary: z.string().nullable(),
+      whyNowOrNotYet: z.string().nullable(),
+      nextCheckAt: z.string().nullable(),
+      nextCheckReason: z.string().nullable(),
+      checkpoint: z.record(z.string(), z.unknown()).nullable(),
+      proposal: z.object({ id: z.string(), verb: z.string(), status: z.string() }).nullable(),
+    })
+  ),
+});
+
 const providerAccountSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -149,6 +187,7 @@ export type Review = z.infer<typeof reviewSchema>;
 export type Proposal = z.infer<typeof proposalSchema>;
 export type ApprovedCreative = z.infer<typeof creativeSchema>;
 export type CreativeRecord = z.infer<typeof creativeResponseSchema>;
+export type GoalStatus = z.infer<typeof goalStatusSchema>;
 export type ReviewIntent = 'report' | 'propose_pause' | 'propose_cap';
 
 export interface RegisterCampaignInput {
@@ -187,6 +226,8 @@ export interface ActionsClient {
   listProposals(signal?: AbortSignal): Promise<Proposal[]>;
   decide(proposalId: string, decision: 'approve' | 'reject'): Promise<Proposal>;
   getCreative(goalId: string, signal?: AbortSignal): Promise<CreativeRecord>;
+  /** Goal page: Now / Next / Spend vs cap / Progress / Recent decisions (audited numbers; unknown is null). */
+  getGoalStatus(goalId: string, signal?: AbortSignal): Promise<GoalStatus>;
   saveCreative(goalId: string, creative: ApprovedCreative, targeting?: Record<string, unknown>): Promise<CreativeRecord>;
   /** Marketing: ad platform connections for this workspace (Hub keeps all provider secrets). */
   listConnections(signal?: AbortSignal): Promise<ConnectionsState>;
@@ -271,6 +312,11 @@ export class HubActionsClient implements ActionsClient {
   async getCreative(goalId: string, signal?: AbortSignal) {
     const body = await this.request('GET', `/v1/goals/${encodeURIComponent(goalId)}/creative`, undefined, signal);
     return this.parse(creativeResponseSchema, body);
+  }
+
+  async getGoalStatus(goalId: string, signal?: AbortSignal) {
+    const body = await this.request('GET', `/v1/goals/${encodeURIComponent(goalId)}/status`, undefined, signal);
+    return this.parse(goalStatusSchema, body);
   }
 
   async saveCreative(goalId: string, creative: ApprovedCreative, targeting?: Record<string, unknown>) {
