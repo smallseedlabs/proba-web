@@ -18,7 +18,8 @@ function publicHttpsUrl(value: string): string | null {
 
 /**
  * Owner-approved post copy and image for Reddit post creation on this goal.
- * Proba uses exactly this text; it never writes ad copy itself. No field is prefilled.
+ * Optional override. By default Proba drafts the post and you approve or edit it in the thread; text saved
+ * here replaces that and is used exactly as written. No field is prefilled with model text.
  */
 export function PostCreativeCard({ goalId }: { goalId: string }) {
   const client = useActionsClient();
@@ -96,9 +97,9 @@ export function PostCreativeCard({ goalId }: { goalId: string }) {
   return (
     <Card>
       <CardHeader
-        title="Reddit post"
+        title="Reddit post (optional override)"
         titleAs="h2"
-        description={approvedAt ? `Approved ${formatDateTime(approvedAt)}. Used as written when the campaign is created.` : 'Write and approve the post Proba will publish. It is used exactly as written.'}
+        description={approvedAt ? `Approved ${formatDateTime(approvedAt)}. Used as written when the campaign is created.` : 'Optional. Proba drafts the post for you to approve in the thread. To use your own words instead, write them here; they are used exactly as written.'}
       />
       <CardBody>
         <form onSubmit={submit} className="space-y-3" aria-label="Approve Reddit post">
