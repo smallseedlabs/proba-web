@@ -40,6 +40,7 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
   const client = useActionsClient();
   const [status, setStatus] = useState<GoalStatus | null>(null);
   const [pausingTarget, setPausingTarget] = useState<string | null>(null);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [pauseError, setPauseError] = useState<string | null>(null);
   const [localRefresh, setLocalRefresh] = useState(0);
 
@@ -55,10 +56,11 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
   }, [client, goalId, refreshKey, localRefresh]);
 
   if (!status) return null;
-  const { now, next, spend, progress, decisions, plan } = status;
+  const { now, next, spend, progress, decisions, plan, goal } = status;
+  const isCancelled = goal.status === 'cancelled';
   const metric = progress.metric;
   const reasons = plan && typeof plan.reasons === 'object' && plan.reasons !== null ? (plan.reasons as Record<string, unknown>) : {};
-  const hasPausableCampaign = now.campaigns.some((c) => c.providerCampaignId && c.delivery?.state !== 'paused');
+  const hasPausableCampaign = !isCancelled && now.campaigns.some((c) => c.providerCampaignId && c.delivery?.state !== 'paused');
 
   const handlePauseGoal = async () => {
     if (!client || typeof client.pauseGoal !== 'function') return;
@@ -88,8 +90,28 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
     }
   };
 
+  const handleCancelGoal = async () => {
+    if (!client || typeof client.cancelGoal !== 'function') return;
+    setPausingTarget('cancel_goal');
+    setPauseError(null);
+    try {
+      await client.cancelGoal(goalId);
+      setConfirmingCancel(false);
+      setLocalRefresh((n) => n + 1);
+    } catch (err) {
+      setPauseError(err instanceof Error ? err.message : 'Failed to cancel goal.');
+    } finally {
+      setPausingTarget(null);
+    }
+  };
+
   return (
     <section aria-label="Goal status" className="mb-6 rounded-xl border bg-card p-4 shadow-card">
+      {isCancelled ? (
+        <div className="mb-3 rounded-lg border border-border bg-muted/40 px-3 py-2 text-body text-foreground">
+          <span className="font-semibold">Goal cancelled.</span> All platform campaigns, pending proposals, and scheduled reviews are halted. Historical activity and metrics remain below.
+        </div>
+      ) : null}
       <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <dt className="text-caption text-muted-foreground">Now</dt>
@@ -148,21 +170,54 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
       <div className="mt-4 border-t pt-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">Platforms &amp; delivery status</h2>
-          {hasPausableCampaign && client && typeof client.pauseGoal === 'function' ? (
-            <button
-              type="button"
-              disabled={pausingTarget !== null}
-              onClick={handlePauseGoal}
-              className="rounded border border-input/70 bg-surface px-2.5 py-1 text-caption font-medium text-foreground hover:bg-muted disabled:opacity-50"
-            >
-              {pausingTarget === 'goal' ? 'Pausing all…' : 'Pause all platforms'}
-            </button>
-          ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            {hasPausableCampaign && client && typeof client.pauseGoal === 'function' ? (
+              <button
+                type="button"
+                disabled={pausingTarget !== null}
+                onClick={handlePauseGoal}
+                className="rounded border border-input/70 bg-surface px-2.5 py-1 text-caption font-medium text-foreground hover:bg-muted disabled:opacity-50"
+              >
+                {pausingTarget === 'goal' ? 'Pausing all…' : 'Pause all platforms'}
+              </button>
+            ) : null}
+            {!isCancelled && client && typeof client.cancelGoal === 'function' ? (
+              confirmingCancel ? (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={pausingTarget !== null}
+                    onClick={handleCancelGoal}
+                    className="rounded border border-danger/50 bg-danger/10 px-2.5 py-1 text-caption font-semibold text-danger hover:bg-danger/20 disabled:opacity-50"
+                  >
+                    {pausingTarget === 'cancel_goal' ? 'Cancelling…' : 'Confirm cancel goal'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pausingTarget !== null}
+                    onClick={() => setConfirmingCancel(false)}
+                    className="rounded border border-input/70 bg-surface px-2 py-1 text-caption text-muted-foreground hover:text-foreground disabled:opacity-50"
+                  >
+                    Keep running
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={pausingTarget !== null}
+                  onClick={() => setConfirmingCancel(true)}
+                  className="rounded border border-danger/30 bg-surface px-2.5 py-1 text-caption font-medium text-danger hover:bg-danger/10 disabled:opacity-50"
+                >
+                  Cancel goal
+                </button>
+              )
+            ) : null}
+          </div>
         </div>
         {pauseError ? <p className="mt-1 text-caption text-danger">{pauseError}</p> : null}
         <PlatformDeliveryMatrix
           campaigns={now.campaigns}
-          onPauseCampaign={client && typeof client.pauseCampaign === 'function' ? handlePauseCampaign : undefined}
+          onPauseCampaign={!isCancelled && client && typeof client.pauseCampaign === 'function' ? handlePauseCampaign : undefined}
           pausingId={pausingTarget}
         />
       </div>

@@ -170,4 +170,30 @@ describe('GoalStatusPanel', () => {
     fireEvent.click(pauseRedditBtn);
     await vi.waitFor(() => expect(pauseCampaign).toHaveBeenCalledWith('c1'));
   });
+
+  it('cancels an entire goal with two-step confirmation and preserves historical decisions', async () => {
+    const cancelGoal = vi.fn(async () => ({ goalId: 'g1', status: 'cancelled', paused: 1, failed: 0, proposalsCancelled: 1 }));
+    const getGoalStatus = vi
+      .fn()
+      .mockResolvedValueOnce(STATUS)
+      .mockResolvedValueOnce({ ...STATUS, goal: { ...STATUS.goal, status: 'cancelled' } });
+    const client = {
+      getGoalStatus,
+      cancelGoal,
+    } as unknown as ActionsClient;
+    render(
+      <ActionsProvider client={client}>
+        <GoalStatusPanel goalId="g1" />
+      </ActionsProvider>
+    );
+
+    const cancelBtn = await screen.findByRole('button', { name: 'Cancel goal' });
+    fireEvent.click(cancelBtn);
+    const confirmBtn = await screen.findByRole('button', { name: 'Confirm cancel goal' });
+    fireEvent.click(confirmBtn);
+
+    await vi.waitFor(() => expect(cancelGoal).toHaveBeenCalledWith('g1'));
+    expect(await screen.findByText(/Goal cancelled\./)).toBeInTheDocument();
+    expect(screen.getByText('CPC is twice the plan.')).toBeInTheDocument();
+  });
 });

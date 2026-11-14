@@ -249,6 +249,7 @@ export interface ActionsClient {
   /** Goal page: Now / Next / Spend vs cap / Progress / Recent decisions (audited numbers; unknown is null). */
   getGoalStatus(goalId: string, signal?: AbortSignal): Promise<GoalStatus>;
   pauseGoal?(goalId: string): Promise<{ paused: number; failed: number }>;
+  cancelGoal?(goalId: string): Promise<{ goalId: string; status: string; paused: number; failed: number; proposalsCancelled: number }>;
   pauseCampaign?(campaignId: string): Promise<{ paused: number; failed: number }>;
   saveCreative(goalId: string, creative: ApprovedCreative, targeting?: Record<string, unknown>): Promise<CreativeRecord>;
   /** Marketing: ad platform connections for this workspace (Hub keeps all provider secrets). */
@@ -344,6 +345,20 @@ export class HubActionsClient implements ActionsClient {
   async pauseGoal(goalId: string) {
     const body = await this.request('POST', `/v1/goals/${encodeURIComponent(goalId)}/pause`, {});
     return this.parse(z.object({ paused: z.number(), failed: z.number() }), body);
+  }
+
+  async cancelGoal(goalId: string) {
+    const body = await this.request('POST', `/v1/goals/${encodeURIComponent(goalId)}/cancel`, {});
+    return this.parse(
+      z.object({
+        goalId: z.string(),
+        status: z.string(),
+        paused: z.number(),
+        failed: z.number(),
+        proposalsCancelled: z.number(),
+      }),
+      body
+    );
   }
 
   async pauseCampaign(campaignId: string) {
