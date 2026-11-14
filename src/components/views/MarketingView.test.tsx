@@ -48,13 +48,13 @@ afterEach(() => {
 });
 
 describe('MarketingView', () => {
-  it('lists providers with only Reddit connectable and sends the browser to the provider sign-in', async () => {
+  it('lists Reddit and Meta as enabled providers (with Google coming soon) and sends the browser to provider sign-in', async () => {
     const assign = vi.fn();
     vi.stubGlobal('location', { ...window.location, assign });
     const c = client();
     renderView(c);
     const connect = await screen.findByRole('button', { name: 'Connect Reddit' });
-    expect(screen.getAllByText('Coming soon').length).toBe(2);
+    expect(screen.getAllByText('Coming soon').length).toBe(1);
     expect(screen.queryByRole('button', { name: 'Connect Meta' })).toBeNull();
     fireEvent.click(connect);
     await waitFor(() => expect(assign).toHaveBeenCalledWith('https://oauth.example.test/authorize?state=s'));

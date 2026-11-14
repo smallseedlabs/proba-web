@@ -13,7 +13,7 @@ import { Label, NativeSelect } from '../ui/field';
 import { Page, PageHeader } from './common';
 
 /** Providers the owner can connect today. Others are listed as coming soon. */
-const ENABLED_PROVIDERS = new Set(['reddit']);
+const ENABLED_PROVIDERS = new Set(['reddit', 'meta']);
 
 const STATUS: Record<PlatformConnection['status'], { label: string; tone: Tone }> = {
   not_connected: { label: 'Not connected', tone: 'neutral' },
