@@ -3,6 +3,8 @@ import type { ComponentType } from '../../lib/protocol';
 import { AlertComponent, StatusBannerComponent, TextComponent, TimelineItemComponent } from './basic';
 import { ApprovalCardComponent, ConfirmComponent, GoalSummaryComponent, MetricTileComponent, PlanCardComponent } from './cards';
 import { MetricChartComponent } from './chart';
+import { CreativeDraftCard } from './creative-draft';
+import { isCreativeDraft } from './creative-draft-model';
 import { FormComponent, NumberInputComponent, QuestionChoiceComponent, QuestionTextComponent, SelectComponent } from './questions';
 import { SpendBarComponent } from './spend-bar';
 import { DataTableComponent } from './table';
@@ -10,11 +12,20 @@ import type { ComponentRendererProps } from './types';
 
 type Renderer = (props: ComponentRendererProps) => JSX.Element | null;
 
+/** An approval card carrying a brain-drafted post (props.creativeDraft) renders as the editable draft card. */
+function ApprovalOrDraftCard(props: ComponentRendererProps) {
+  return isCreativeDraft((props.ui.props as { creativeDraft?: unknown } | undefined)?.creativeDraft) ? (
+    <CreativeDraftCard {...props} />
+  ) : (
+    <ApprovalCardComponent {...props} />
+  );
+}
+
 /** Every component in the proba-protocol catalogue has a full implementation. */
 const componentRegistry: Record<ComponentType, Renderer> = {
   text: TextComponent,
   plan_card: PlanCardComponent,
-  approval_card: ApprovalCardComponent,
+  approval_card: ApprovalOrDraftCard,
   question_choice: QuestionChoiceComponent,
   question_text: QuestionTextComponent,
   metric_tile: MetricTileComponent,
