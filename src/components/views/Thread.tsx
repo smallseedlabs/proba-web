@@ -56,8 +56,8 @@ function UserMessage({ text, at, userName, status }: { text: string; at: string;
   );
 }
 
-function EventItem({ event, userName }: { event: IncomingEvent; userName: string }) {
-  const { respond } = useWorkspace();
+function EventItem({ event, userName, threadId }: { event: IncomingEvent; userName: string; threadId?: string }) {
+  const { respond, sendMessage } = useWorkspace();
   switch (event.type) {
     case 'ask':
       return (
@@ -91,11 +91,34 @@ function EventItem({ event, userName }: { event: IncomingEvent; userName: string
         </div>
       );
     case 'error': {
-      const payload = event.payload as { message?: string };
+      const payload = event.payload as {
+        message?: string;
+        retryable?: boolean;
+        retryAction?: boolean;
+        askId?: string;
+        blocked?: boolean;
+      };
+      const showRetry = payload.retryAction === true || (payload.retryable === true && !payload.askId);
+      const blocked = payload.blocked === true || /press Retry/i.test(payload.message ?? '');
       return (
         <div className="pl-10">
-          <Callout tone="danger" role="alert" title="Something went wrong">
-            {payload.message || event.fallbackText || 'Proba could not complete the last step. It will retry automatically.'}
+          <Callout
+            tone={blocked ? 'warning' : 'danger'}
+            role="alert"
+            title={blocked ? 'This step is blocked' : 'Something went wrong'}
+            actions={
+              showRetry ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => void sendMessage('Retry the last blocked step.', event.threadId ?? threadId)}
+                >
+                  Retry
+                </Button>
+              ) : undefined
+            }
+          >
+            {payload.message || event.fallbackText || 'Proba could not complete the last step.'}
           </Callout>
         </div>
       );
@@ -143,7 +166,7 @@ export function ThreadView({ threadId, userName }: { threadId?: string; userName
           {item.kind === 'local' ? (
             <UserMessage text={item.message.text} at={item.message.sentAt} userName={userName} status={item.message.status} />
           ) : (
-            <EventItem event={item.event} userName={userName} />
+            <EventItem event={item.event} userName={userName} threadId={threadId} />
           )}
         </li>
       ))}
