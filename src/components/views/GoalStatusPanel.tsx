@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import type { GoalStatus } from '../../lib/actions/client';
-import { formatCurrency, formatDateTime, formatNumber, formatRelativeTime } from '../../lib/utils/format';
+import { formatDateTime, formatCurrency, formatNumber, formatRelativeTime } from '../../lib/utils/format';
 import { useActionsClient } from '../../state/actions';
 import { Badge } from '../ui/badge';
+import { PlatformDeliveryMatrix } from './PlatformDeliveryMatrix';
 
 const METRIC_LABELS: Record<string, string> = {
   clicks: 'Clicks',
@@ -38,6 +39,9 @@ function metricValue(metric: string | null, value: number | null, currency: stri
 export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refreshKey?: unknown }) {
   const client = useActionsClient();
   const [status, setStatus] = useState<GoalStatus | null>(null);
+  const [pausingTarget, setPausingTarget] = useState<string | null>(null);
+  const [pauseError, setPauseError] = useState<string | null>(null);
+  const [localRefresh, setLocalRefresh] = useState(0);
 
   useEffect(() => {
     if (!client) return;
@@ -48,12 +52,41 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
       .then(setStatus)
       .catch(() => setStatus(null));
     return () => controller.abort();
-  }, [client, goalId, refreshKey]);
+  }, [client, goalId, refreshKey, localRefresh]);
 
   if (!status) return null;
   const { now, next, spend, progress, decisions, plan } = status;
   const metric = progress.metric;
   const reasons = plan && typeof plan.reasons === 'object' && plan.reasons !== null ? (plan.reasons as Record<string, unknown>) : {};
+  const hasPausableCampaign = now.campaigns.some((c) => c.providerCampaignId && c.delivery?.state !== 'paused');
+
+  const handlePauseGoal = async () => {
+    if (!client || typeof client.pauseGoal !== 'function') return;
+    setPausingTarget('goal');
+    setPauseError(null);
+    try {
+      await client.pauseGoal(goalId);
+      setLocalRefresh((n) => n + 1);
+    } catch (err) {
+      setPauseError(err instanceof Error ? err.message : 'Failed to pause goal campaigns.');
+    } finally {
+      setPausingTarget(null);
+    }
+  };
+
+  const handlePauseCampaign = async (probaCampaignId: string) => {
+    if (!client || typeof client.pauseCampaign !== 'function') return;
+    setPausingTarget(probaCampaignId);
+    setPauseError(null);
+    try {
+      await client.pauseCampaign(probaCampaignId);
+      setLocalRefresh((n) => n + 1);
+    } catch (err) {
+      setPauseError(err instanceof Error ? err.message : 'Failed to pause platform campaign.');
+    } finally {
+      setPausingTarget(null);
+    }
+  };
 
   return (
     <section aria-label="Goal status" className="mb-6 rounded-xl border bg-card p-4 shadow-card">
@@ -61,6 +94,13 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
         <div>
           <dt className="text-caption text-muted-foreground">Now</dt>
           <dd className="mt-0.5 text-body font-semibold text-foreground">{NOW_LABELS[now.state]}</dd>
+          {now.campaigns.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1.5">
+              {now.campaigns.map((c) => (
+                <Badge key={c.probaCampaignId}>{c.platform.toUpperCase()}</Badge>
+              ))}
+            </div>
+          )}
         </div>
         <div>
           <dt className="text-caption text-muted-foreground">Next check</dt>
@@ -104,6 +144,28 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
           </dd>
         </div>
       </dl>
+
+      <div className="mt-4 border-t pt-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">Platforms &amp; delivery status</h2>
+          {hasPausableCampaign && client && typeof client.pauseGoal === 'function' ? (
+            <button
+              type="button"
+              disabled={pausingTarget !== null}
+              onClick={handlePauseGoal}
+              className="rounded border border-input/70 bg-surface px-2.5 py-1 text-caption font-medium text-foreground hover:bg-muted disabled:opacity-50"
+            >
+              {pausingTarget === 'goal' ? 'Pausing all…' : 'Pause all platforms'}
+            </button>
+          ) : null}
+        </div>
+        {pauseError ? <p className="mt-1 text-caption text-danger">{pauseError}</p> : null}
+        <PlatformDeliveryMatrix
+          campaigns={now.campaigns}
+          onPauseCampaign={client && typeof client.pauseCampaign === 'function' ? handlePauseCampaign : undefined}
+          pausingId={pausingTarget}
+        />
+      </div>
 
       <div className="mt-4 border-t pt-3">
         <h2 className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">Recent decisions</h2>

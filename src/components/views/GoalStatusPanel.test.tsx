@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { ActionsClient, GoalStatus } from '../../lib/actions/client';
 import { ActionsProvider } from '../../state/actions';
 import { GoalStatusPanel } from './GoalStatusPanel';
@@ -60,5 +60,114 @@ describe('GoalStatusPanel', () => {
     );
     await vi.waitFor(() => expect(client.getGoalStatus).toHaveBeenCalled());
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it('renders commentsAllowed badge and platform nativeMetrics from PlatformSpec', async () => {
+    const withDelivery: GoalStatus = {
+      ...STATUS,
+      now: {
+        state: 'running',
+        campaigns: [
+          {
+            probaCampaignId: 'c1',
+            platform: 'reddit',
+            accountId: 'a2_1',
+            providerCampaignId: 'cmp_1',
+            currentDailyBudget: 10,
+            currency: 'USD',
+            reviewEnabled: true,
+            lastReviewedAt: null,
+            delivery: {
+              state: 'delivering',
+              label: 'Active · Delivering',
+              summary: 'Campaign and ad creative are approved and actively delivering on Reddit Ads.',
+              causes: [],
+              campaignConfiguredStatus: 'ACTIVE',
+              campaignEffectiveStatus: 'ACTIVE',
+              adGroupEffectiveStatus: 'ACTIVE',
+              adEffectiveStatus: 'ACTIVE',
+              rejectionReason: null,
+              postUrl: 'https://www.reddit.com/comments/1xw4s5r',
+              previewUrl: null,
+              commentsAllowed: true,
+              nativeMetrics: {
+                impressions: 1250,
+                clicks: 40,
+                spend: 8.5,
+                ctr: 3.2,
+                ecpm: 6.8,
+              },
+              checkedAt: '2026-11-14T18:00:00.000Z',
+            },
+          },
+        ],
+        pendingProposals: 0,
+      },
+    };
+    const client = { getGoalStatus: vi.fn(async () => withDelivery) } as unknown as ActionsClient;
+    render(
+      <ActionsProvider client={client}>
+        <GoalStatusPanel goalId="g1" />
+      </ActionsProvider>
+    );
+    expect(await screen.findByText('Comments open')).toBeInTheDocument();
+    expect(screen.getByText('1,250')).toBeInTheDocument();
+    expect(screen.getByText('3.20%')).toBeInTheDocument();
+    expect(screen.getByText('$6.80')).toBeInTheDocument();
+  });
+
+  it('triggers manual override pause for all platforms or a single platform', async () => {
+    const withLive: GoalStatus = {
+      ...STATUS,
+      now: {
+        state: 'running',
+        campaigns: [
+          {
+            probaCampaignId: 'c1',
+            platform: 'reddit',
+            accountId: 'a2_1',
+            providerCampaignId: 'cmp_1',
+            currentDailyBudget: 10,
+            currency: 'USD',
+            reviewEnabled: true,
+            lastReviewedAt: null,
+            delivery: {
+              state: 'delivering',
+              label: 'Active · Delivering',
+              summary: 'Delivering.',
+              causes: [],
+              campaignConfiguredStatus: 'ACTIVE',
+              campaignEffectiveStatus: 'ACTIVE',
+              adGroupEffectiveStatus: 'ACTIVE',
+              adEffectiveStatus: 'ACTIVE',
+              rejectionReason: null,
+              postUrl: null,
+              previewUrl: null,
+              checkedAt: '2026-11-14T18:00:00.000Z',
+            },
+          },
+        ],
+        pendingProposals: 0,
+      },
+    };
+    const pauseGoal = vi.fn(async () => ({ paused: 1, failed: 0 }));
+    const pauseCampaign = vi.fn(async () => ({ paused: 1, failed: 0 }));
+    const client = {
+      getGoalStatus: vi.fn(async () => withLive),
+      pauseGoal,
+      pauseCampaign,
+    } as unknown as ActionsClient;
+    render(
+      <ActionsProvider client={client}>
+        <GoalStatusPanel goalId="g1" />
+      </ActionsProvider>
+    );
+    const pauseAllBtn = await screen.findByRole('button', { name: 'Pause all platforms' });
+    fireEvent.click(pauseAllBtn);
+    await vi.waitFor(() => expect(pauseGoal).toHaveBeenCalledWith('g1'));
+
+    const pauseRedditBtn = await screen.findByRole('button', { name: 'Pause Reddit' });
+    fireEvent.click(pauseRedditBtn);
+    await vi.waitFor(() => expect(pauseCampaign).toHaveBeenCalledWith('c1'));
   });
 });

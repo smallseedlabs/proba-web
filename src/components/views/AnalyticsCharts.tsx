@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { ChartLine } from 'lucide-react';
 import { lastDaysRange } from '../../lib/analytics/client';
-import { summaryToCharts } from '../../lib/analytics/charts';
+import { summaryToCharts, zeroSeriesForRange } from '../../lib/analytics/charts';
 import { useAnalyticsSummary } from '../../state/analytics';
 import { MetricChartComponent } from '../registry/chart';
 import { Card } from '../ui/card';
@@ -10,13 +10,32 @@ import { EmptyState, Skeleton } from '../ui/feedback';
 const RANGE_DAYS = 14;
 
 /**
- * Campaign charts from the audit API's analytics (GET /v1/analytics/summary). The audit API reports for the
- * whole workspace, so the figures are workspace-wide, not per goal. Nothing here comes from the conversation.
+ * Campaign charts from the audit API's analytics (GET /v1/analytics/summary). When `campaignIds` are
+ * provided for a specific Proba goal, only those campaigns' observations across all connected
+ * marketing providers are queried and merged. Nothing here comes from the conversation.
  */
-export function AnalyticsCharts() {
+export function AnalyticsCharts({
+  defaultCurrency = 'GBP',
+  campaignIds,
+  platforms,
+}: {
+  defaultCurrency?: string;
+  campaignIds?: readonly string[];
+  platforms?: readonly string[];
+} = {}) {
   const range = useMemo(() => lastDaysRange(RANGE_DAYS), []);
-  const analytics = useAnalyticsSummary(range);
-  const charts = useMemo(() => (analytics.status === 'ready' ? summaryToCharts(analytics.summary) : []), [analytics]);
+  const analytics = useAnalyticsSummary(range, campaignIds);
+  const { charts, isZeroBaseline } = useMemo(() => {
+    if (analytics.status !== 'ready') return { charts: [], isZeroBaseline: false };
+    if (analytics.summary.series.length > 0) {
+      return { charts: summaryToCharts(analytics.summary), isZeroBaseline: false };
+    }
+    const zeroSummary = {
+      ...analytics.summary,
+      series: zeroSeriesForRange(range, defaultCurrency),
+    };
+    return { charts: summaryToCharts(zeroSummary), isZeroBaseline: true };
+  }, [analytics, range, defaultCurrency]);
 
   if (analytics.status === 'loading') {
     return (
@@ -42,9 +61,19 @@ export function AnalyticsCharts() {
     );
   }
 
+  const providerSummary =
+    platforms && platforms.length > 0
+      ? `for this Proba campaign (${[...new Set(platforms)].join(', ')})`
+      : campaignIds !== undefined
+        ? 'for this Proba campaign'
+        : 'across all campaigns in this workspace';
+
   return (
     <>
-      <p className="text-caption text-muted-foreground">Last {RANGE_DAYS} days across all campaigns in this workspace.</p>
+      <p className="text-caption text-muted-foreground">
+        Last {RANGE_DAYS} days {providerSummary}.
+        {isZeroBaseline ? ' No performance data yet — showing 0 baseline until observations are synced.' : ''}
+      </p>
       {charts.map((chart) => (
         <MetricChartComponent
           key={chart.key}

@@ -105,6 +105,23 @@ const creativeResponseSchema = z.object({
 });
 
 const nullableNumber = z.number().nullable();
+const campaignDeliverySchema = z.object({
+  state: z.enum(['delivering', 'in_moderation', 'paused', 'rejected', 'not_delivering', 'unknown']),
+  label: z.string(),
+  summary: z.string(),
+  causes: z.array(z.string()),
+  campaignConfiguredStatus: z.string().nullable(),
+  campaignEffectiveStatus: z.string().nullable(),
+  adGroupEffectiveStatus: z.string().nullable(),
+  adEffectiveStatus: z.string().nullable(),
+  rejectionReason: z.string().nullable(),
+  postUrl: z.string().nullable(),
+  previewUrl: z.string().nullable(),
+  commentsAllowed: z.boolean().nullable().optional(),
+  nativeMetrics: z.record(z.string(), z.number()).nullable().optional(),
+  checkedAt: z.string(),
+});
+
 const goalStatusSchema = z.object({
   goal: z.object({ id: z.string(), title: z.string(), status: z.string() }),
   plan: z.record(z.string(), z.unknown()).nullable(),
@@ -114,10 +131,13 @@ const goalStatusSchema = z.object({
       z.object({
         probaCampaignId: z.string(),
         platform: z.string(),
+        accountId: z.string().nullable().optional(),
+        providerCampaignId: z.string().nullable().optional(),
         currentDailyBudget: nullableNumber,
         currency: z.string().nullable(),
         reviewEnabled: z.boolean(),
         lastReviewedAt: z.string().nullable(),
+        delivery: campaignDeliverySchema.nullable().optional(),
       })
     ),
     pendingProposals: z.number(),
@@ -228,6 +248,8 @@ export interface ActionsClient {
   getCreative(goalId: string, signal?: AbortSignal): Promise<CreativeRecord>;
   /** Goal page: Now / Next / Spend vs cap / Progress / Recent decisions (audited numbers; unknown is null). */
   getGoalStatus(goalId: string, signal?: AbortSignal): Promise<GoalStatus>;
+  pauseGoal?(goalId: string): Promise<{ paused: number; failed: number }>;
+  pauseCampaign?(campaignId: string): Promise<{ paused: number; failed: number }>;
   saveCreative(goalId: string, creative: ApprovedCreative, targeting?: Record<string, unknown>): Promise<CreativeRecord>;
   /** Marketing: ad platform connections for this workspace (Hub keeps all provider secrets). */
   listConnections(signal?: AbortSignal): Promise<ConnectionsState>;
@@ -317,6 +339,16 @@ export class HubActionsClient implements ActionsClient {
   async getGoalStatus(goalId: string, signal?: AbortSignal) {
     const body = await this.request('GET', `/v1/goals/${encodeURIComponent(goalId)}/status`, undefined, signal);
     return this.parse(goalStatusSchema, body);
+  }
+
+  async pauseGoal(goalId: string) {
+    const body = await this.request('POST', `/v1/goals/${encodeURIComponent(goalId)}/pause`, {});
+    return this.parse(z.object({ paused: z.number(), failed: z.number() }), body);
+  }
+
+  async pauseCampaign(campaignId: string) {
+    const body = await this.request('POST', `/v1/campaigns/${encodeURIComponent(campaignId)}/pause`, {});
+    return this.parse(z.object({ paused: z.number(), failed: z.number() }), body);
   }
 
   async saveCreative(goalId: string, creative: ApprovedCreative, targeting?: Record<string, unknown>) {

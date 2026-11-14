@@ -1,7 +1,9 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ChevronRight, Megaphone } from 'lucide-react';
+import type { GoalStatus as HubGoalStatus } from '../../lib/actions/client';
 import { routeHref } from '../../lib/router';
 import { formatCurrency, formatNumber, formatPercent, formatRelativeTime } from '../../lib/utils/format';
+import { useActionsClient } from '../../state/actions';
 import { describeEvent, selectReports, type ActivityEntry, type GoalView } from '../../state/selectors';
 import { useGoals } from '../../state/hooks';
 import { useWorkspace } from '../../state/workspace';
@@ -11,18 +13,31 @@ import { SpendBarComponent } from '../registry/spend-bar';
 import { Card, CardBody, CardHeader } from '../ui/card';
 import { EmptyState, Skeleton } from '../ui/feedback';
 import { AnalyticsCharts } from './AnalyticsCharts';
+import { GoalStatusPanel } from './GoalStatusPanel';
 import { PostCreativeCard } from './PostCreativeCard';
 import { Page, PageHeader } from './common';
 
 function kpis(goal: GoalView): Array<{ label: string; value: string }> {
   const m = goal.metrics;
   if (!m) return [];
-  const out = [{ label: 'Spend', value: formatCurrency(m.spend, m.currency) }];
-  if (m.impressions !== undefined) out.push({ label: 'Impressions', value: formatNumber(m.impressions) });
-  if (m.clicks !== undefined) out.push({ label: 'Clicks', value: formatNumber(m.clicks) });
-  if (m.clicks !== undefined && m.impressions) out.push({ label: 'Click-through rate', value: formatPercent((m.clicks / m.impressions) * 100, 2) });
-  if (m.conversions !== undefined) out.push({ label: 'Conversions', value: formatNumber(m.conversions) });
-  if (m.conversions) out.push({ label: 'Cost per conversion', value: formatCurrency(m.spend / m.conversions, m.currency, { decimals: 2 }) });
+  const impressions = m.impressions ?? 0;
+  const clicks = m.clicks ?? 0;
+  const conversions = m.conversions ?? 0;
+  const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+  const cpc = clicks > 0 ? m.spend / clicks : 0;
+  const out = [
+    { label: 'Spend', value: formatCurrency(m.spend, m.currency) },
+    { label: 'Impressions', value: formatNumber(impressions) },
+    { label: 'Clicks', value: formatNumber(clicks) },
+    { label: 'Click-through rate', value: formatPercent(ctr, 2) },
+    { label: 'Conversions', value: formatNumber(conversions) },
+    {
+      label: conversions > 0 ? 'Cost per conversion' : 'Cost per click',
+      value: conversions > 0
+        ? formatCurrency(m.spend / conversions, m.currency, { decimals: 2 })
+        : formatCurrency(cpc, m.currency, { decimals: 2 }),
+    },
+  ];
   return out;
 }
 
@@ -72,8 +87,37 @@ function CampaignCard({ goal }: { goal: GoalView }) {
 
 export function CampaignsView({ selectedId }: { selectedId?: string }) {
   const { state } = useWorkspace();
+  const actionsClient = useActionsClient();
   const goals = useGoals();
   const goal = selectedId ? goals.find((g) => g.goalId === selectedId) : undefined;
+  const [goalStatus, setGoalStatus] = useState<HubGoalStatus | null>(null);
+
+  useEffect(() => {
+    if (!actionsClient || !goal?.goalId) {
+      setGoalStatus(null);
+      return;
+    }
+    const controller = new AbortController();
+    actionsClient
+      .getGoalStatus(goal.goalId, controller.signal)
+      .then((s) => {
+        if (!controller.signal.aborted) setGoalStatus(s);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setGoalStatus(null);
+      });
+    return () => controller.abort();
+  }, [actionsClient, goal?.goalId, state.events.length]);
+
+  const campaignIds = useMemo(
+    () => (goalStatus ? goalStatus.now.campaigns.map((c) => c.probaCampaignId) : undefined),
+    [goalStatus]
+  );
+  const platforms = useMemo(
+    () => (goalStatus ? goalStatus.now.campaigns.map((c) => c.platform) : undefined),
+    [goalStatus]
+  );
+
   const reports = useMemo(() => (goal ? selectReports(state.events, goal.threadId) : []), [state.events, goal]);
   const updates = useMemo(
     () =>
@@ -162,9 +206,17 @@ export function CampaignsView({ selectedId }: { selectedId?: string }) {
         </section>
       )}
 
+      <div className="mt-6">
+        <GoalStatusPanel goalId={goal.goalId} refreshKey={state.events.length} />
+      </div>
+
       <div className="mt-6 grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
-          <AnalyticsCharts />
+          <AnalyticsCharts
+            defaultCurrency={goalStatus?.spend.currency ?? goal.metrics?.currency ?? 'GBP'}
+            campaignIds={campaignIds}
+            platforms={platforms}
+          />
         </div>
         <div className="space-y-6">
           {spendBars.length > 0

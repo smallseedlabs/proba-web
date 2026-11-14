@@ -27,6 +27,8 @@ export interface AnalyticsRange {
   from: string;
   to: string;
   granularity: 'hour' | 'day';
+  /** Optional Proba or provider campaign ID filter for campaign-scoped analytics. */
+  campaignId?: string;
 }
 
 export type AnalyticsErrorKind = 'forbidden' | 'unauthenticated' | 'unavailable' | 'bad_response';
@@ -77,6 +79,9 @@ export class HttpAnalyticsClient implements AnalyticsClient {
     url.searchParams.set('from', range.from);
     url.searchParams.set('to', range.to);
     url.searchParams.set('granularity', range.granularity);
+    if (range.campaignId) {
+      url.searchParams.set('campaignId', range.campaignId);
+    }
 
     let response = await this.fetchWith(url, await this.token(false), signal);
     if (response.status === 401) {

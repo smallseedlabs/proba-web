@@ -3,6 +3,7 @@ import { act, render, screen } from '@testing-library/react';
 import type { AnalyticsClient, AnalyticsSummary } from '../../lib/analytics/client';
 import { AnalyticsError } from '../../lib/analytics/client';
 import type { IncomingEvent, TransportClient } from '../../lib/transport';
+import { ActionsProvider } from '../../state/actions';
 import { AnalyticsProvider } from '../../state/analytics';
 import { WorkspaceProvider } from '../../state/workspace';
 import { ToastProvider } from '../ui/toast';
@@ -91,9 +92,11 @@ describe('CampaignsView charts', () => {
     expect(await screen.findByText('Charts are temporarily unavailable')).toBeInTheDocument();
   });
 
-  it('shows an empty state when the audit API has no series yet', async () => {
+  it('shows 0-baseline charts when the audit API has no series yet', async () => {
     renderCampaign({ getSummary: vi.fn().mockResolvedValue({ granularity: 'day', series: [] }) });
-    expect(await screen.findByText('No performance data yet')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Daily conversions' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Spend' })).toBeInTheDocument();
+    expect(screen.getByText(/No performance data yet — showing 0 baseline/)).toBeInTheDocument();
   });
 
   it('shows the loading state while analytics load', async () => {
@@ -102,5 +105,136 @@ describe('CampaignsView charts', () => {
     expect(await screen.findByLabelText('Loading charts')).toHaveAttribute('aria-busy', 'true');
     await act(async () => resolve(SUMMARY));
     expect(await screen.findByRole('heading', { name: 'Daily conversions' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Spend' })).toBeInTheDocument();
+  });
+
+  it('scopes analytics charts to the selected goal campaigns across providers when goal status is available', async () => {
+    const getSummary = vi.fn().mockImplementation(async (range: { campaignId?: string }) => ({
+      granularity: 'day',
+      series: [
+        point('2026-10-25T00:00:00.000Z', range.campaignId === 'cmp-reddit' ? 10 : 5, range.campaignId === 'cmp-reddit' ? 2 : 1),
+      ],
+    }));
+    const getGoalStatus = vi.fn().mockResolvedValue({
+      goal: { id: GOAL, title: 'Trailhead boot', status: 'active' },
+      plan: null,
+      now: {
+        state: 'running',
+        campaigns: [
+          { probaCampaignId: 'cmp-reddit', platform: 'reddit', currentDailyBudget: 5, currency: 'GBP', reviewEnabled: true, lastReviewedAt: null },
+          { probaCampaignId: 'cmp-meta', platform: 'meta', currentDailyBudget: 5, currency: 'GBP', reviewEnabled: true, lastReviewedAt: null },
+        ],
+        pendingProposals: 0,
+      },
+      next: null,
+      spend: { spent: 0, dailyCap: 10, totalCap: 50, currency: 'GBP' },
+      progress: { metric: 'clicks', target: 100, actual: 0, checkpointsDone: [] },
+      decisions: [],
+    });
+    const transport: TransportClient = {
+      status: 'open',
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      sendCommand: vi.fn(),
+      subscribe: (listener) => {
+        EVENTS.forEach((e) => listener(e));
+        return () => {};
+      },
+      onStatusChange: () => () => {},
+    };
+    const getCreative = vi.fn().mockResolvedValue({ creative: null, targeting: null, approvedAt: null });
+    render(
+      <ToastProvider>
+        <ActionsProvider client={{ getGoalStatus, getCreative } as never}>
+          <AnalyticsProvider client={{ getSummary }}>
+            <WorkspaceProvider transport={transport} onSessionExpired={vi.fn()}>
+              <CampaignsView selectedId={GOAL} />
+            </WorkspaceProvider>
+          </AnalyticsProvider>
+        </ActionsProvider>
+      </ToastProvider>
+    );
+
+    await vi.waitFor(() => {
+      expect(getSummary).toHaveBeenCalledWith(expect.objectContaining({ campaignId: 'cmp-reddit' }), expect.any(AbortSignal));
+      expect(getSummary).toHaveBeenCalledWith(expect.objectContaining({ campaignId: 'cmp-meta' }), expect.any(AbortSignal));
+    });
+    expect(await screen.findByText(/for this Proba campaign \(reddit, meta\)/, {}, { timeout: 3000 })).toBeInTheDocument();
+  });
+
+  it('renders platform delivery status and moderation causes in GoalStatusPanel', async () => {
+    const getSummary = vi.fn().mockResolvedValue({ granularity: 'day', series: [] });
+    const getGoalStatus = vi.fn().mockResolvedValue({
+      goal: { id: GOAL, title: 'Trailhead boot', status: 'active' },
+      plan: null,
+      now: {
+        state: 'running',
+        campaigns: [
+          {
+            probaCampaignId: 'cmp-reddit',
+            platform: 'reddit',
+            accountId: 'a2_test',
+            providerCampaignId: '2635168666659267454',
+            currentDailyBudget: 5,
+            currency: 'GBP',
+            reviewEnabled: true,
+            lastReviewedAt: null,
+            delivery: {
+              state: 'in_moderation',
+              label: 'In moderation',
+              summary: 'Ad is not running yet because it is in Reddit Ads moderation review. Delivery starts automatically once approved.',
+              causes: [
+                'Ad is in Reddit moderation review (pending admin approval)',
+                'Ad account funding or payment method verification is pending',
+              ],
+              campaignConfiguredStatus: 'ACTIVE',
+              campaignEffectiveStatus: 'PAUSED',
+              adGroupEffectiveStatus: 'PAUSED',
+              adEffectiveStatus: 'PENDING_APPROVAL',
+              rejectionReason: null,
+              postUrl: 'https://www.reddit.com/comments/1xw4s5r',
+              previewUrl: 'https://www.reddit.com/?ad=preview',
+              checkedAt: '2026-11-14T16:30:00.000Z',
+            },
+          },
+        ],
+        pendingProposals: 0,
+      },
+      next: null,
+      spend: { spent: null, dailyCap: 5, totalCap: 50, currency: 'GBP' },
+      progress: { metric: 'clicks', target: 100, actual: null, checkpointsDone: [] },
+      decisions: [],
+    });
+    const transport: TransportClient = {
+      status: 'open',
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      sendCommand: vi.fn(),
+      subscribe: (listener) => {
+        EVENTS.forEach((e) => listener(e));
+        return () => {};
+      },
+      onStatusChange: () => () => {},
+    };
+    const getCreative = vi.fn().mockResolvedValue({ creative: null, targeting: null, approvedAt: null });
+    const { ActionsProvider } = await import('../../state/actions');
+    const { GoalStatusPanel } = await import('./GoalStatusPanel');
+    render(
+      <ToastProvider>
+        <ActionsProvider client={{ getGoalStatus, getCreative } as never}>
+          <AnalyticsProvider client={{ getSummary }}>
+            <WorkspaceProvider transport={transport} onSessionExpired={vi.fn()}>
+              <GoalStatusPanel goalId={GOAL} />
+            </WorkspaceProvider>
+          </AnalyticsProvider>
+        </ActionsProvider>
+      </ToastProvider>
+    );
+
+    expect(await screen.findByText('Platforms & delivery status')).toBeInTheDocument();
+    expect(screen.getByText('Reddit Ads')).toBeInTheDocument();
+    expect(screen.getByText('In moderation')).toBeInTheDocument();
+    expect(screen.getByText(/Ad is in Reddit moderation review \(pending admin approval\)/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /View Reddit post/i })).toHaveAttribute('href', 'https://www.reddit.com/comments/1xw4s5r');
   });
 });

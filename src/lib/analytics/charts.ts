@@ -1,4 +1,4 @@
-import type { AnalyticsSummary } from './client';
+import type { AnalyticsRange, AnalyticsSummary, SeriesPoint } from './client';
 
 export interface ChartSpec {
   key: string;
@@ -12,6 +12,29 @@ export interface ChartSpec {
 
 const dayLabel = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 const hourLabel = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' });
+
+/**
+ * Generates zero-filled series buckets across `range` when the audit API returns an empty series,
+ * so the dashboard still renders a 0-baseline chart for newly launched campaigns.
+ */
+export function zeroSeriesForRange(range: AnalyticsRange, currency = 'GBP'): SeriesPoint[] {
+  const stepMs = range.granularity === 'hour' ? 3_600_000 : 86_400_000;
+  const startMs = Date.parse(range.from);
+  const endMs = Date.parse(range.to);
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) return [];
+  const points: SeriesPoint[] = [];
+  for (let t = startMs; t < endMs; t += stepMs) {
+    points.push({
+      bucket: new Date(t).toISOString(),
+      currency,
+      impressions: 0,
+      clicks: 0,
+      spend: 0,
+      conversions: 0,
+    });
+  }
+  return points;
+}
 
 /**
  * Chart specs from the audit API's summary series: daily spend per currency (currencies are never added

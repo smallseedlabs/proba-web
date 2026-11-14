@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ChartColumn, Plus, Target } from 'lucide-react';
+import { ArrowLeft, ChartColumn, MessageSquare, PanelRightClose, Plus, ShieldCheck, Target } from 'lucide-react';
+import type { GoalStatus as HubGoalStatus } from '../../lib/actions/client';
 import type { Session } from '../../lib/auth';
 import { routeHref } from '../../lib/router';
 import { cn } from '../../lib/utils/cn';
 import { SHORT_VIEWPORT_QUERY, useMediaQuery } from '../../lib/utils/useMediaQuery';
 import { formatCurrency, formatNumber, formatRelativeTime } from '../../lib/utils/format';
 import { selectLatestStatus, type GoalView } from '../../state/selectors';
+import { useActionsClient } from '../../state/actions';
 import { useGoals, useOpenAsks } from '../../state/hooks';
 import { useWorkspace } from '../../state/workspace';
 import { GoalStatusBadge } from '../registry/cards';
@@ -13,6 +15,8 @@ import { StatusBannerComponent } from '../registry/basic';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { EmptyState, Skeleton } from '../ui/feedback';
+import { AnalyticsCharts } from './AnalyticsCharts';
+import { DecisionInbox } from './DecisionInbox';
 import { Composer, ThreadView } from './Thread';
 import { NewGoalDialog } from './NewGoalDialog';
 import { GoalStatusPanel } from './GoalStatusPanel';
@@ -59,9 +63,9 @@ function GoalStats({ goal }: { goal: GoalView }) {
   const stats: Array<[string, string]> = [];
   if (m) {
     stats.push(['Spend', m.budget ? `${formatCurrency(m.spend, m.currency)} of ${formatCurrency(m.budget, m.currency)}` : formatCurrency(m.spend, m.currency)]);
-    if (m.impressions !== undefined) stats.push(['Impressions', formatNumber(m.impressions, { compact: true })]);
-    if (m.clicks !== undefined) stats.push(['Clicks', formatNumber(m.clicks)]);
-    if (m.conversions !== undefined) stats.push(['Conversions', formatNumber(m.conversions)]);
+    stats.push(['Impressions', formatNumber(m.impressions ?? 0, { compact: true })]);
+    stats.push(['Clicks', formatNumber(m.clicks ?? 0)]);
+    stats.push(['Conversions', formatNumber(m.conversions ?? 0)]);
   }
   if (goal.progressPercent !== undefined) stats.unshift(['Progress', `${goal.progressPercent}%`]);
   return (
@@ -81,10 +85,18 @@ function GoalHeader({
   goal,
   status,
   compact,
+  hasLiveCampaigns,
+  copilotOpen,
+  openAskCount,
+  onToggleCopilot,
 }: {
   goal: GoalView;
   status: ReturnType<typeof selectLatestStatus>;
   compact: boolean;
+  hasLiveCampaigns: boolean;
+  copilotOpen: boolean;
+  openAskCount: number;
+  onToggleCopilot: () => void;
 }) {
   const [expanded, setExpanded] = useState(!compact);
   useEffect(() => {
@@ -92,7 +104,7 @@ function GoalHeader({
   }, [compact]);
 
   const detailsOpen = !compact || expanded;
-  const spend = goal.metrics && goal.metrics.spend > 0 ? goal.metrics : undefined;
+  const canViewPerformance = Boolean(goal.metrics && (goal.metrics.spend > 0 || goal.status === 'active'));
 
   return (
     <div data-testid="goal-header" className={cn('border-b bg-surface px-4 md:px-6', detailsOpen ? 'py-5' : 'py-2.5')}>
@@ -102,8 +114,14 @@ function GoalHeader({
       </a>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className={cn('flex items-center gap-2', detailsOpen ? 'mb-1.5' : 'mb-0.5')}>
+          <div className={cn('flex flex-wrap items-center gap-2', detailsOpen ? 'mb-1.5' : 'mb-0.5')}>
             <GoalStatusBadge status={goal.status} />
+            {hasLiveCampaigns && (
+              <Badge tone="primary" className="gap-1">
+                <ShieldCheck className="h-3 w-3" aria-hidden="true" />
+                Guarded Auto
+              </Badge>
+            )}
           </div>
           <h2 className={cn('text-foreground', detailsOpen ? 'text-heading' : 'truncate text-title')}>{goal.title}</h2>
         </div>
@@ -113,7 +131,26 @@ function GoalHeader({
               {detailsOpen ? 'Hide details' : 'Show details'}
             </Button>
           )}
-          {spend && (
+          <Button
+            type="button"
+            size="sm"
+            variant={copilotOpen ? 'secondary' : 'outline'}
+            aria-expanded={copilotOpen}
+            onClick={onToggleCopilot}
+          >
+            {copilotOpen ? (
+              <PanelRightClose className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <MessageSquare className="h-4 w-4" aria-hidden="true" />
+            )}
+            {copilotOpen ? 'Hide Co-pilot' : 'Co-pilot / Override'}
+            {!copilotOpen && openAskCount > 0 && (
+              <Badge tone="warning" className="ml-1">
+                {openAskCount}
+              </Badge>
+            )}
+          </Button>
+          {canViewPerformance && (
             <a
               href={routeHref({ section: 'campaigns', id: goal.goalId })}
               className="inline-flex h-9 items-center gap-2 rounded-md border border-input/60 bg-surface px-4 text-body font-medium text-foreground shadow-sm hover:bg-muted"
@@ -147,9 +184,12 @@ function GoalHeader({
 
 export function GoalsView({ selectedId, session }: { selectedId?: string; session: Session }) {
   const { state } = useWorkspace();
+  const actionsClient = useActionsClient();
   const goals = useGoals();
   const openAsks = useOpenAsks();
   const [creating, setCreating] = useState(false);
+  const [goalStatus, setGoalStatus] = useState<HubGoalStatus | null>(null);
+  const [copilotOverride, setCopilotOverride] = useState<boolean | null>(null);
   const shortViewport = useMediaQuery(SHORT_VIEWPORT_QUERY);
   const selected = goals.find((g) => g.goalId === selectedId) ?? (selectedId ? undefined : goals[0]);
   const pendingByThread = useMemo(() => {
@@ -159,6 +199,41 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
   }, [openAsks]);
   const status = selected ? selectLatestStatus(state.events, selected.threadId) : null;
   const active = goals.filter((g) => g.status === 'active').length;
+
+  useEffect(() => {
+    setCopilotOverride(null);
+  }, [selected?.goalId]);
+
+  useEffect(() => {
+    if (!actionsClient || !selected?.goalId) {
+      setGoalStatus(null);
+      return;
+    }
+    const controller = new AbortController();
+    actionsClient
+      .getGoalStatus(selected.goalId, controller.signal)
+      .then((s) => {
+        if (!controller.signal.aborted) setGoalStatus(s);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setGoalStatus(null);
+      });
+    return () => controller.abort();
+  }, [actionsClient, selected?.goalId, state.events.length]);
+
+  const hasLiveCampaigns = (goalStatus?.now.campaigns.length ?? 0) > 0;
+  const openAskCount = selected?.threadId ? (pendingByThread.get(selected.threadId) ?? 0) : 0;
+  // AI-native default: once campaigns are live and no asks are pending, keep the Command Center
+  // front-and-center with the Co-pilot drawer collapsed until the user wants to steer/override.
+  const copilotOpen = copilotOverride ?? (!hasLiveCampaigns || openAskCount > 0);
+  const campaignIds = useMemo(
+    () => (goalStatus ? goalStatus.now.campaigns.map((c) => c.probaCampaignId) : undefined),
+    [goalStatus]
+  );
+  const platforms = useMemo(
+    () => (goalStatus ? goalStatus.now.campaigns.map((c) => c.platform) : undefined),
+    [goalStatus]
+  );
 
   if (!state.hasLoaded) {
     return (
@@ -245,14 +320,54 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
       <section aria-label={selected ? `Goal: ${selected.title}` : 'Goal'} className={cn('min-h-0 min-w-0 flex-1 flex-col', selectedId ? 'flex' : 'hidden lg:flex')}>
         {selected ? (
           <>
-            <GoalHeader goal={selected} status={status} compact={shortViewport} />
-            <div data-testid="goal-thread-scroller" className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-6 md:px-6">
-              <div className="mx-auto w-full min-w-0 max-w-3xl">
-                <GoalStatusPanel goalId={selected.goalId} refreshKey={state.events.length} />
-                <ThreadView threadId={selected.threadId} userName={session.user.name} />
+            <GoalHeader
+              goal={selected}
+              status={status}
+              compact={shortViewport}
+              hasLiveCampaigns={hasLiveCampaigns}
+              copilotOpen={copilotOpen}
+              openAskCount={openAskCount}
+              onToggleCopilot={() => setCopilotOverride(!copilotOpen)}
+            />
+            <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+              <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-6 md:px-6">
+                <div className="mx-auto w-full min-w-0 max-w-4xl space-y-6">
+                  <DecisionInbox
+                    goalId={selected.goalId}
+                    threadId={selected.threadId}
+                    goalStatus={goalStatus}
+                    onOpenCopilot={() => setCopilotOverride(true)}
+                  />
+                  <GoalStatusPanel goalId={selected.goalId} refreshKey={state.events.length} />
+                  {hasLiveCampaigns && (
+                    <AnalyticsCharts campaignIds={campaignIds} platforms={platforms} />
+                  )}
+                </div>
               </div>
+              {copilotOpen && (
+                <aside
+                  aria-label="Proba Co-pilot"
+                  className="flex min-h-0 w-full flex-col border-l bg-surface-sunken/30 lg:w-[400px] xl:w-[440px] shrink-0"
+                >
+                  <div className="flex items-center justify-between border-b px-4 py-2.5">
+                    <span className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">
+                      Proba Co-pilot &amp; Overrides
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setCopilotOverride(false)}
+                      className="text-caption text-muted-foreground hover:text-foreground"
+                    >
+                      Collapse
+                    </button>
+                  </div>
+                  <div data-testid="goal-thread-scroller" className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-4">
+                    <ThreadView threadId={selected.threadId} userName={session.user.name} />
+                  </div>
+                  <Composer threadId={selected.threadId} disabled={state.connection === 'closed'} />
+                </aside>
+              )}
             </div>
-            <Composer threadId={selected.threadId} disabled={state.connection === 'closed'} />
           </>
         ) : (
           <EmptyState icon={<Target className="h-6 w-6" />} title="Goal not found" description="This goal may have been removed or belongs to another workspace." />

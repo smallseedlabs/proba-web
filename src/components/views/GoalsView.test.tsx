@@ -4,6 +4,8 @@ import userEvent from '@testing-library/user-event';
 import type { IncomingEvent, TransportClient } from '../../lib/transport';
 import type { Session } from '../../lib/auth';
 import { SHORT_VIEWPORT_QUERY } from '../../lib/utils/useMediaQuery';
+import { ActionsProvider } from '../../state/actions';
+import { AnalyticsProvider } from '../../state/analytics';
 import { WorkspaceProvider } from '../../state/workspace';
 import { ToastProvider } from '../ui/toast';
 import { GoalsView } from './GoalsView';
@@ -108,5 +110,83 @@ describe('GoalsView header', () => {
     await user.click(toggle);
     expect(screen.getByRole('button', { name: 'Hide details' })).toHaveAttribute('aria-expanded', 'true');
     expect(within(header).getByText('Impressions')).toBeInTheDocument();
+  });
+
+  it('defaults to the read-only Command Center with Co-pilot collapsed when live campaigns exist', async () => {
+    const user = userEvent.setup();
+    mockMatchMedia(false);
+    const getGoalStatus = vi.fn().mockResolvedValue({
+      goal: { id: 'g1', title: 'Validate UK demand for the Trailhead 2 boot', status: 'active' },
+      plan: null,
+      now: {
+        state: 'running',
+        campaigns: [
+          {
+            probaCampaignId: 'cmp-reddit',
+            platform: 'reddit',
+            accountId: 'a2_test',
+            providerCampaignId: '2635168666659267454',
+            currentDailyBudget: 5,
+            currency: 'GBP',
+            reviewEnabled: true,
+            lastReviewedAt: null,
+            delivery: {
+              state: 'in_moderation',
+              label: 'In moderation',
+              summary: 'Ad is not running yet because it is in Reddit Ads moderation review.',
+              causes: ['Ad is in Reddit moderation review (pending admin approval)'],
+              campaignConfiguredStatus: 'ACTIVE',
+              campaignEffectiveStatus: 'PAUSED',
+              adGroupEffectiveStatus: 'PAUSED',
+              adEffectiveStatus: 'PENDING_APPROVAL',
+              rejectionReason: null,
+              postUrl: 'https://www.reddit.com/comments/1xw4s5r',
+              previewUrl: null,
+              checkedAt: '2026-11-14T16:30:00.000Z',
+            },
+          },
+        ],
+        pendingProposals: 0,
+      },
+      next: null,
+      spend: { spent: 0, dailyCap: 5, totalCap: 50, currency: 'GBP' },
+      progress: { metric: 'clicks', target: 100, actual: 0, checkpointsDone: [] },
+      decisions: [],
+    });
+    const getSummary = vi.fn().mockResolvedValue({ granularity: 'day', series: [] });
+    const listProposals = vi.fn().mockResolvedValue([]);
+    const transport: TransportClient = {
+      status: 'open',
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      sendCommand: vi.fn(),
+      subscribe: (l) => {
+        EVENTS.forEach((e) => l(e));
+        return () => {};
+      },
+      onStatusChange: () => () => {},
+    };
+
+    render(
+      <ToastProvider>
+        <ActionsProvider client={{ getGoalStatus, listProposals } as never}>
+          <AnalyticsProvider client={{ getSummary }}>
+            <WorkspaceProvider transport={transport} onSessionExpired={vi.fn()}>
+              <GoalsView selectedId="g1" session={SESSION} />
+            </WorkspaceProvider>
+          </AnalyticsProvider>
+        </ActionsProvider>
+      </ToastProvider>
+    );
+
+    expect(await screen.findByText('Guarded Auto')).toBeInTheDocument();
+    expect(screen.getByText('Reddit Ads')).toBeInTheDocument();
+    expect(screen.getByText('In moderation')).toBeInTheDocument();
+    // Co-pilot rail is collapsed by default when live campaigns are running autonomously.
+    expect(screen.queryByRole('complementary', { name: 'Proba Co-pilot' })).not.toBeInTheDocument();
+
+    // User can open the Co-pilot / Override drawer on demand.
+    await user.click(screen.getByRole('button', { name: /Co-pilot \/ Override/i }));
+    expect(screen.getByRole('complementary', { name: 'Proba Co-pilot' })).toBeInTheDocument();
   });
 });
