@@ -33,7 +33,7 @@ describe('CreativeDraftCard', () => {
   it('sends edited copy with approve', () => {
     const onAction = vi.fn();
     render(<ComponentRenderer fallbackText="draft" ui={ui} onAction={onAction} />);
-    fireEvent.change(screen.getByLabelText(/Post text/), { target: { value: 'My own words.' } });
+    fireEvent.change(screen.getByLabelText(/Primary text|Post text/), { target: { value: 'My own words.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save my edits and approve' }));
     expect(onAction).toHaveBeenCalledWith({ id: 'approve', values: { headline: 'Waterproof boots for muddy UK trails', body: 'My own words.' } });
   });

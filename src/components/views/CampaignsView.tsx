@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ChevronRight, Megaphone } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Megaphone, Sparkles } from 'lucide-react';
 import type { GoalStatus as HubGoalStatus } from '../../lib/actions/client';
 import { routeHref } from '../../lib/router';
 import { formatCurrency, formatNumber, formatPercent, formatRelativeTime } from '../../lib/utils/format';
@@ -14,7 +14,6 @@ import { Card, CardBody, CardHeader } from '../ui/card';
 import { EmptyState, Skeleton } from '../ui/feedback';
 import { AnalyticsCharts } from './AnalyticsCharts';
 import { GoalStatusPanel } from './GoalStatusPanel';
-import { PostCreativeCard } from './PostCreativeCard';
 import { Page, PageHeader } from './common';
 
 function kpis(goal: GoalView): Array<{ label: string; value: string }> {
@@ -119,18 +118,22 @@ export function CampaignsView({ selectedId }: { selectedId?: string }) {
   );
 
   const reports = useMemo(() => (goal ? selectReports(state.events, goal.threadId) : []), [state.events, goal]);
-  const updates = useMemo(
-    () =>
-      goal
-        ? state.events
-            .filter((e) => e.threadId === goal.threadId && (e.type === 'alert' || e.type === 'status' || e.type === 'ask_resolved'))
-            .map(describeEvent)
-            .filter((e): e is ActivityEntry => e !== null)
-            .reverse()
-            .slice(0, 4)
-        : [],
-    [state.events, goal]
-  );
+  const updates = useMemo(() => {
+    if (!goal) return [];
+    const list = state.events
+      .filter((e) => e.threadId === goal.threadId && (e.type === 'alert' || e.type === 'status' || e.type === 'ask_resolved'))
+      .map(describeEvent)
+      .filter((e): e is ActivityEntry => e !== null)
+      .reverse();
+    const deduped: ActivityEntry[] = [];
+    for (const item of list) {
+      const prev = deduped[deduped.length - 1];
+      if (prev && prev.title === item.title && (prev.detail ?? '') === (item.detail ?? '')) continue;
+      deduped.push(item);
+      if (deduped.length >= 4) break;
+    }
+    return deduped;
+  }, [state.events, goal]);
 
   if (!state.hasLoaded) {
     return (
@@ -230,7 +233,27 @@ export function CampaignsView({ selectedId }: { selectedId?: string }) {
           {tiles.map((e) => (
             <ComponentRenderer key={e.seq} ui={e.ui as never} fallbackText={e.fallbackText ?? ''} />
           ))}
-          <PostCreativeCard goalId={goal.goalId} />
+          <Card>
+            <CardHeader
+              title="Creative & assets"
+              description="Creatives are drafted and approved in Chat and managed across platforms in Creative Studio."
+            />
+            <CardBody className="flex flex-wrap gap-2 pt-0">
+              <a
+                href={routeHref({ section: 'studio' })}
+                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-input/60 bg-surface px-3 text-body font-medium text-foreground shadow-sm hover:bg-muted"
+              >
+                <Sparkles className="h-4 w-4" aria-hidden="true" />
+                Open Creative Studio
+              </a>
+              <a
+                href={routeHref({ section: 'goals', id: goal.goalId })}
+                className="inline-flex h-9 items-center rounded-md border border-input/60 bg-surface px-3 text-body font-medium text-foreground shadow-sm hover:bg-muted"
+              >
+                Override in Chat
+              </a>
+            </CardBody>
+          </Card>
           {updates.length > 0 && (
             <Card>
               <CardHeader title="Recent updates" titleAs="h2" />

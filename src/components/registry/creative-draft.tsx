@@ -84,8 +84,12 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
     onAction?.({ id: 'approve', ...(edited ? { values } : {}) });
   };
 
-  const isMeta = plan?.platform === 'meta';
-  const platformLabel = isMeta ? 'Meta Ads' : 'Reddit';
+  const isReddit = plan?.platform === 'reddit';
+  const isMeta = !isReddit;
+  const [previewChannel, setPreviewChannel] = useState<'meta_feed' | 'meta_reels' | 'reddit'>(
+    isReddit ? 'reddit' : 'meta_feed'
+  );
+  const platformLabel = isReddit ? 'Reddit Ads' : 'Meta Ads';
   const ctaLabel = CTA_OPTIONS.find((c) => c.value === ctaType)?.label ?? 'Learn More';
   const primarySubreddit =
     communities
@@ -103,12 +107,40 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
   return (
     <Card>
       <CardHeader
-        title={props.title || `Review the ${platformLabel} ad Proba drafted`}
+        title={props.title || `Creative Studio · ${platformLabel}`}
         description={props.description || fallbackText}
         actions={props.risk ? <RiskBadge risk={props.risk} /> : undefined}
       />
       <CardBody className="space-y-3">
-        {isMeta ? (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-caption font-medium text-muted-foreground">Platform translation preview</span>
+          <div className="inline-flex rounded-lg border bg-surface-sunken p-0.5 text-caption">
+            <button
+              type="button"
+              onClick={() => setPreviewChannel('meta_feed')}
+              className={`rounded-md px-2.5 py-1 font-medium transition ${previewChannel === 'meta_feed' ? 'bg-surface text-foreground shadow-2xs' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Meta Feed
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreviewChannel('meta_reels')}
+              className={`rounded-md px-2.5 py-1 font-medium transition ${previewChannel === 'meta_reels' ? 'bg-surface text-foreground shadow-2xs' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              Meta Reels
+            </button>
+            {(isReddit || communities.trim().length > 0) && (
+              <button
+                type="button"
+                onClick={() => setPreviewChannel('reddit')}
+                className={`rounded-md px-2.5 py-1 font-medium transition ${previewChannel === 'reddit' ? 'bg-surface text-foreground shadow-2xs' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Reddit
+              </button>
+            )}
+          </div>
+        </div>
+        {previewChannel !== 'reddit' ? (
           <div className="overflow-hidden rounded-xl border bg-surface shadow-xs">
             <div className="flex items-center justify-between border-b bg-surface-sunken/40 px-3 py-2">
               <div className="flex items-center gap-2">
