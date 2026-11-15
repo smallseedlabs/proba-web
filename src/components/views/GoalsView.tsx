@@ -20,6 +20,7 @@ import { DecisionInbox } from './DecisionInbox';
 import { Composer, ThreadView } from './Thread';
 import { NewGoalDialog } from './NewGoalDialog';
 import { GoalStatusPanel } from './GoalStatusPanel';
+import { GeoVisibilityPanel } from './GeoVisibilityPanel';
 
 function GoalListItem({ goal, selected, pending }: { goal: GoalView; selected: boolean; pending: number }) {
   return (
@@ -183,7 +184,8 @@ function GoalHeader({
 }
 
 export function GoalsView({ selectedId, session }: { selectedId?: string; session: Session }) {
-  const { state } = useWorkspace();
+  const workspace = useWorkspace();
+  const { state } = workspace;
   const actionsClient = useActionsClient();
   const goals = useGoals();
   const openAsks = useOpenAsks();
@@ -427,6 +429,21 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                   {hasLiveCampaigns && (
                     <AnalyticsCharts campaignIds={campaignIds} platforms={platforms} />
                   )}
+                  <GeoVisibilityPanel
+                    workspaceId="seedbed"
+                    goalId={selected.goalId}
+                    brandName={selected.title}
+                    landingPageUrl=""
+                    onSendProposalToCopilot={(promptText) => {
+                      setCopilotOverride(true);
+                      const sendFn = (workspace as unknown as { send?: (threadId: string, text: string) => void }).send;
+                      if (typeof sendFn === 'function' && selected.threadId) {
+                        sendFn(selected.threadId, promptText);
+                      } else {
+                        navigator.clipboard?.writeText(promptText);
+                      }
+                    }}
+                  />
                 </div>
               </div>
               {copilotOpen && (

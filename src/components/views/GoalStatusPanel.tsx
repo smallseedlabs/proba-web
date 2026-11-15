@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import type { GoalStatus } from '../../lib/actions/client';
+import type { CreativeVariantRecord, GoalStatus } from '../../lib/actions/client';
 import { formatDateTime, formatCurrency, formatNumber, formatRelativeTime } from '../../lib/utils/format';
 import { useActionsClient } from '../../state/actions';
 import { Badge } from '../ui/badge';
+import { EnhanceCreativeModal } from './EnhanceCreativeModal';
 import { PlatformDeliveryMatrix } from './PlatformDeliveryMatrix';
 
 const METRIC_LABELS: Record<string, string> = {
@@ -39,6 +40,8 @@ function metricValue(metric: string | null, value: number | null, currency: stri
 export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refreshKey?: unknown }) {
   const client = useActionsClient();
   const [status, setStatus] = useState<GoalStatus | null>(null);
+  const [variants, setVariants] = useState<CreativeVariantRecord[]>([]);
+  const [enhancingVariant, setEnhancingVariant] = useState<CreativeVariantRecord | null>(null);
   const [pausingTarget, setPausingTarget] = useState<string | null>(null);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [pauseError, setPauseError] = useState<string | null>(null);
@@ -55,6 +58,12 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
       .getGoalStatus(goalId, controller.signal)
       .then(setStatus)
       .catch(() => setStatus(null));
+    if (typeof client.listGoalCreatives === 'function') {
+      client
+        .listGoalCreatives(goalId, controller.signal)
+        .then(setVariants)
+        .catch(() => setVariants([]));
+    }
     return () => controller.abort();
   }, [client, goalId, refreshKey, localRefresh]);
 
@@ -237,10 +246,32 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
         {pauseError ? <p className="mt-1 text-caption text-danger">{pauseError}</p> : null}
         <PlatformDeliveryMatrix
           campaigns={now.campaigns}
+          variants={variants}
           onPauseCampaign={!isCancelled && client && typeof client.pauseCampaign === 'function' ? handlePauseCampaign : undefined}
           onCancelCampaign={!isCancelled && client && typeof client.cancelCampaign === 'function' ? handleCancelCampaign : undefined}
+          onEnhanceVariant={
+            !isCancelled && client && typeof client.enhanceGoalCreative === 'function' ? setEnhancingVariant : undefined
+          }
+          onPromoteVariant={
+            !isCancelled && client && typeof client.promoteGoalCreative === 'function'
+              ? async (variant) => {
+                  await client.promoteGoalCreative!(goalId, variant.id);
+                  setLocalRefresh((n) => n + 1);
+                }
+              : undefined
+          }
           pausingId={pausingTarget}
         />
+        {enhancingVariant && client && typeof client.enhanceGoalCreative === 'function' && (
+          <EnhanceCreativeModal
+            variant={enhancingVariant}
+            onClose={() => setEnhancingVariant(null)}
+            onSubmit={async (input) => {
+              await client.enhanceGoalCreative!(goalId, enhancingVariant.id, input);
+              setLocalRefresh((n) => n + 1);
+            }}
+          />
+        )}
       </div>
 
       <div className="mt-4 border-t pt-3">

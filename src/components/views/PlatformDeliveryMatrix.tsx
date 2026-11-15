@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { GoalStatus } from '../../lib/actions/client';
+import type { CreativeVariantRecord, GoalStatus } from '../../lib/actions/client';
 import { getPlatformSpec } from '../../lib/platforms/registry';
 import { formatCurrency } from '../../lib/utils/format';
 import { Badge, type Tone } from '../ui/badge';
@@ -32,16 +32,23 @@ function formatNativeMetric(value: number, format: 'number' | 'percent' | 'curre
  */
 export function PlatformDeliveryMatrix({
   campaigns,
+  variants = [],
   onPauseCampaign,
   onCancelCampaign,
+  onEnhanceVariant,
+  onPromoteVariant,
   pausingId,
 }: {
   campaigns: CampaignItem[];
+  variants?: CreativeVariantRecord[];
   onPauseCampaign?: (probaCampaignId: string) => void;
   onCancelCampaign?: (probaCampaignId: string) => void;
+  onEnhanceVariant?: (variant: CreativeVariantRecord) => void;
+  onPromoteVariant?: (variant: CreativeVariantRecord) => void;
   pausingId?: string | null;
 }) {
   const [confirmingCancelId, setConfirmingCancelId] = useState<string | null>(null);
+  const [expandedPlatformKey, setExpandedPlatformKey] = useState<string | null>(null);
   if (campaigns.length === 0) {
     return (
       <p className="mt-1 text-body text-muted-foreground">
@@ -184,6 +191,87 @@ export function PlatformDeliveryMatrix({
                 Live platform delivery status is not available yet.
               </p>
             )}
+
+            {(() => {
+              const platformVariants = variants.filter(
+                (v) => v.platform.toLowerCase() === c.platform.toLowerCase()
+              );
+              if (platformVariants.length === 0) return null;
+              const isExpanded = expandedPlatformKey === c.probaCampaignId;
+              const latestActive =
+                platformVariants.find((v) => v.status === 'winner' || v.status === 'active' || v.status === 'testing') ??
+                platformVariants[0];
+              return (
+                <div className="mt-2 border-t pt-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedPlatformKey(isExpanded ? null : c.probaCampaignId)}
+                      className="text-caption font-medium text-primary hover:underline"
+                    >
+                      {isExpanded ? '▾' : '▸'} {platformVariants.length} creative version
+                      {platformVariants.length === 1 ? '' : 's'}
+                    </button>
+                    {onEnhanceVariant && latestActive && (
+                      <button
+                        type="button"
+                        onClick={() => onEnhanceVariant(latestActive)}
+                        className="rounded border border-primary/40 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary hover:bg-primary/20"
+                      >
+                        Enhance creative
+                      </button>
+                    )}
+                  </div>
+                  {isExpanded && (
+                    <div className="mt-2 space-y-1.5">
+                      {platformVariants.map((v) => {
+                        const cr = v.creative as Record<string, unknown>;
+                        const headline = typeof cr.headline === 'string' ? cr.headline : 'Untitled creative';
+                        const statusTone: Tone =
+                          v.status === 'winner' || v.status === 'active'
+                            ? 'success'
+                            : v.status === 'testing'
+                              ? 'warning'
+                              : 'neutral';
+                        return (
+                          <div
+                            key={v.id}
+                            className="flex flex-wrap items-center justify-between gap-2 rounded border bg-surface px-2.5 py-1.5 text-caption"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="font-mono font-semibold text-foreground">v{v.version}</span>
+                                <Badge tone={statusTone}>{v.status}</Badge>
+                                {v.mode !== 'initial' && (
+                                  <span className="text-[11px] text-muted-foreground">({v.mode})</span>
+                                )}
+                                <span className="truncate font-medium text-foreground">{headline}</span>
+                              </div>
+                              {v.changeReason && (
+                                <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                                  Why: {v.changeReason}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              {onPromoteVariant && v.status !== 'winner' && v.status !== 'paused' && platformVariants.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => onPromoteVariant(v)}
+                                  className="rounded border bg-background px-2 py-0.5 text-[11px] font-medium text-foreground hover:bg-muted"
+                                >
+                                  Promote Winner
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </li>
         );
       })}

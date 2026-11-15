@@ -237,6 +237,32 @@ export type Review = z.infer<typeof reviewSchema>;
 export type Proposal = z.infer<typeof proposalSchema>;
 export type ApprovedCreative = z.infer<typeof creativeSchema>;
 export type CreativeRecord = z.infer<typeof creativeResponseSchema>;
+
+export const creativeVariantSchema = z.object({
+  id: z.string(),
+  goalId: z.string(),
+  platform: z.string(),
+  version: z.number(),
+  parentVariantId: z.string().nullable().optional(),
+  probaCampaignId: z.string().nullable().optional(),
+  providerAdId: z.string().nullable().optional(),
+  status: z.string(),
+  mode: z.string(),
+  changeReason: z.string().nullable().optional(),
+  creative: z.record(z.string(), z.unknown()),
+  targeting: z.record(z.string(), z.unknown()).nullable().optional(),
+  metrics: z
+    .object({
+      spend: z.number().optional(),
+      impressions: z.number().optional(),
+      clicks: z.number().optional(),
+      conversions: z.number().optional(),
+    })
+    .optional(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type CreativeVariantRecord = z.infer<typeof creativeVariantSchema>;
 export type GoalStatus = z.infer<typeof goalStatusSchema>;
 export type ReviewIntent = 'report' | 'propose_pause' | 'propose_cap';
 
@@ -276,6 +302,21 @@ export interface ActionsClient {
   listProposals(signal?: AbortSignal): Promise<Proposal[]>;
   decide(proposalId: string, decision: 'approve' | 'reject'): Promise<Proposal>;
   getCreative(goalId: string, signal?: AbortSignal): Promise<CreativeRecord>;
+  listGoalCreatives?(goalId: string, signal?: AbortSignal): Promise<CreativeVariantRecord[]>;
+  enhanceGoalCreative?(
+    goalId: string,
+    variantId: string,
+    input: {
+      mode: 'ab_test' | 'replace';
+      headline?: string;
+      body?: string;
+      imageUrl?: string;
+      videoUrl?: string;
+      ctaType?: string;
+      changeReason?: string;
+    }
+  ): Promise<CreativeVariantRecord>;
+  promoteGoalCreative?(goalId: string, variantId: string): Promise<CreativeVariantRecord>;
   /** Goal page: Now / Next / Spend vs cap / Progress / Recent decisions (audited numbers; unknown is null). */
   getGoalStatus(goalId: string, signal?: AbortSignal): Promise<GoalStatus>;
   pauseGoal?(goalId: string): Promise<{ paused: number; failed: number }>;
@@ -387,6 +428,41 @@ export class HubActionsClient implements ActionsClient {
   async getCreative(goalId: string, signal?: AbortSignal) {
     const body = await this.request('GET', `/v1/goals/${encodeURIComponent(goalId)}/creative`, undefined, signal);
     return this.parse(creativeResponseSchema, body);
+  }
+
+  async listGoalCreatives(goalId: string, signal?: AbortSignal): Promise<CreativeVariantRecord[]> {
+    const body = await this.request('GET', `/v1/goals/${encodeURIComponent(goalId)}/creatives`, undefined, signal);
+    return this.parse(z.object({ variants: z.array(creativeVariantSchema) }), body).variants;
+  }
+
+  async enhanceGoalCreative(
+    goalId: string,
+    variantId: string,
+    input: {
+      mode: 'ab_test' | 'replace';
+      headline?: string;
+      body?: string;
+      imageUrl?: string;
+      videoUrl?: string;
+      ctaType?: string;
+      changeReason?: string;
+    }
+  ): Promise<CreativeVariantRecord> {
+    const body = await this.request(
+      'POST',
+      `/v1/goals/${encodeURIComponent(goalId)}/creatives/${encodeURIComponent(variantId)}/enhance`,
+      input
+    );
+    return this.parse(z.object({ variant: creativeVariantSchema }), body).variant;
+  }
+
+  async promoteGoalCreative(goalId: string, variantId: string): Promise<CreativeVariantRecord> {
+    const body = await this.request(
+      'POST',
+      `/v1/goals/${encodeURIComponent(goalId)}/creatives/${encodeURIComponent(variantId)}/promote`,
+      {}
+    );
+    return this.parse(z.object({ variant: creativeVariantSchema }), body).variant;
   }
 
   async getGoalStatus(goalId: string, signal?: AbortSignal) {
