@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { CheckCircle2, Film, Image as ImageIcon, Plus, Search, Sparkles, Trash2, XCircle } from 'lucide-react';
+import { CheckCircle2, Film, Image as ImageIcon, Plus, Search, Sparkles, Trash2, X, XCircle } from 'lucide-react';
 import type { CreativeAsset } from '../../lib/actions/client';
 import { useActionsClient } from '../../state/actions';
 import { Badge } from '../ui/badge';
@@ -15,6 +15,53 @@ const STATUS_BADGE: Record<CreativeAsset['curationStatus'], { label: string; ton
   do_not_use: { label: 'Do Not Use', tone: 'danger' },
 };
 
+const KNOWN_RATIOS: Array<{ label: string; value: number }> = [
+  { label: '9:16', value: 9 / 16 },
+  { label: '4:5', value: 4 / 5 },
+  { label: '1:1', value: 1 },
+  { label: '4:3', value: 4 / 3 },
+  { label: '16:9', value: 16 / 9 },
+];
+
+function inferKindFromUrl(rawUrl: string): 'image' | 'video' {
+  const clean = rawUrl.split('?')[0]?.toLowerCase() ?? '';
+  return /\.(mp4|mov|webm|m4v)$/.test(clean) ? 'video' : 'image';
+}
+
+function snapAspectRatio(width: number, height: number): string {
+  if (!width || !height) return '4:5';
+  const ratio = width / height;
+  let best = KNOWN_RATIOS[0]!;
+  let minDiff = Math.abs(ratio - best.value);
+  for (const candidate of KNOWN_RATIOS.slice(1)) {
+    const diff = Math.abs(ratio - candidate.value);
+    if (diff < minDiff) {
+      best = candidate;
+      minDiff = diff;
+    }
+  }
+  return best.label;
+}
+
+function deriveTitleFromUrl(rawUrl: string): string | undefined {
+  try {
+    const pathname = new URL(rawUrl).pathname;
+    const filename = pathname.split('/').pop() ?? '';
+    const stem = filename.replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ').trim();
+    return stem ? stem.slice(0, 80) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function formatStudioError(err: unknown, fallback: string): string {
+  const raw = err instanceof Error ? err.message : fallback;
+  if (/relation .* does not exist/i.test(raw)) {
+    return 'Creative Studio storage is not initialized yet. Run Hub database migrations and refresh.';
+  }
+  return raw;
+}
+
 export function StudioView() {
   const client = useActionsClient();
   const [assets, setAssets] = useState<CreativeAsset[]>([]);
@@ -25,13 +72,13 @@ export function StudioView() {
   const [query, setQuery] = useState('');
   const [showAdd, setShowAdd] = useState(false);
 
-  // Manual / Brand Truth upload form
-  const [newKind, setNewKind] = useState<'image' | 'video'>('image');
+  // Zero-friction asset onboarding: only URL + optional note; format & ratio auto-derive
   const [newUrl, setNewUrl] = useState('');
-  const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
-  const [newTags, setNewTags] = useState('');
-  const [newAspectRatio, setNewAspectRatio] = useState('4:5');
+  const [detectedKind, setDetectedKind] = useState<'image' | 'video'>('image');
+  const [detectedRatio, setDetectedRatio] = useState<string | undefined>(undefined);
+  const [detectedDims, setDetectedDims] = useState<{ width: number; height: number } | null>(null);
+  const [previewFailed, setPreviewFailed] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -50,7 +97,7 @@ export function StudioView() {
       });
       setAssets(rows);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load Studio assets');
+      setError(formatStudioError(e, 'Failed to load Studio assets'));
     } finally {
       setLoading(false);
     }
@@ -60,31 +107,38 @@ export function StudioView() {
     void load();
   }, [load]);
 
+  const handleUrlChange = (value: string) => {
+    setNewUrl(value);
+    setDetectedKind(inferKindFromUrl(value));
+    setDetectedRatio(undefined);
+    setDetectedDims(null);
+    setPreviewFailed(false);
+  };
+
   const handleAdd = async (e: FormEvent) => {
     e.preventDefault();
-    if (!client || !newUrl.trim()) return;
+    const trimmedUrl = newUrl.trim();
+    if (!client || !trimmedUrl) return;
     setSaving(true);
     setError(null);
     try {
+      const autoTitle = deriveTitleFromUrl(trimmedUrl);
       await client.createAsset({
-        kind: newKind,
-        url: newUrl.trim(),
-        ...(newTitle.trim() ? { title: newTitle.trim() } : {}),
+        kind: detectedKind,
+        url: trimmedUrl,
+        ...(autoTitle ? { title: autoTitle } : {}),
         ...(newDescription.trim() ? { description: newDescription.trim() } : {}),
-        ...(newTags.trim()
-          ? { tags: newTags.split(',').map((t) => t.trim()).filter(Boolean) }
-          : {}),
-        aspectRatio: newAspectRatio,
+        ...(detectedRatio ? { aspectRatio: detectedRatio } : {}),
         curationStatus: 'approved',
       });
       setNewUrl('');
-      setNewTitle('');
       setNewDescription('');
-      setNewTags('');
+      setDetectedRatio(undefined);
+      setDetectedDims(null);
       setShowAdd(false);
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save asset');
+      setError(formatStudioError(err, 'Could not save asset'));
     } finally {
       setSaving(false);
     }
@@ -116,8 +170,8 @@ export function StudioView() {
         title="Creative Studio"
         description="Your AI-generated and Brand Truth media library. Proba searches and reuses approved assets here before generating new visuals."
         actions={
-          <Button type="button" onClick={() => setShowAdd((v) => !v)}>
-            <Plus className="mr-1.5 h-4 w-4" />
+          <Button type="button" variant={showAdd ? 'outline' : 'primary'} onClick={() => setShowAdd((v) => !v)}>
+            {showAdd ? <X className="mr-1.5 h-4 w-4" /> : <Plus className="mr-1.5 h-4 w-4" />}
             {showAdd ? 'Close' : 'Add brand asset'}
           </Button>
         }
@@ -132,66 +186,87 @@ export function StudioView() {
       {showAdd && (
         <Card>
           <CardHeader
-            title="Add Brand Truth Asset"
-            description="Register real product photos, founder videos, or hero visuals with merchandising metadata so Proba can reuse or animate them."
+            title="Add Brand Asset"
+            description="Paste an image or video URL. Proba detects format and aspect ratio automatically."
           />
           <CardBody>
-            <form onSubmit={handleAdd} className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="studio-kind">Format</Label>
-                <NativeSelect id="studio-kind" value={newKind} onChange={(e) => setNewKind(e.target.value as 'image' | 'video')}>
-                  <option value="image">Image</option>
-                  <option value="video">Video (MP4/MOV)</option>
-                </NativeSelect>
+            <form onSubmit={handleAdd} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-[1fr_180px] sm:items-start">
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="studio-url" required>Media URL</Label>
+                    <Input
+                      id="studio-url"
+                      type="url"
+                      value={newUrl}
+                      onChange={(e) => handleUrlChange(e.target.value)}
+                      placeholder="https://cdn.yourbrand.com/hero-4x5.jpg"
+                      required
+                    />
+                  </div>
+                  {newUrl.trim() && (
+                    <div className="flex flex-wrap items-center gap-1.5 text-caption text-muted-foreground">
+                      <Badge tone="neutral">{detectedKind === 'video' ? 'Video' : 'Image'}</Badge>
+                      {detectedRatio && <Badge tone="neutral">{detectedRatio}</Badge>}
+                      {detectedDims && (
+                        <span>
+                          {detectedDims.width}×{detectedDims.height}
+                        </span>
+                      )}
+                      {previewFailed && <span className="text-amber-600">Preview unavailable (URL will still save)</span>}
+                    </div>
+                  )}
+                  <div>
+                    <Label htmlFor="studio-desc">Quick note for Proba (optional)</Label>
+                    <Textarea
+                      id="studio-desc"
+                      rows={2}
+                      value={newDescription}
+                      onChange={(e) => setNewDescription(e.target.value)}
+                      placeholder="e.g. Founder product walkthrough for cold traffic — works best in Meta Reels"
+                    />
+                  </div>
+                </div>
+
+                {newUrl.trim() && (
+                  <div className="overflow-hidden rounded-lg border bg-surface-sunken aspect-[4/5] w-full max-w-[180px]">
+                    {detectedKind === 'video' ? (
+                      <video
+                        src={newUrl.trim()}
+                        controls
+                        muted
+                        className="h-full w-full bg-black object-contain"
+                        onLoadedMetadata={(e) => {
+                          const v = e.currentTarget;
+                          if (v.videoWidth && v.videoHeight) {
+                            setDetectedDims({ width: v.videoWidth, height: v.videoHeight });
+                            setDetectedRatio(snapAspectRatio(v.videoWidth, v.videoHeight));
+                            setPreviewFailed(false);
+                          }
+                        }}
+                        onError={() => setPreviewFailed(true)}
+                      />
+                    ) : (
+                      <img
+                        src={newUrl.trim()}
+                        alt="Asset preview"
+                        className="h-full w-full object-cover"
+                        onLoad={(e) => {
+                          const img = e.currentTarget;
+                          if (img.naturalWidth && img.naturalHeight) {
+                            setDetectedDims({ width: img.naturalWidth, height: img.naturalHeight });
+                            setDetectedRatio(snapAspectRatio(img.naturalWidth, img.naturalHeight));
+                            setPreviewFailed(false);
+                          }
+                        }}
+                        onError={() => setPreviewFailed(true)}
+                      />
+                    )}
+                  </div>
+                )}
               </div>
-              <div>
-                <Label htmlFor="studio-ratio">Aspect ratio</Label>
-                <NativeSelect id="studio-ratio" value={newAspectRatio} onChange={(e) => setNewAspectRatio(e.target.value)}>
-                  <option value="4:5">4:5 (Meta Feed portrait)</option>
-                  <option value="9:16">9:16 (Reels / Stories)</option>
-                  <option value="1:1">1:1 (Square)</option>
-                  <option value="16:9">16:9 (Landscape)</option>
-                </NativeSelect>
-              </div>
-              <div className="sm:col-span-2">
-                <Label htmlFor="studio-url" required>Public HTTPS URL</Label>
-                <Input
-                  id="studio-url"
-                  value={newUrl}
-                  onChange={(e) => setNewUrl(e.target.value)}
-                  placeholder="https://cdn.yourbrand.com/hero-4x5.jpg"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="studio-title">Title</Label>
-                <Input
-                  id="studio-title"
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="e.g. Founder product walkthrough"
-                />
-              </div>
-              <div>
-                <Label htmlFor="studio-tags">Tags (comma-separated)</Label>
-                <Input
-                  id="studio-tags"
-                  value={newTags}
-                  onChange={(e) => setNewTags(e.target.value)}
-                  placeholder="product, ugc, meta-feed, warm"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <Label htmlFor="studio-desc">Merchandising description (helps Brain select this asset accurately)</Label>
-                <Textarea
-                  id="studio-desc"
-                  rows={2}
-                  value={newDescription}
-                  onChange={(e) => setNewDescription(e.target.value)}
-                  placeholder="Describe the subject, mood, lighting, and best campaign angle..."
-                />
-              </div>
-              <div className="flex justify-end gap-2 sm:col-span-2">
+
+              <div className="flex justify-end gap-2">
                 <Button type="button" variant="outline" onClick={() => setShowAdd(false)}>
                   Cancel
                 </Button>
@@ -204,32 +279,34 @@ export function StudioView() {
         </Card>
       )}
 
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-surface p-3">
-        <div className="relative min-w-[220px] flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by title, description, tags, or prompt…"
-            className="pl-9"
-          />
+      {(assets.length > 0 || query.trim() !== '' || kindFilter !== 'all' || statusFilter !== 'all') && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-surface p-3">
+          <div className="relative min-w-[220px] flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by title, description, tags, or prompt…"
+              className="pl-9"
+            />
+          </div>
+          <NativeSelect value={kindFilter} onChange={(e) => setKindFilter(e.target.value as 'all' | 'image' | 'video')} className="w-36">
+            <option value="all">All formats</option>
+            <option value="image">Images</option>
+            <option value="video">Videos</option>
+          </NativeSelect>
+          <NativeSelect
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as 'all' | 'approved' | 'candidate' | 'do_not_use')}
+            className="w-40"
+          >
+            <option value="all">All statuses</option>
+            <option value="approved">Approved</option>
+            <option value="candidate">Candidates</option>
+            <option value="do_not_use">Do Not Use</option>
+          </NativeSelect>
         </div>
-        <NativeSelect value={kindFilter} onChange={(e) => setKindFilter(e.target.value as 'all' | 'image' | 'video')} className="w-36">
-          <option value="all">All formats</option>
-          <option value="image">Images</option>
-          <option value="video">Videos</option>
-        </NativeSelect>
-        <NativeSelect
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as 'all' | 'approved' | 'candidate' | 'do_not_use')}
-          className="w-40"
-        >
-          <option value="all">All statuses</option>
-          <option value="approved">Approved</option>
-          <option value="candidate">Candidates</option>
-          <option value="do_not_use">Do Not Use</option>
-        </NativeSelect>
-      </div>
+      )}
 
       {loading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
