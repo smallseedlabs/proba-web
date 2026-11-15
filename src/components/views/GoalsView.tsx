@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ChartColumn, MessageSquare, PanelRightClose, Plus, ShieldCheck, Target } from 'lucide-react';
+import { ArrowLeft, ChartColumn, ChevronDown, MessageSquare, PanelRightClose, Plus, ShieldCheck, Target, X } from 'lucide-react';
 import type { GoalStatus as HubGoalStatus } from '../../lib/actions/client';
 import type { Session } from '../../lib/auth';
 import { routeHref } from '../../lib/router';
@@ -188,6 +188,7 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
   const goals = useGoals();
   const openAsks = useOpenAsks();
   const [creating, setCreating] = useState(false);
+  const [goalsDrawerOpen, setGoalsDrawerOpen] = useState(false);
   const [goalStatus, setGoalStatus] = useState<HubGoalStatus | null>(null);
   const [copilotOverride, setCopilotOverride] = useState<boolean | null>(null);
   const shortViewport = useMediaQuery(SHORT_VIEWPORT_QUERY);
@@ -202,7 +203,21 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
 
   useEffect(() => {
     setCopilotOverride(null);
+    setGoalsDrawerOpen(false);
   }, [selected?.goalId]);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setGoalsDrawerOpen((v) => !v);
+      } else if (e.key === 'Escape') {
+        setGoalsDrawerOpen(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   useEffect(() => {
     if (!actionsClient || !selected?.goalId) {
@@ -289,35 +304,74 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
   }
 
   return (
-    <div className="flex h-full min-h-0">
-      <section
-        aria-labelledby="goals-list-heading"
-        className={cn('w-full shrink-0 flex-col border-r bg-surface-sunken/50 lg:flex lg:w-80', selectedId ? 'hidden' : 'flex')}
-      >
-        <div className="flex items-center justify-between gap-2 border-b px-4 py-4">
-          <div>
-            <h1 id="goals-list-heading" className="text-title text-foreground">
-              Goals
-            </h1>
-            <p className="text-caption text-muted-foreground">
-              {active} active · {goals.length} total
-            </p>
-          </div>
-          <Button size="sm" onClick={() => setCreating(true)}>
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            New goal
+    <div className="relative flex h-full min-h-0 flex-col">
+      {/* Compact Top Goal Switcher Bar — frees 320px for Analytics + Co-pilot */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-surface-sunken/40 px-4 py-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setGoalsDrawerOpen(true)}
+            aria-expanded={goalsDrawerOpen}
+            aria-controls="goals-switcher-drawer"
+          >
+            <Target className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+            <span className="max-w-[220px] truncate">{selected ? selected.title : 'Select goal'}</span>
+            <Badge tone="neutral" className="ml-0.5">{active} active / {goals.length}</Badge>
+            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
           </Button>
+          <span className="hidden text-[11px] text-muted-foreground sm:inline">⌘K</span>
         </div>
-        <ul className="flex-1 space-y-1.5 overflow-y-auto p-3">
-          {goals.map((goal) => (
-            <li key={goal.goalId}>
-              <GoalListItem goal={goal} selected={goal.goalId === selected?.goalId} pending={goal.threadId ? pendingByThread.get(goal.threadId) ?? 0 : 0} />
-            </li>
-          ))}
-        </ul>
-      </section>
+        <Button size="sm" onClick={() => setCreating(true)}>
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          New goal
+        </Button>
+      </div>
 
-      <section aria-label={selected ? `Goal: ${selected.title}` : 'Goal'} className={cn('min-h-0 min-w-0 flex-1 flex-col', selectedId ? 'flex' : 'hidden lg:flex')}>
+      {goalsDrawerOpen && (
+        <div className="fixed inset-0 z-40 flex">
+          <div
+            className="fixed inset-0 bg-black/30 backdrop-blur-[1px]"
+            aria-hidden="true"
+            onClick={() => setGoalsDrawerOpen(false)}
+          />
+          <section
+            id="goals-switcher-drawer"
+            aria-labelledby="goals-list-heading"
+            className="relative z-50 flex h-full w-80 max-w-[85vw] flex-col border-r bg-surface shadow-xl"
+          >
+            <div className="flex items-center justify-between gap-2 border-b px-4 py-3.5">
+              <div>
+                <h1 id="goals-list-heading" className="text-title text-foreground">
+                  Goals
+                </h1>
+                <p className="text-caption text-muted-foreground">
+                  {active} active · {goals.length} total
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Button size="sm" onClick={() => { setGoalsDrawerOpen(false); setCreating(true); }}>
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  New
+                </Button>
+                <Button type="button" size="sm" variant="outline" onClick={() => setGoalsDrawerOpen(false)} aria-label="Close goals drawer">
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <ul className="flex-1 space-y-1.5 overflow-y-auto p-3">
+              {goals.map((goal) => (
+                <li key={goal.goalId} onClick={() => setGoalsDrawerOpen(false)}>
+                  <GoalListItem goal={goal} selected={goal.goalId === selected?.goalId} pending={goal.threadId ? pendingByThread.get(goal.threadId) ?? 0 : 0} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        </div>
+      )}
+
+      <section aria-label={selected ? `Goal: ${selected.title}` : 'Goal'} className="flex min-h-0 min-w-0 flex-1 flex-col">
         {selected ? (
           <>
             <GoalHeader

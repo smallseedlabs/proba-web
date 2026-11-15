@@ -85,6 +85,45 @@ const REGISTRY: Record<string, PlatformSpec> = {
       { key: 'viral_impressions', label: 'Viral impr.', format: 'number' },
     ],
   },
+  chatgpt: {
+    id: 'chatgpt',
+    displayName: 'ChatGPT / OpenAI Ads',
+    shortLabel: 'ChatGPT',
+    entityLinkLabel: 'View AI placement',
+    capabilities: { textAds: true, imageAds: true, budgetUpdate: true, pause: true },
+    nativeMetricDefs: [
+      { key: 'citation_rate', label: 'Citation rate', format: 'percent' },
+      { key: 'share_of_ai_voice', label: 'Share of AI voice', format: 'percent' },
+      { key: 'impressions', label: 'Answer impr.', format: 'number' },
+      { key: 'clicks', label: 'Clicks', format: 'number' },
+      { key: 'spend', label: 'Spend', format: 'currency' },
+    ],
+  },
+  claude: {
+    id: 'claude',
+    displayName: 'Claude AI Visibility',
+    shortLabel: 'Claude',
+    entityLinkLabel: 'View AI audit',
+    capabilities: { textAds: true, imageAds: false, budgetUpdate: false, pause: true },
+    nativeMetricDefs: [
+      { key: 'citation_rate', label: 'Citation rate', format: 'percent' },
+      { key: 'share_of_ai_voice', label: 'Share of AI voice', format: 'percent' },
+      { key: 'ai_referrals', label: 'AI referrals', format: 'number' },
+    ],
+  },
+  perplexity: {
+    id: 'perplexity',
+    displayName: 'Perplexity Sponsored',
+    shortLabel: 'Perplexity',
+    entityLinkLabel: 'View AI placement',
+    capabilities: { textAds: true, imageAds: true, budgetUpdate: true, pause: true },
+    nativeMetricDefs: [
+      { key: 'citation_rate', label: 'Citation rate', format: 'percent' },
+      { key: 'impressions', label: 'Answer impr.', format: 'number' },
+      { key: 'clicks', label: 'Clicks', format: 'number' },
+      { key: 'spend', label: 'Spend', format: 'currency' },
+    ],
+  },
 };
 
 /**

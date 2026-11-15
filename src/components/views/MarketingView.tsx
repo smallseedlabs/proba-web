@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { Plug } from 'lucide-react';
+import { Plug, Sparkles } from 'lucide-react';
 import { ActionsError, type ConnectionsState, type PlatformConnection } from '../../lib/actions/client';
 import { takePendingOAuthCallback } from '../../lib/connections/callback';
+import { getPlatformSpec } from '../../lib/platforms/registry';
 import { formatDateTime } from '../../lib/utils/format';
 import { useActionsClient } from '../../state/actions';
 import { Badge, type Tone } from '../ui/badge';
@@ -240,25 +241,64 @@ export function MarketingView() {
         </Callout>
       )}
       {state && (
-        <div className="grid gap-4 md:grid-cols-2">
-          {state.connections.map((connection) => (
-            <ProviderCard
-              key={connection.provider}
-              connection={connection}
-              enabled={state.enabled && ENABLED_PROVIDERS.has(connection.provider)}
-              busy={busy?.provider === connection.provider ? busy.op : null}
-              onConnect={() => void connect(connection.provider)}
-              onSelect={(accountId) =>
-                void run(
-                  connection.provider,
-                  'select',
-                  () => client!.selectConnectionAccount(connection.provider, accountId),
-                  `${connection.displayName} will use ad account ${accountId}.`
-                )
-              }
-              onDisconnect={() => setConfirm(connection)}
-            />
-          ))}
+        <div className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            {state.connections.map((connection) => (
+              <ProviderCard
+                key={connection.provider}
+                connection={connection}
+                enabled={state.enabled && ENABLED_PROVIDERS.has(connection.provider)}
+                busy={busy?.provider === connection.provider ? busy.op : null}
+                onConnect={() => void connect(connection.provider)}
+                onSelect={(accountId) =>
+                  void run(
+                    connection.provider,
+                    'select',
+                    () => client!.selectConnectionAccount(connection.provider, accountId),
+                    `${connection.displayName} will use ad account ${accountId}.`
+                  )
+                }
+                onDisconnect={() => setConfirm(connection)}
+              />
+            ))}
+          </div>
+
+          <section aria-labelledby="llm-marketing-heading" className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
+              <h2 id="llm-marketing-heading" className="text-title text-foreground">
+                AI Search &amp; LLM Marketing
+              </h2>
+              <Badge tone="primary">Pluggable Channel</Badge>
+            </div>
+            <p className="text-body text-muted-foreground">
+              Capture high-intent buyers directly inside conversational AI answers alongside Meta, Reddit, and Search.
+            </p>
+            <div className="grid gap-4 md:grid-cols-3">
+              {(['chatgpt', 'claude', 'perplexity'] as const).map((id) => {
+                const spec = getPlatformSpec(id);
+                return (
+                  <Card key={id}>
+                    <CardHeader
+                      title={spec.displayName}
+                      titleAs="h3"
+                      description="Tracks brand citations, share of AI voice, and sponsored answer placements."
+                    />
+                    <CardBody className="space-y-2.5">
+                      <Badge tone="neutral">Tracked metrics ready</Badge>
+                      <div className="flex flex-wrap gap-1.5">
+                        {spec.nativeMetricDefs.map((m) => (
+                          <span key={m.key} className="rounded bg-surface-sunken px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                            {m.label}
+                          </span>
+                        ))}
+                      </div>
+                    </CardBody>
+                  </Card>
+                );
+              })}
+            </div>
+          </section>
         </div>
       )}
       <Dialog
