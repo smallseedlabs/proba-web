@@ -28,6 +28,36 @@ const rulesSchema = z
   })
   .passthrough();
 
+const creativeAssetSchema = z.object({
+  id: z.string(),
+  workspaceId: z.string(),
+  userId: z.string(),
+  goalId: z.string().optional(),
+  kind: z.enum(['image', 'video']),
+  url: z.string(),
+  sourceUrl: z.string().optional(),
+  mimeType: z.string().optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
+  durationSeconds: z.number().optional(),
+  aspectRatio: z.string().optional(),
+  provider: z.string(),
+  model: z.string().optional(),
+  prompt: z.string().optional(),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  tags: z.array(z.string()).default([]),
+  visualStyle: z.string().optional(),
+  brandElements: z.array(z.string()).default([]),
+  useCases: z.array(z.string()).default([]),
+  curationStatus: z.enum(['approved', 'candidate', 'do_not_use']).default('candidate'),
+  parentAssetId: z.string().optional(),
+  timesUsed: z.number().default(0),
+  lastUsedAt: z.string().optional(),
+  createdAt: z.string(),
+});
+export type CreativeAsset = z.infer<typeof creativeAssetSchema>;
+
 const campaignSchema = z.object({
   probaCampaignId: z.string(),
   goalId: z.string(),
@@ -259,6 +289,27 @@ export interface ActionsClient {
   completeConnection(provider: string, params: OAuthCallbackParams): Promise<PlatformConnection>;
   selectConnectionAccount(provider: string, accountId: string): Promise<PlatformConnection>;
   disconnectConnection(provider: string): Promise<PlatformConnection>;
+  listAssets(
+    params?: { kind?: 'image' | 'video'; curationStatus?: 'approved' | 'candidate' | 'do_not_use'; q?: string; goalId?: string; limit?: number },
+    signal?: AbortSignal
+  ): Promise<CreativeAsset[]>;
+  createAsset(input: {
+    kind: 'image' | 'video';
+    url: string;
+    title?: string;
+    description?: string;
+    tags?: string[];
+    visualStyle?: string;
+    useCases?: string[];
+    aspectRatio?: string;
+    curationStatus?: 'approved' | 'candidate' | 'do_not_use';
+    goalId?: string;
+  }): Promise<CreativeAsset>;
+  updateAsset(
+    id: string,
+    patch: { title?: string; description?: string; tags?: string[]; curationStatus?: 'approved' | 'candidate' | 'do_not_use' }
+  ): Promise<CreativeAsset>;
+  deleteAsset(id: string): Promise<void>;
 }
 
 /** Plain-language messages for Hub error codes the owner can act on. */
@@ -410,6 +461,54 @@ export class HubActionsClient implements ActionsClient {
   async disconnectConnection(provider: string) {
     const body = await this.request('DELETE', `/v1/connections/${encodeURIComponent(provider)}`);
     return this.parse(z.object({ connection: connectionSchema }), body).connection;
+  }
+
+  async listAssets(
+    params: { kind?: 'image' | 'video'; curationStatus?: 'approved' | 'candidate' | 'do_not_use'; q?: string; goalId?: string; limit?: number } = {},
+    signal?: AbortSignal
+  ): Promise<CreativeAsset[]> {
+    const qs = new URLSearchParams();
+    if (params.kind) qs.set('kind', params.kind);
+    if (params.curationStatus) qs.set('curationStatus', params.curationStatus);
+    if (params.q) qs.set('q', params.q);
+    if (params.goalId) qs.set('goalId', params.goalId);
+    if (params.limit) qs.set('limit', String(params.limit));
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    const body = await this.request('GET', `/v1/assets${suffix}`, undefined, signal);
+    return this.parse(z.object({ assets: z.array(creativeAssetSchema) }), body).assets;
+  }
+
+  async createAsset(input: {
+    kind: 'image' | 'video';
+    url: string;
+    title?: string;
+    description?: string;
+    tags?: string[];
+    visualStyle?: string;
+    useCases?: string[];
+    aspectRatio?: string;
+    curationStatus?: 'approved' | 'candidate' | 'do_not_use';
+    goalId?: string;
+  }): Promise<CreativeAsset> {
+    const body = await this.request('POST', '/v1/assets', { provider: 'manual', ...input });
+    return this.parse(z.object({ asset: creativeAssetSchema }), body).asset;
+  }
+
+  async updateAsset(
+    id: string,
+    patch: {
+      title?: string;
+      description?: string;
+      tags?: string[];
+      curationStatus?: 'approved' | 'candidate' | 'do_not_use';
+    }
+  ): Promise<CreativeAsset> {
+    const body = await this.request('PATCH', `/v1/assets/${encodeURIComponent(id)}`, patch);
+    return this.parse(z.object({ asset: creativeAssetSchema }), body).asset;
+  }
+
+  async deleteAsset(id: string): Promise<void> {
+    await this.request('DELETE', `/v1/assets/${encodeURIComponent(id)}`);
   }
 
   private parse<T>(schema: z.ZodType<T>, body: unknown): T {

@@ -14,6 +14,7 @@ import { CampaignsView } from '../views/CampaignsView';
 import { GoalsView } from '../views/GoalsView';
 import { MarketingView } from '../views/MarketingView';
 import { SettingsView } from '../views/SettingsView';
+import { StudioView } from '../views/StudioView';
 import { NAV_ITEMS } from './nav';
 import { Sidebar, type NavItem } from './Sidebar';
 import { TopBar } from './TopBar';
@@ -164,6 +165,7 @@ export function AppShell({
           {route.section === 'approvals' && <ApprovalsView />}
           {route.section === 'activity' && <ActivityView />}
           {route.section === 'campaigns' && <CampaignsView selectedId={route.id} />}
+          {route.section === 'studio' && <StudioView />}
           {route.section === 'actions' && <ActionsView />}
           {route.section === 'marketing' && <MarketingView />}
           {route.section === 'settings' && <SettingsView session={session} workspace={workspace} onSignOut={onSignOut} />}

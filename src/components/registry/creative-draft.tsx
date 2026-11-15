@@ -1,4 +1,7 @@
 import { useId, useState } from 'react';
+import { Sparkles } from 'lucide-react';
+import type { CreativeAsset } from '../../lib/actions/client';
+import { useActionsClient } from '../../state/actions';
 import { Button } from '../ui/button';
 import { Card, CardBody, CardFooter, CardHeader } from '../ui/card';
 import { FieldError, FieldHint, Input, Label, NativeSelect, Textarea } from '../ui/field';
@@ -38,6 +41,10 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
   const [videoUrl, setVideoUrl] = useState(draft.videoUrl ?? '');
   const [ctaType, setCtaType] = useState(draft.ctaType ?? 'LEARN_MORE');
   const [expandedBody, setExpandedBody] = useState(false);
+  const actionsClient = useActionsClient();
+  const [studioOpen, setStudioOpen] = useState(false);
+  const [studioAssets, setStudioAssets] = useState<CreativeAsset[]>([]);
+  const [studioLoading, setStudioLoading] = useState(false);
   const [communities, setCommunities] = useState(initialCommunities);
   const [metric, setMetric] = useState(plan?.successMetric ?? '');
   const [target, setTarget] = useState(plan?.successTarget !== undefined ? String(plan.successTarget) : '');
@@ -286,6 +293,75 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
               disabled={disabled}
             />
           </div>
+          {actionsClient && (
+            <div className="space-y-2 sm:col-span-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-caption text-muted-foreground">Or pick an approved image/video from Creative Studio</span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={disabled || studioLoading}
+                  onClick={async () => {
+                    if (studioOpen) {
+                      setStudioOpen(false);
+                      return;
+                    }
+                    setStudioOpen(true);
+                    setStudioLoading(true);
+                    try {
+                      const rows = await actionsClient.listAssets({ limit: 12 });
+                      setStudioAssets(rows.filter((r) => r.curationStatus !== 'do_not_use'));
+                    } finally {
+                      setStudioLoading(false);
+                    }
+                  }}
+                >
+                  <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                  {studioOpen ? 'Hide Studio' : 'Pick from Studio'}
+                </Button>
+              </div>
+              {studioOpen && (
+                <div className="grid max-h-56 grid-cols-2 gap-2 overflow-y-auto rounded-lg border bg-surface p-2 sm:grid-cols-3">
+                  {studioLoading ? (
+                    <p className="col-span-full py-4 text-center text-caption text-muted-foreground">Loading Studio assets…</p>
+                  ) : studioAssets.length === 0 ? (
+                    <p className="col-span-full py-4 text-center text-caption text-muted-foreground">
+                      No Studio assets yet. Add or generate visuals in the Studio tab.
+                    </p>
+                  ) : (
+                    studioAssets.map((asset) => (
+                      <button
+                        key={asset.id}
+                        type="button"
+                        onClick={() => {
+                          if (asset.kind === 'video') {
+                            setVideoUrl(asset.url);
+                          } else {
+                            setImageUrl(asset.url);
+                            setUseImage(true);
+                          }
+                          setStudioOpen(false);
+                        }}
+                        className="group overflow-hidden rounded-md border text-left transition hover:border-primary"
+                      >
+                        <div className="aspect-video w-full bg-surface-sunken">
+                          {asset.kind === 'video' ? (
+                            <video src={asset.url} className="h-full w-full object-cover" muted />
+                          ) : (
+                            <img src={asset.url} alt={asset.title || 'Studio asset'} className="h-full w-full object-cover" />
+                          )}
+                        </div>
+                        <p className="truncate px-2 py-1 text-[11px] font-medium text-foreground">
+                          {asset.title || asset.provider}
+                        </p>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           {draft.visualBrief && (
             <p className="text-caption text-muted-foreground sm:col-span-2">
               <span className="font-medium text-foreground">Visual direction: </span>
