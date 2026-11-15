@@ -108,7 +108,7 @@ function GoalHeader({
 
   return (
     <div data-testid="goal-header" className={cn('border-b bg-surface px-4 md:px-6', detailsOpen ? 'py-5' : 'py-2.5')}>
-      <a href={routeHref({ section: 'goals' })} className="mb-2 inline-flex items-center gap-1 text-body font-medium text-primary hover:underline lg:hidden">
+      <a href={routeHref({ section: 'goals' })} className="mb-2 inline-flex items-center gap-1 text-body font-medium text-primary hover:underline">
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         All goals
       </a>
@@ -192,7 +192,7 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
   const [goalStatus, setGoalStatus] = useState<HubGoalStatus | null>(null);
   const [copilotOverride, setCopilotOverride] = useState<boolean | null>(null);
   const shortViewport = useMediaQuery(SHORT_VIEWPORT_QUERY);
-  const selected = goals.find((g) => g.goalId === selectedId) ?? (selectedId ? undefined : goals[0]);
+  const selected = selectedId ? goals.find((g) => g.goalId === selectedId) : undefined;
   const pendingByThread = useMemo(() => {
     const counts = new Map<string, number>();
     openAsks.forEach((a) => a.threadId && counts.set(a.threadId, (counts.get(a.threadId) ?? 0) + 1));
@@ -297,6 +297,37 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
               </li>
             ))}
           </ol>
+        </div>
+        <NewGoalDialog open={creating} onClose={() => setCreating(false)} />
+      </div>
+    );
+  }
+
+  if (!selectedId) {
+    return (
+      <div className="h-full overflow-y-auto px-4 py-6 md:px-6">
+        <div className="mx-auto max-w-6xl space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h1 id="goals-list-heading" className="text-heading text-foreground">
+                Goals
+              </h1>
+              <p className="text-body text-muted-foreground">
+                {active} active · {goals.length} total · Pick a goal to open its Command Center or press ⌘K anytime.
+              </p>
+            </div>
+            <Button onClick={() => setCreating(true)}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              New goal
+            </Button>
+          </div>
+          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {goals.map((goal) => (
+              <li key={goal.goalId} className="rounded-xl border bg-surface shadow-card">
+                <GoalListItem goal={goal} selected={false} pending={goal.threadId ? pendingByThread.get(goal.threadId) ?? 0 : 0} />
+              </li>
+            ))}
+          </ul>
         </div>
         <NewGoalDialog open={creating} onClose={() => setCreating(false)} />
       </div>
