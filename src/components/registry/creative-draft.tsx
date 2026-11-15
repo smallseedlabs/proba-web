@@ -37,6 +37,7 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
   const [imageUrl, setImageUrl] = useState(draft.imageUrl ?? '');
   const [videoUrl, setVideoUrl] = useState(draft.videoUrl ?? '');
   const [ctaType, setCtaType] = useState(draft.ctaType ?? 'LEARN_MORE');
+  const [expandedBody, setExpandedBody] = useState(false);
   const [communities, setCommunities] = useState(initialCommunities);
   const [metric, setMetric] = useState(plan?.successMetric ?? '');
   const [target, setTarget] = useState(plan?.successTarget !== undefined ? String(plan.successTarget) : '');
@@ -118,15 +119,33 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
                 Meta Feed Preview
               </span>
             </div>
-            <p className="whitespace-pre-line px-3 py-2.5 text-body text-foreground">{body || 'Primary text preview'}</p>
+            <div className="px-3 py-2.5">
+              <p className={`whitespace-pre-line text-body text-foreground ${expandedBody ? '' : 'line-clamp-3'}`}>
+                {body || 'Primary text preview'}
+              </p>
+              {(body.trim().length > 125 || body.split('\n').length > 3) && (
+                <button
+                  type="button"
+                  onClick={() => setExpandedBody((prev) => !prev)}
+                  className="mt-0.5 text-caption font-medium text-muted-foreground hover:text-foreground"
+                >
+                  {expandedBody ? 'Show less' : '… See more'}
+                </button>
+              )}
+            </div>
             {videoUrl.trim() ? (
               <video src={videoUrl.trim()} controls className="max-h-60 w-full bg-black object-contain" />
             ) : effectiveImageUrl ? (
               <img src={effectiveImageUrl} alt="Meta ad creative preview" className="max-h-60 w-full object-cover" />
             ) : (
-              <div className="flex h-36 flex-col items-center justify-center gap-1 bg-surface-sunken px-4 text-center text-caption text-muted-foreground">
+              <div className="flex min-h-36 flex-col items-center justify-center gap-1.5 bg-surface-sunken px-5 py-4 text-center text-caption text-muted-foreground">
                 <span className="font-medium text-foreground">Visual asset needed for Meta Feed</span>
-                <span>Add an Image URL or Video URL below so Meta can publish this ad.</span>
+                <span>Add an Image URL or Video URL below before launching on Meta.</span>
+                {draft.visualBrief && (
+                  <span className="max-w-md text-[11px] text-muted-foreground/90">
+                    Suggested direction: {draft.visualBrief}
+                  </span>
+                )}
               </div>
             )}
             <div className="flex items-center justify-between gap-3 border-t bg-surface-sunken/50 px-3 py-2.5">
@@ -196,7 +215,7 @@ export function CreativeDraftCard({ ui, onAction, disabled, fallbackText }: Comp
         </div>
         <div>
           <Label htmlFor={`${id}-body`} required>
-            {isMeta ? 'Primary text' : 'Post text'}
+            {isMeta ? `Primary text (${body.trim().length}/125 before "See more" fold)` : 'Post text'}
           </Label>
           <Textarea id={`${id}-body`} value={body} onChange={(e) => setBody(e.target.value)} rows={5} disabled={disabled} />
         </div>
