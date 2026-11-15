@@ -61,7 +61,7 @@ describe('AppShell', () => {
   it('fills the viewport with a percentage-height shell, not a stale 100vh', () => {
     renderShell(new DemoTransport({ workspaceId: 'northwind', latency: 0 }));
     const skip = screen.getByText('Skip to main content');
-    expect(skip.parentElement).toHaveClass('h-full', 'min-h-dvh');
+    expect(skip.parentElement).toHaveClass('h-dvh');
     expect(skip.parentElement).not.toHaveClass('h-screen');
   });
 

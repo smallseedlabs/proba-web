@@ -116,7 +116,7 @@ export function ApprovalCardComponent({ ui, onAction, disabled, fallbackText }: 
       />
       <CardBody className="space-y-4">
         {props.action && <p className="text-body font-medium text-foreground">{props.action}</p>}
-        {(props.currentValue || props.proposedValue) && (
+        {(props.currentValue || props.proposedValue) && props.currentValue !== props.proposedValue && (
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded-lg border bg-surface-sunken/60 p-4">
             <div>
               <p className="text-caption font-medium uppercase tracking-wide text-muted-foreground">Current</p>

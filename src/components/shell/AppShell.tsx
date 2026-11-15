@@ -70,7 +70,7 @@ export function AppShell({
   };
 
   return (
-    <div className="flex h-full min-h-dvh overflow-hidden bg-background">
+    <div className="flex h-dvh overflow-hidden bg-background">
       <a
         href="#main-content"
         onClick={(e) => {
