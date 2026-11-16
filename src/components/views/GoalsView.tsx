@@ -356,6 +356,7 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
           <MagicPromptCanvas
             hasConnectedPlatform={hasConnectedPlatform}
             userRole={userRole}
+            goals={goals}
             onConnectPlatform={
               actionsClient
                 ? (provider) => {
@@ -407,39 +408,20 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
     if (mode === 'auto') {
       return (
         <div className="h-full overflow-y-auto px-4 py-6 md:px-6">
-          <div className="mx-auto max-w-2xl space-y-6">
-            <MagicPromptCanvas
-              hasConnectedPlatform={hasConnectedPlatform}
-              userRole={userRole}
-              onConnectPlatform={
-                actionsClient
-                  ? (provider) => {
-                      void actionsClient.startConnection(provider).then((r) => {
-                        window.location.assign(r.authorizeUrl);
-                      });
-                    }
-                  : undefined
-              }
-            />
-            <div className="space-y-2">
-              <div className="text-caption font-semibold uppercase tracking-wide text-slate-400">Your Campaigns</div>
-              <div className="grid gap-2">
-                {goals.map((goal) => (
-                  <a
-                    key={goal.goalId}
-                    href={routeHref({ section: 'goals', id: goal.goalId })}
-                    className="flex items-center justify-between rounded-xl border border-white/10 bg-[#12121A] px-4 py-3 text-body transition hover:border-violet-500/40"
-                  >
-                    <span className="font-medium text-white">{goal.title}</span>
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-[11px] text-slate-400">{formatRelativeTime(goal.updatedAt)}</span>
-                      <GoalStatusBadge status={goal.status} />
-                    </div>
-                  </a>
-                ))}
-              </div>
-            </div>
-          </div>
+          <MagicPromptCanvas
+            hasConnectedPlatform={hasConnectedPlatform}
+            userRole={userRole}
+            goals={goals}
+            onConnectPlatform={
+              actionsClient
+                ? (provider) => {
+                    void actionsClient.startConnection(provider).then((r) => {
+                      window.location.assign(r.authorizeUrl);
+                    });
+                  }
+                : undefined
+            }
+          />
         </div>
       );
     }
