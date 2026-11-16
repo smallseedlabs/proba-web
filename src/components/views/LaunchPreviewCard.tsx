@@ -34,7 +34,7 @@ export function LaunchPreviewCard({
   submitting = false,
 }: LaunchPreviewCardProps) {
   const uiProps = (event?.ui?.props ?? {}) as Record<string, unknown>;
-  const draft = (uiProps.draft ?? uiProps.creative ?? uiProps) as Record<string, unknown>;
+  const draft = (uiProps.creativeDraft ?? uiProps.draft ?? uiProps.creative ?? uiProps) as Record<string, unknown>;
   const plan = (uiProps.plan ?? {}) as Record<string, unknown>;
   const targeting = (uiProps.targeting ?? {}) as Record<string, unknown>;
   const costImpact = (uiProps.costImpact ?? {}) as Record<string, unknown>;

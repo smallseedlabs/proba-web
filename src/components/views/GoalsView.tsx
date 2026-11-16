@@ -481,18 +481,20 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
       <section aria-label={selected ? `Goal: ${selected.title}` : 'Goal'} className="flex min-h-0 min-w-0 flex-1 flex-col">
         {selected ? (
           <>
-            <GoalHeader
-              goal={selected}
-              status={status}
-              compact={shortViewport}
-              hasLiveCampaigns={hasLiveCampaigns}
-              copilotOpen={copilotOpen}
-              openAskCount={openAskCount}
-              onToggleCopilot={() => setCopilotOverride(!copilotOpen)}
-            />
+            {mode === 'controlled' && (
+              <GoalHeader
+                goal={selected}
+                status={status}
+                compact={shortViewport}
+                hasLiveCampaigns={hasLiveCampaigns}
+                copilotOpen={copilotOpen}
+                openAskCount={openAskCount}
+                onToggleCopilot={() => setCopilotOverride(!copilotOpen)}
+              />
+            )}
             <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
               <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-6 md:px-6">
-                <div className="mx-auto w-full min-w-0 max-w-4xl space-y-6">
+                <div className={cn('mx-auto w-full min-w-0 space-y-6', mode === 'auto' ? 'max-w-2xl' : 'max-w-4xl')}>
                   {mode === 'auto' && !hasLiveCampaigns && (
                     <LaunchPreviewCard
                       goalTitle={selected.title}
@@ -518,7 +520,7 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                         setLaunchingAuto(true);
                         try {
                           await respond(launchEvent, {
-                            id: edited ? 'edit' : 'approve',
+                            id: 'approve',
                             ...(edited ? { values: edited } : {}),
                           });
                         } finally {
@@ -527,7 +529,75 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                       }}
                     />
                   )}
-                  {(mode === 'controlled' || hasLiveCampaigns) && (
+                  {mode === 'auto' && hasLiveCampaigns && goalStatus && (
+                    <div className="rounded-xl border bg-surface p-6 shadow-card space-y-5">
+                      <div className="flex flex-wrap items-start justify-between gap-3 border-b pb-4">
+                        <div>
+                          <Badge tone={goalStatus.now.state === 'running' ? 'success' : 'warning'} dot>
+                            {goalStatus.now.state === 'running' ? 'Live & Optimizing' : 'Active'}
+                          </Badge>
+                          <h2 className="mt-2 text-section font-semibold text-foreground">{selected.title}</h2>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {actionsClient && typeof actionsClient.pauseGoal === 'function' && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => void actionsClient.pauseGoal!(selected.goalId)}
+                            >
+                              Pause campaign
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="rounded-lg border bg-background p-3">
+                          <div className="text-caption text-muted-foreground">Spent</div>
+                          <div className="mt-1 text-heading font-semibold tabular-nums text-foreground">
+                            {goalStatus.spend.spent !== null
+                              ? formatCurrency(goalStatus.spend.spent, goalStatus.spend.currency ?? 'USD')
+                              : '$0.00'}
+                          </div>
+                        </div>
+                        <div className="rounded-lg border bg-background p-3">
+                          <div className="text-caption text-muted-foreground">Visitors / Metric</div>
+                          <div className="mt-1 text-heading font-semibold tabular-nums text-foreground">
+                            {goalStatus.progress.actual !== null ? formatNumber(goalStatus.progress.actual) : '0'}
+                          </div>
+                        </div>
+                        <div className="rounded-lg border bg-background p-3">
+                          <div className="text-caption text-muted-foreground">Daily Cap</div>
+                          <div className="mt-1 text-heading font-semibold tabular-nums text-foreground">
+                            {goalStatus.spend.dailyCap !== null
+                              ? formatCurrency(goalStatus.spend.dailyCap, goalStatus.spend.currency ?? 'USD')
+                              : 'Auto'}
+                          </div>
+                        </div>
+                      </div>
+                      {goalStatus.decisions.length > 0 && (
+                        <div>
+                          <div className="text-caption font-semibold text-foreground">Recent agent updates</div>
+                          <ul className="mt-2 space-y-1.5 text-caption text-muted-foreground">
+                            {goalStatus.decisions.slice(0, 3).map((d, i) => (
+                              <li key={i} className="rounded-md border bg-background px-3 py-2 text-foreground">
+                                {d.summary}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      <div className="border-t pt-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => setMode('controlled')}
+                          className="text-caption font-medium text-muted-foreground hover:text-foreground"
+                        >
+                          Want charts, creative studio &amp; GEO? Switch to Controlled Mode →
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {(mode === 'controlled' || (mode === 'auto' && hasLiveCampaigns && openAskCount > 0)) && (
                     <DecisionInbox
                       goalId={selected.goalId}
                       threadId={selected.threadId}
@@ -535,25 +605,29 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                       onOpenCopilot={() => setCopilotOverride(true)}
                     />
                   )}
-                  <GoalStatusPanel key={selected.goalId} goalId={selected.goalId} refreshKey={state.events.length} />
-                  {hasLiveCampaigns && (
-                    <AnalyticsCharts campaignIds={campaignIds} platforms={platforms} />
+                  {mode === 'controlled' && (
+                    <>
+                      <GoalStatusPanel key={selected.goalId} goalId={selected.goalId} refreshKey={state.events.length} />
+                      {hasLiveCampaigns && (
+                        <AnalyticsCharts campaignIds={campaignIds} platforms={platforms} />
+                      )}
+                      <GeoVisibilityPanel
+                        workspaceId="seedbed"
+                        goalId={selected.goalId}
+                        brandName={selected.title}
+                        landingPageUrl=""
+                        onSendProposalToCopilot={(promptText) => {
+                          setCopilotOverride(true);
+                          const sendFn = (workspace as unknown as { send?: (threadId: string, text: string) => void }).send;
+                          if (typeof sendFn === 'function' && selected.threadId) {
+                            sendFn(selected.threadId, promptText);
+                          } else {
+                            navigator.clipboard?.writeText(promptText);
+                          }
+                        }}
+                      />
+                    </>
                   )}
-                  <GeoVisibilityPanel
-                    workspaceId="seedbed"
-                    goalId={selected.goalId}
-                    brandName={selected.title}
-                    landingPageUrl=""
-                    onSendProposalToCopilot={(promptText) => {
-                      setCopilotOverride(true);
-                      const sendFn = (workspace as unknown as { send?: (threadId: string, text: string) => void }).send;
-                      if (typeof sendFn === 'function' && selected.threadId) {
-                        sendFn(selected.threadId, promptText);
-                      } else {
-                        navigator.clipboard?.writeText(promptText);
-                      }
-                    }}
-                  />
                 </div>
               </div>
               {copilotOpen && (

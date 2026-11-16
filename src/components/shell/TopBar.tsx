@@ -5,6 +5,7 @@ import { cn } from '../../lib/utils/cn';
 import { initials } from '../../lib/utils/format';
 import { useUIMode } from '../../state/ui-mode';
 import type { OperationsState } from '../../state/workspace';
+import { LogoMark } from '../brand/Logo';
 import { Button } from '../ui/button';
 import { Menu } from '../ui/menu';
 
@@ -54,42 +55,52 @@ export function TopBar({
 }) {
   const paused = operations !== 'running';
   const { mode, setMode } = useUIMode();
+  const isAuto = mode === 'auto';
   return (
     <header className="flex h-16 shrink-0 items-center gap-3 border-b bg-surface px-4 lg:px-6">
-      <Button variant="ghost" size="icon" className="md:hidden" onClick={onOpenNav} aria-label="Open navigation">
-        <MenuIcon className="h-5 w-5" aria-hidden="true" />
-      </Button>
+      {!isAuto && (
+        <Button variant="ghost" size="icon" className="md:hidden" onClick={onOpenNav} aria-label="Open navigation">
+          <MenuIcon className="h-5 w-5" aria-hidden="true" />
+        </Button>
+      )}
 
-      <Menu
-        align="start"
-        menuLabel="Switch workspace"
-        triggerClassName="gap-2.5 rounded-md border bg-surface px-2.5 py-1.5 hover:bg-muted"
-        trigger={
-          <>
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary-subtle text-primary" aria-hidden="true">
-              <Building2 className="h-4 w-4" />
-            </span>
-            <span className="sr-only text-left sm:not-sr-only">
-              <span className="block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Workspace</span>{' '}
-              <span className="block max-w-[180px] truncate text-body font-semibold leading-tight text-foreground">{workspace.name}</span>
-            </span>
-            <span className="sr-only">, switch workspace</span>
-            <ChevronsUpDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-          </>
-        }
-        sections={[
-          {
-            label: 'Switch workspace',
-            items: session.workspaces.map((ws) => ({
-              id: ws.id,
-              label: ws.name,
-              checked: ws.id === workspace.id,
-              icon: <Building2 className="h-4 w-4" />,
-              onSelect: () => onSwitchWorkspace(ws.id),
-            })),
-          },
-        ]}
-      />
+      {isAuto ? (
+        <div className="flex items-center gap-2.5">
+          <LogoMark className="h-7 w-7" />
+          <span className="text-section font-semibold tracking-tight text-foreground">Proba</span>
+        </div>
+      ) : (
+        <Menu
+          align="start"
+          menuLabel="Switch workspace"
+          triggerClassName="gap-2.5 rounded-md border bg-surface px-2.5 py-1.5 hover:bg-muted"
+          trigger={
+            <>
+              <span className="flex h-7 w-7 items-center justify-center rounded-md bg-primary-subtle text-primary" aria-hidden="true">
+                <Building2 className="h-4 w-4" />
+              </span>
+              <span className="sr-only text-left sm:not-sr-only">
+                <span className="block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Workspace</span>{' '}
+                <span className="block max-w-[180px] truncate text-body font-semibold leading-tight text-foreground">{workspace.name}</span>
+              </span>
+              <span className="sr-only">, switch workspace</span>
+              <ChevronsUpDown className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+            </>
+          }
+          sections={[
+            {
+              label: 'Switch workspace',
+              items: session.workspaces.map((ws) => ({
+                id: ws.id,
+                label: ws.name,
+                checked: ws.id === workspace.id,
+                icon: <Building2 className="h-4 w-4" />,
+                onSelect: () => onSwitchWorkspace(ws.id),
+              })),
+            },
+          ]}
+        />
+      )}
 
       <div className="ml-auto flex items-center gap-2">
         <div
@@ -125,30 +136,34 @@ export function TopBar({
             <span>Controlled</span>
           </button>
         </div>
-        <ConnectionIndicator status={connection} />
-        <Button
-          variant="outline"
-          onClick={onPauseToggle}
-          loading={pendingControl === 'pause' || pendingControl === 'resume'}
-          aria-label={paused ? 'Resume all activity' : 'Pause all activity'}
-        >
-          {pendingControl !== 'pause' && pendingControl !== 'resume' &&
-            (paused ? <CirclePlay className="h-4 w-4" aria-hidden="true" /> : <CirclePause className="h-4 w-4" aria-hidden="true" />)}
-          <span className="hidden lg:inline">{paused ? 'Resume all' : 'Pause all'}</span>
-        </Button>
-        <Button
-          variant="danger"
-          onClick={onEmergencyStop}
-          disabled={operations === 'stopped'}
-          loading={pendingControl === 'kill'}
-          aria-label="Emergency stop: halt all campaigns"
-          aria-haspopup="dialog"
-        >
-          {pendingControl !== 'kill' && <OctagonX className="h-4 w-4" aria-hidden="true" />}
-          <span className="hidden lg:inline">Emergency stop</span>
-        </Button>
+        {!isAuto && (
+          <>
+            <ConnectionIndicator status={connection} />
+            <Button
+              variant="outline"
+              onClick={onPauseToggle}
+              loading={pendingControl === 'pause' || pendingControl === 'resume'}
+              aria-label={paused ? 'Resume all activity' : 'Pause all activity'}
+            >
+              {pendingControl !== 'pause' && pendingControl !== 'resume' &&
+                (paused ? <CirclePlay className="h-4 w-4" aria-hidden="true" /> : <CirclePause className="h-4 w-4" aria-hidden="true" />)}
+              <span className="hidden lg:inline">{paused ? 'Resume all' : 'Pause all'}</span>
+            </Button>
+            <Button
+              variant="danger"
+              onClick={onEmergencyStop}
+              disabled={operations === 'stopped'}
+              loading={pendingControl === 'kill'}
+              aria-label="Emergency stop: halt all campaigns"
+              aria-haspopup="dialog"
+            >
+              {pendingControl !== 'kill' && <OctagonX className="h-4 w-4" aria-hidden="true" />}
+              <span className="hidden lg:inline">Emergency stop</span>
+            </Button>
 
-        <div className="mx-1 hidden h-6 w-px bg-border md:block" aria-hidden="true" />
+            <div className="mx-1 hidden h-6 w-px bg-border md:block" aria-hidden="true" />
+          </>
+        )}
 
         <Menu
           menuLabel="Account"

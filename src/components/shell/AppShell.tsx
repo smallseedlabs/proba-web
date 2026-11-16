@@ -3,6 +3,7 @@ import { OctagonX, WifiOff, X } from 'lucide-react';
 import type { Session, Workspace } from '../../lib/auth';
 import { useRoute } from '../../lib/router';
 import { useGoals, useOpenAsks } from '../../state/hooks';
+import { useUIMode } from '../../state/ui-mode';
 import { useWorkspace } from '../../state/workspace';
 import { Button } from '../ui/button';
 import { Dialog } from '../ui/dialog';
@@ -42,6 +43,8 @@ export function AppShell({
 }) {
   const [route, navigate] = useRoute();
   const { state, control } = useWorkspace();
+  const { mode } = useUIMode();
+  const isAutoMode = mode === 'auto';
   const openAsks = useOpenAsks();
   const goals = useGoals();
   const [confirmStop, setConfirmStop] = useState(false);
@@ -82,24 +85,28 @@ export function AppShell({
         Skip to main content
       </a>
 
-      <Sidebar current={route.section} items={items} className="hidden w-64 shrink-0 lg:flex" />
-      <Sidebar current={route.section} items={items} compact className="hidden w-[72px] shrink-0 md:flex lg:hidden" />
+      {!isAutoMode && (
+        <>
+          <Sidebar current={route.section} items={items} className="hidden w-64 shrink-0 lg:flex" />
+          <Sidebar current={route.section} items={items} compact className="hidden w-[72px] shrink-0 md:flex lg:hidden" />
 
-      {drawerOpen && (
-        <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
-          <div className="absolute inset-0 bg-slate-950/50" onClick={() => setDrawerOpen(false)} aria-hidden="true" />
-          <div className="relative h-full w-72">
-            <Sidebar current={route.section} items={items} onNavigate={() => setDrawerOpen(false)} />
-            <button
-              type="button"
-              onClick={() => setDrawerOpen(false)}
-              className="absolute right-3 top-4 rounded-md p-1.5 text-sidebar-muted hover:text-white"
-              aria-label="Close navigation"
-            >
-              <X className="h-5 w-5" aria-hidden="true" />
-            </button>
-          </div>
-        </div>
+          {drawerOpen && (
+            <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true" aria-label="Navigation">
+              <div className="absolute inset-0 bg-slate-950/50" onClick={() => setDrawerOpen(false)} aria-hidden="true" />
+              <div className="relative h-full w-72">
+                <Sidebar current={route.section} items={items} onNavigate={() => setDrawerOpen(false)} />
+                <button
+                  type="button"
+                  onClick={() => setDrawerOpen(false)}
+                  className="absolute right-3 top-4 rounded-md p-1.5 text-sidebar-muted hover:text-white"
+                  aria-label="Close navigation"
+                >
+                  <X className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
