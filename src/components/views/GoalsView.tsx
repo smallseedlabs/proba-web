@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ChartColumn, ChevronDown, MessageSquare, PanelRightClose, Plus, ShieldCheck, Target, X } from 'lucide-react';
 import type { GoalStatus as HubGoalStatus } from '../../lib/actions/client';
 import type { Session } from '../../lib/auth';
@@ -6,9 +6,11 @@ import { routeHref } from '../../lib/router';
 import { cn } from '../../lib/utils/cn';
 import { SHORT_VIEWPORT_QUERY, useMediaQuery } from '../../lib/utils/useMediaQuery';
 import { formatCurrency, formatNumber, formatRelativeTime } from '../../lib/utils/format';
-import { selectLatestStatus, type GoalView } from '../../state/selectors';
+import { askPayload, selectLatestStatus, type GoalView } from '../../state/selectors';
+import { buildResearchAnswerPayload, researchAnswerCommand } from '../../lib/research';
 import { useActionsClient } from '../../state/actions';
 import { useGoals, useOpenAsks } from '../../state/hooks';
+import { useUIMode } from '../../state/ui-mode';
 import { useWorkspace } from '../../state/workspace';
 import { GoalStatusBadge } from '../registry/cards';
 import { StatusBannerComponent } from '../registry/basic';
@@ -21,6 +23,7 @@ import { Composer, ThreadView } from './Thread';
 import { NewGoalDialog } from './NewGoalDialog';
 import { GoalStatusPanel } from './GoalStatusPanel';
 import { GeoVisibilityPanel } from './GeoVisibilityPanel';
+import { LaunchPreviewCard } from './LaunchPreviewCard';
 
 function GoalListItem({ goal, selected, pending }: { goal: GoalView; selected: boolean; pending: number }) {
   return (
@@ -185,7 +188,8 @@ function GoalHeader({
 
 export function GoalsView({ selectedId, session }: { selectedId?: string; session: Session }) {
   const workspace = useWorkspace();
-  const { state } = workspace;
+  const { state, respond } = workspace;
+  const { mode, setMode } = useUIMode();
   const actionsClient = useActionsClient();
   const goals = useGoals();
   const openAsks = useOpenAsks();
@@ -193,6 +197,9 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
   const [goalsDrawerOpen, setGoalsDrawerOpen] = useState(false);
   const [goalStatus, setGoalStatus] = useState<HubGoalStatus | null>(null);
   const [copilotOverride, setCopilotOverride] = useState<boolean | null>(null);
+  const [hasConnectedPlatform, setHasConnectedPlatform] = useState(true);
+  const [launchingAuto, setLaunchingAuto] = useState(false);
+  const autoApprovedRef = useRef<Set<string>>(new Set());
   const shortViewport = useMediaQuery(SHORT_VIEWPORT_QUERY);
   const selected = selectedId ? goals.find((g) => g.goalId === selectedId) : undefined;
   const pendingByThread = useMemo(() => {
@@ -240,9 +247,76 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
 
   const hasLiveCampaigns = (goalStatus?.now.campaigns.length ?? 0) > 0;
   const openAskCount = selected?.threadId ? (pendingByThread.get(selected.threadId) ?? 0) : 0;
-  // AI-native default: once campaigns are live and no asks are pending, keep the Command Center
-  // front-and-center with the Co-pilot drawer collapsed until the user wants to steer/override.
-  const copilotOpen = copilotOverride ?? (!hasLiveCampaigns || openAskCount > 0);
+  const threadAsks = useMemo(
+    () => (selected?.threadId ? openAsks.filter((a) => a.threadId === selected.threadId) : []),
+    [openAsks, selected?.threadId]
+  );
+
+  // Check connected ad platforms for Auto Mode inline connect prompt
+  useEffect(() => {
+    if (!actionsClient || typeof actionsClient.listConnections !== 'function') return;
+    const controller = new AbortController();
+    actionsClient
+      .listConnections(controller.signal)
+      .then((res) => {
+        if (controller.signal.aborted) return;
+        const connected = res.connections.some((p) => p.status === 'connected');
+        setHasConnectedPlatform(connected);
+      })
+      .catch(() => {
+        // leave default true on error
+      });
+    return () => controller.abort();
+  }, [actionsClient]);
+
+  // In 1-Click Auto Mode, silently advance intermediate asks (URL attach & research review)
+  // so the user only sees the single unified LaunchPreviewCard.
+  useEffect(() => {
+    if (mode !== 'auto' || hasLiveCampaigns || !selected) return;
+    for (const ev of threadAsks) {
+      const ask = askPayload(ev);
+      if (!ask || autoApprovedRef.current.has(ask.askId)) continue;
+      const uiProps = (ev.ui?.props ?? {}) as Record<string, unknown>;
+      const toolName = typeof uiProps.toolName === 'string' ? uiProps.toolName : '';
+      if (ask.askType === 'research_review') {
+        const built = buildResearchAnswerPayload(ask, 'approve');
+        if (built.ok) {
+          autoApprovedRef.current.add(ask.askId);
+          void respond(ev, { id: 'approve', command: researchAnswerCommand(built.payload) });
+        }
+        continue;
+      }
+      const isAttachPage = toolName === 'page.attach_user_page' || /attach_user_page/i.test(ask.title);
+      const isIntermediate = ask.askType === 'plan_approval' || isAttachPage;
+      if (isIntermediate) {
+        autoApprovedRef.current.add(ask.askId);
+        void respond(ev, { id: 'approve' });
+      }
+    }
+  }, [mode, hasLiveCampaigns, selected, threadAsks, respond]);
+
+  const launchEvent = useMemo(
+    () =>
+      threadAsks.find((ev) => {
+        const a = askPayload(ev);
+        if (!a) return false;
+        const uiProps = (ev.ui?.props ?? {}) as Record<string, unknown>;
+        const toolName = typeof uiProps.toolName === 'string' ? uiProps.toolName : '';
+        const isAttachPage = toolName === 'page.attach_user_page' || /attach_user_page/i.test(a.title);
+        return (
+          String(ev.ui?.component ?? '').includes('creative_draft') ||
+          toolName === 'creative.draft_post' ||
+          toolName === 'ads.create_campaign' ||
+          (a.askType === 'action_approval' && !isAttachPage)
+        );
+      }),
+    [threadAsks]
+  );
+  const launchAsk = launchEvent ? askPayload(launchEvent) ?? undefined : undefined;
+
+  // AI-native default: in Auto Mode keep Co-pilot collapsed so LaunchPreviewCard / Command Center stays clean;
+  // in Controlled Mode open Co-pilot when pre-launch or when asks are pending.
+  const copilotOpen = copilotOverride ?? (mode === 'controlled' ? (!hasLiveCampaigns || openAskCount > 0) : false);
   const campaignIds = useMemo(
     () => (goalStatus ? goalStatus.now.campaigns.map((c) => c.probaCampaignId) : undefined),
     [goalStatus]
@@ -419,12 +493,48 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
             <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
               <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-6 md:px-6">
                 <div className="mx-auto w-full min-w-0 max-w-4xl space-y-6">
-                  <DecisionInbox
-                    goalId={selected.goalId}
-                    threadId={selected.threadId}
-                    goalStatus={goalStatus}
-                    onOpenCopilot={() => setCopilotOverride(true)}
-                  />
+                  {mode === 'auto' && !hasLiveCampaigns && (
+                    <LaunchPreviewCard
+                      goalTitle={selected.title}
+                      event={launchEvent}
+                      ask={launchAsk}
+                      hasConnectedPlatform={hasConnectedPlatform}
+                      submitting={launchingAuto}
+                      onConnectPlatform={
+                        actionsClient
+                          ? (provider) => {
+                              void actionsClient.startConnection(provider).then((r) => {
+                                window.location.assign(r.authorizeUrl);
+                              });
+                            }
+                          : undefined
+                      }
+                      onSwitchToControlled={() => {
+                        setMode('controlled');
+                        setCopilotOverride(true);
+                      }}
+                      onLaunch={async (edited) => {
+                        if (!launchEvent) return;
+                        setLaunchingAuto(true);
+                        try {
+                          await respond(launchEvent, {
+                            id: edited ? 'edit' : 'approve',
+                            ...(edited ? { values: edited } : {}),
+                          });
+                        } finally {
+                          setLaunchingAuto(false);
+                        }
+                      }}
+                    />
+                  )}
+                  {(mode === 'controlled' || hasLiveCampaigns) && (
+                    <DecisionInbox
+                      goalId={selected.goalId}
+                      threadId={selected.threadId}
+                      goalStatus={goalStatus}
+                      onOpenCopilot={() => setCopilotOverride(true)}
+                    />
+                  )}
                   <GoalStatusPanel key={selected.goalId} goalId={selected.goalId} refreshKey={state.events.length} />
                   {hasLiveCampaigns && (
                     <AnalyticsCharts campaignIds={campaignIds} platforms={platforms} />

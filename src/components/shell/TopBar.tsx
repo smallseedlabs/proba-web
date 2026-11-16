@@ -1,8 +1,9 @@
-import { Building2, ChevronsUpDown, CirclePause, CirclePlay, LogOut, Menu as MenuIcon, OctagonX, Settings, Wifi, WifiOff } from 'lucide-react';
+import { Building2, ChevronsUpDown, CirclePause, CirclePlay, LogOut, Menu as MenuIcon, OctagonX, Settings, SlidersHorizontal, Wifi, WifiOff, Zap } from 'lucide-react';
 import type { Session, Workspace } from '../../lib/auth';
 import type { ConnectionStatus } from '../../lib/transport';
 import { cn } from '../../lib/utils/cn';
 import { initials } from '../../lib/utils/format';
+import { useUIMode } from '../../state/ui-mode';
 import type { OperationsState } from '../../state/workspace';
 import { Button } from '../ui/button';
 import { Menu } from '../ui/menu';
@@ -52,6 +53,7 @@ export function TopBar({
   onEmergencyStop: () => void;
 }) {
   const paused = operations !== 'running';
+  const { mode, setMode } = useUIMode();
   return (
     <header className="flex h-16 shrink-0 items-center gap-3 border-b bg-surface px-4 lg:px-6">
       <Button variant="ghost" size="icon" className="md:hidden" onClick={onOpenNav} aria-label="Open navigation">
@@ -90,6 +92,39 @@ export function TopBar({
       />
 
       <div className="ml-auto flex items-center gap-2">
+        <div
+          role="radiogroup"
+          aria-label="Workspace mode"
+          className="hidden items-center rounded-lg border bg-background p-0.5 sm:inline-flex"
+        >
+          <button
+            type="button"
+            role="radio"
+            aria-checked={mode === 'auto'}
+            onClick={() => setMode('auto')}
+            className={cn(
+              'inline-flex items-center gap-1 rounded-md px-2 py-1 text-caption font-medium transition-colors',
+              mode === 'auto' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <Zap className="h-3 w-3" aria-hidden="true" />
+            <span className="hidden lg:inline">1-Click Auto</span>
+            <span className="lg:hidden">Auto</span>
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={mode === 'controlled'}
+            onClick={() => setMode('controlled')}
+            className={cn(
+              'inline-flex items-center gap-1 rounded-md px-2 py-1 text-caption font-medium transition-colors',
+              mode === 'controlled' ? 'bg-surface text-foreground shadow-sm border' : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <SlidersHorizontal className="h-3 w-3" aria-hidden="true" />
+            <span>Controlled</span>
+          </button>
+        </div>
         <ConnectionIndicator status={connection} />
         <Button
           variant="outline"

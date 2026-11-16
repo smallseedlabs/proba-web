@@ -173,13 +173,22 @@ export function MarketingView() {
             ...(pending.code ? { code: pending.code } : {}),
             ...(pending.error ? { error: pending.error } : {}),
           });
-          setNotice({
-            tone: 'success',
-            text:
-              connection.status === 'pending_account'
-                ? `${connection.displayName} is connected. Choose the ad account Proba should use.`
-                : `${connection.displayName} is connected.`,
-          });
+          if (connection.status === 'pending_account' && connection.accounts?.length === 1) {
+            const onlyAccount = connection.accounts[0];
+            const selectedConn = await client.selectConnectionAccount(pending.provider, onlyAccount.id);
+            setNotice({
+              tone: 'success',
+              text: `${selectedConn.displayName} connected (${onlyAccount.name}).`,
+            });
+          } else {
+            setNotice({
+              tone: 'success',
+              text:
+                connection.status === 'pending_account'
+                  ? `${connection.displayName} is connected. Choose the ad account Proba should use.`
+                  : `${connection.displayName} is connected.`,
+            });
+          }
         } catch (error) {
           setNotice({ tone: 'danger', text: errorText(error) });
         } finally {

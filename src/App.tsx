@@ -8,6 +8,7 @@ import { LogoMark } from './components/brand/Logo';
 import { Spinner } from './components/ui/feedback';
 import { ActionsProvider } from './state/actions';
 import { AnalyticsProvider } from './state/analytics';
+import { UIModeProvider } from './state/ui-mode';
 import { WorkspaceProvider } from './state/workspace';
 
 function Splash() {
@@ -44,9 +45,11 @@ function SignedInApp({
   return (
     <AnalyticsProvider client={services.analytics}>
       <ActionsProvider client={actions}>
-        <WorkspaceProvider key={workspace.id} transport={transport} onSessionExpired={onSessionExpired}>
-          <AppShell session={session} workspace={workspace} onSwitchWorkspace={setWorkspaceId} onSignOut={onSignOut} />
-        </WorkspaceProvider>
+        <UIModeProvider workspaceId={workspace.id} defaultMode="auto">
+          <WorkspaceProvider key={workspace.id} transport={transport} onSessionExpired={onSessionExpired}>
+            <AppShell session={session} workspace={workspace} onSwitchWorkspace={setWorkspaceId} onSignOut={onSignOut} />
+          </WorkspaceProvider>
+        </UIModeProvider>
       </ActionsProvider>
     </AnalyticsProvider>
   );
