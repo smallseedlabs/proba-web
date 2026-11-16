@@ -577,79 +577,88 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                     />
                   )}
                   {mode === 'auto' && hasLiveCampaigns && goalStatus && (
-                    <div className="rounded-2xl border border-white/10 bg-[#12121A] p-6 text-slate-100 shadow-2xl space-y-5">
-                      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 pb-4">
-                        <div>
-                          <Badge tone={goalStatus.now.state === 'running' ? 'success' : 'warning'} dot>
-                            {goalStatus.now.state === 'running' ? 'Live & Optimizing' : 'Active'}
-                          </Badge>
-                          <h2 className="mt-2 text-xl font-bold text-white">{selected.title}</h2>
+                    <div className="space-y-5">
+                      <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 text-[#0B0D12] shadow-sm space-y-5">
+                        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#E2E8F0] pb-4">
+                          <div>
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E2E8F0] bg-[#F5F7FA] px-2.5 py-0.5 text-[11px] font-semibold text-[#0B0D12]">
+                              <span className="h-2 w-2 rounded-full bg-[#84CC16]" />
+                              {goalStatus.now.state === 'running' ? 'Live & Optimizing' : 'Active'}
+                            </span>
+                            <h2 className="mt-2 text-xl font-bold text-[#0B0D12]">{selected.title}</h2>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <a
+                              href={routeHref({ section: 'goals' })}
+                              className="rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-caption font-semibold text-[#0B0D12] hover:bg-slate-50"
+                            >
+                              + New Campaign
+                            </a>
+                            {actionsClient && typeof actionsClient.pauseGoal === 'function' && (
+                              <button
+                                type="button"
+                                onClick={() => void actionsClient.pauseGoal!(selected.goalId)}
+                                className="rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-caption font-semibold text-[#0B0D12] hover:bg-slate-50"
+                              >
+                                Pause
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <a
-                            href={routeHref({ section: 'goals' })}
-                            className="rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-caption font-medium text-slate-200 hover:bg-white/10"
-                          >
-                            + New Campaign
-                          </a>
-                          {actionsClient && typeof actionsClient.pauseGoal === 'function' && (
+                        <div className="grid grid-cols-3 gap-3">
+                          <div className="rounded-xl border border-[#E2E8F0] bg-[#F5F7FA] p-3.5">
+                            <div className="text-caption text-slate-500">Spent</div>
+                            <div className="mt-1 font-mono text-xl font-bold tabular-nums text-[#0B0D12]">
+                              {goalStatus.spend.spent !== null
+                                ? formatCurrency(goalStatus.spend.spent, goalStatus.spend.currency ?? 'USD')
+                                : '$0.00'}
+                            </div>
+                          </div>
+                          <div className="rounded-xl border border-[#E2E8F0] bg-[#F5F7FA] p-3.5">
+                            <div className="text-caption text-slate-500">Visitors / Metric</div>
+                            <div className="mt-1 font-mono text-xl font-bold tabular-nums text-[#0B0D12]">
+                              {goalStatus.progress.actual !== null ? formatNumber(goalStatus.progress.actual) : '0'}
+                            </div>
+                          </div>
+                          <div className="rounded-xl border border-[#E2E8F0] bg-[#F5F7FA] p-3.5">
+                            <div className="text-caption text-slate-500">Daily Cap</div>
+                            <div className="mt-1 font-mono text-xl font-bold tabular-nums text-[#0B0D12]">
+                              {goalStatus.spend.dailyCap !== null
+                                ? formatCurrency(goalStatus.spend.dailyCap, goalStatus.spend.currency ?? 'USD')
+                                : 'Auto'}
+                            </div>
+                          </div>
+                        </div>
+                        {goalStatus.decisions.length > 0 && (
+                          <div>
+                            <div className="text-caption font-semibold text-slate-600">Recent agent updates</div>
+                            <ul className="mt-2 space-y-1.5 text-caption">
+                              {goalStatus.decisions.slice(0, 3).map((d, i) => (
+                                <li key={i} className="rounded-lg border border-[#E2E8F0] bg-[#F5F7FA] px-3 py-2 text-[#0B0D12]">
+                                  {d.summary}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {canSwitchMode && (
+                          <div className="border-t border-[#E2E8F0] pt-3 text-right">
                             <button
                               type="button"
-                              onClick={() => void actionsClient.pauseGoal!(selected.goalId)}
-                              className="rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-caption font-medium text-slate-200 hover:bg-white/10"
+                              onClick={() => setMode('controlled')}
+                              className="text-caption font-semibold text-[#2563EB] hover:underline"
                             >
-                              ⏸ Pause
+                              Want charts, creative studio &amp; full Co-pilot? Switch to Controlled Mode →
                             </button>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="rounded-xl border border-white/10 bg-[#09090D] p-3.5">
-                          <div className="text-caption text-slate-400">Spent</div>
-                          <div className="mt-1 font-mono text-xl font-bold tabular-nums text-white">
-                            {goalStatus.spend.spent !== null
-                              ? formatCurrency(goalStatus.spend.spent, goalStatus.spend.currency ?? 'USD')
-                              : '$0.00'}
-                          </div>
-                        </div>
-                        <div className="rounded-xl border border-white/10 bg-[#09090D] p-3.5">
-                          <div className="text-caption text-slate-400">Visitors / Metric</div>
-                          <div className="mt-1 font-mono text-xl font-bold tabular-nums text-white">
-                            {goalStatus.progress.actual !== null ? formatNumber(goalStatus.progress.actual) : '0'}
-                          </div>
-                        </div>
-                        <div className="rounded-xl border border-white/10 bg-[#09090D] p-3.5">
-                          <div className="text-caption text-slate-400">Daily Cap</div>
-                          <div className="mt-1 font-mono text-xl font-bold tabular-nums text-white">
-                            {goalStatus.spend.dailyCap !== null
-                              ? formatCurrency(goalStatus.spend.dailyCap, goalStatus.spend.currency ?? 'USD')
-                              : 'Auto'}
-                          </div>
-                        </div>
-                      </div>
-                      {goalStatus.decisions.length > 0 && (
-                        <div>
-                          <div className="text-caption font-semibold text-slate-300">Recent agent updates</div>
-                          <ul className="mt-2 space-y-1.5 text-caption">
-                            {goalStatus.decisions.slice(0, 3).map((d, i) => (
-                              <li key={i} className="rounded-lg border border-white/10 bg-[#09090D] px-3 py-2 text-slate-200">
-                                {d.summary}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      {canSwitchMode && (
-                        <div className="border-t border-white/10 pt-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => setMode('controlled')}
-                            className="text-caption font-medium text-slate-400 hover:text-white"
-                          >
-                            Want charts, creative studio &amp; GEO? Switch to Pro View →
-                          </button>
-                        </div>
-                      )}
+                      <GeoVisibilityPanel
+                        workspaceId="seedbed"
+                        goalId={selected.goalId}
+                        brandName={selected.title}
+                        landingPageUrl=""
+                      />
                     </div>
                   )}
                   {(mode === 'controlled' || (mode === 'auto' && hasLiveCampaigns && openAskCount > 0)) && (

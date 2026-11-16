@@ -76,7 +76,7 @@ export function AppShell({
     <div
       className={
         isAutoMode
-          ? 'flex h-dvh overflow-hidden bg-[#09090D] text-slate-100'
+          ? 'flex h-dvh overflow-hidden bg-[#F5F7FA] text-[#0B0D12]'
           : 'flex h-dvh overflow-hidden bg-background'
       }
     >

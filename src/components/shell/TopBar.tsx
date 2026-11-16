@@ -60,7 +60,7 @@ export function TopBar({
     <header
       className={cn(
         'flex h-16 shrink-0 items-center gap-3 border-b px-4 lg:px-6',
-        isAuto ? 'border-white/10 bg-[#09090D]/95 text-slate-100' : 'bg-surface'
+        isAuto ? 'border-[#E2E8F0] bg-white text-[#0B0D12]' : 'bg-surface'
       )}
     >
       {!isAuto && (
@@ -72,9 +72,10 @@ export function TopBar({
       {isAuto ? (
         <div className="flex items-center gap-2.5">
           <LogoMark className="h-7 w-7" />
-          <span className="text-section font-semibold tracking-tight text-white">Proba</span>
-          <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[11px] font-medium text-violet-300">
-            Instant Agent ⚡
+          <span className="text-section font-bold tracking-tight text-[#0B0D12]">Proba</span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E2E8F0] bg-[#F5F7FA] px-2.5 py-0.5 text-[11px] font-semibold text-[#0B0D12]">
+            <span className="h-2 w-2 rounded-full bg-[#84CC16]" aria-hidden="true" />
+            Instant Agent
           </span>
         </div>
       ) : (
@@ -117,7 +118,7 @@ export function TopBar({
             aria-label="Workspace mode"
             className={cn(
               'hidden items-center rounded-lg border p-0.5 sm:inline-flex',
-              isAuto ? 'border-white/10 bg-white/5' : 'bg-background'
+              isAuto ? 'border-[#E2E8F0] bg-[#F5F7FA]' : 'bg-background'
             )}
           >
             <button
@@ -126,9 +127,9 @@ export function TopBar({
               aria-checked={mode === 'auto'}
               onClick={() => setMode('auto')}
               className={cn(
-                'inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-caption font-medium transition-colors',
+                'inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-caption font-semibold transition-colors',
                 mode === 'auto'
-                  ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-sm'
+                  ? 'bg-[#2563EB] text-white shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
@@ -142,12 +143,10 @@ export function TopBar({
               aria-checked={mode === 'controlled'}
               onClick={() => setMode('controlled')}
               className={cn(
-                'inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-caption font-medium transition-colors',
+                'inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-caption font-semibold transition-colors',
                 mode === 'controlled'
                   ? 'border bg-surface text-foreground shadow-sm'
-                  : isAuto
-                    ? 'text-slate-400 hover:text-white'
-                    : 'text-muted-foreground hover:text-foreground'
+                  : 'text-slate-600 hover:text-[#0B0D12]'
               )}
             >
               <SlidersHorizontal className="h-3 w-3" aria-hidden="true" />
@@ -188,15 +187,15 @@ export function TopBar({
           menuLabel="Account"
           triggerClassName={cn(
             'gap-2 rounded-full p-0.5 md:rounded-md md:py-1 md:pl-1 md:pr-2',
-            isAuto ? 'hover:bg-white/10' : 'hover:bg-muted'
+            isAuto ? 'hover:bg-[#F5F7FA]' : 'hover:bg-muted'
           )}
           trigger={
             <>
-              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-sidebar text-caption font-semibold text-white" aria-hidden="true">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0B0D12] text-caption font-semibold text-white" aria-hidden="true">
                 {initials(session.user.name)}
               </span>
               <span className="sr-only text-left xl:not-sr-only">
-                <span className={cn('block max-w-[160px] truncate text-body font-medium leading-tight', isAuto ? 'text-slate-100' : 'text-foreground')}>
+                <span className={cn('block max-w-[160px] truncate text-body font-semibold leading-tight', isAuto ? 'text-[#0B0D12]' : 'text-foreground')}>
                   {session.user.name}
                 </span>
                 {session.user.role && (
