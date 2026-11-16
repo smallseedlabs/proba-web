@@ -201,6 +201,7 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
   const [hasConnectedPlatform, setHasConnectedPlatform] = useState(true);
   const [launchingAuto, setLaunchingAuto] = useState(false);
   const autoApprovedRef = useRef<Set<string>>(new Set());
+  const launchedGoalIdsRef = useRef<Set<string>>(new Set());
   const shortViewport = useMediaQuery(SHORT_VIEWPORT_QUERY);
   const selected = selectedId ? goals.find((g) => g.goalId === selectedId) : undefined;
   const pendingByThread = useMemo(() => {
@@ -288,7 +289,10 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
         continue;
       }
       const isAttachPage = toolName === 'page.attach_user_page' || /attach_user_page/i.test(ask.title);
-      const isIntermediate = ask.askType === 'plan_approval' || isAttachPage;
+      const isCreateAfterLaunch =
+        launchedGoalIdsRef.current.has(selected.goalId) &&
+        (toolName === 'ads.create_campaign' || ask.askType === 'action_approval');
+      const isIntermediate = ask.askType === 'plan_approval' || isAttachPage || isCreateAfterLaunch;
       if (isIntermediate) {
         autoApprovedRef.current.add(ask.askId);
         void respond(ev, { id: 'approve' });
@@ -427,7 +431,10 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                     className="flex items-center justify-between rounded-xl border border-white/10 bg-[#12121A] px-4 py-3 text-body transition hover:border-violet-500/40"
                   >
                     <span className="font-medium text-white">{goal.title}</span>
-                    <GoalStatusBadge status={goal.status} />
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-[11px] text-slate-400">{formatRelativeTime(goal.updatedAt)}</span>
+                      <GoalStatusBadge status={goal.status} />
+                    </div>
                   </a>
                 ))}
               </div>
@@ -574,6 +581,7 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                       }}
                       onLaunch={async (edited) => {
                         if (!launchEvent) return;
+                        launchedGoalIdsRef.current.add(selected.goalId);
                         setLaunchingAuto(true);
                         try {
                           await respond(launchEvent, {

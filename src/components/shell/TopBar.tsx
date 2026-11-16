@@ -186,14 +186,19 @@ export function TopBar({
 
         <Menu
           menuLabel="Account"
-          triggerClassName="gap-2 rounded-full p-0.5 hover:bg-muted md:rounded-md md:py-1 md:pl-1 md:pr-2"
+          triggerClassName={cn(
+            'gap-2 rounded-full p-0.5 md:rounded-md md:py-1 md:pl-1 md:pr-2',
+            isAuto ? 'hover:bg-white/10' : 'hover:bg-muted'
+          )}
           trigger={
             <>
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-sidebar text-caption font-semibold text-white" aria-hidden="true">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-sidebar text-caption font-semibold text-white" aria-hidden="true">
                 {initials(session.user.name)}
               </span>
               <span className="sr-only text-left xl:not-sr-only">
-                <span className="block max-w-[160px] truncate text-body font-medium leading-tight text-foreground">{session.user.name}</span>
+                <span className={cn('block max-w-[160px] truncate text-body font-medium leading-tight', isAuto ? 'text-slate-100' : 'text-foreground')}>
+                  {session.user.name}
+                </span>
                 {session.user.role && (
                   <>
                     {' '}
