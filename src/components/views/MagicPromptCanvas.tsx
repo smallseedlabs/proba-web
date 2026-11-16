@@ -30,12 +30,14 @@ const ENGINE_LABELS: Record<GeoEngine, string> = {
 
 export function MagicPromptCanvas({
   hasConnectedPlatform,
+  defaultCurrency = 'GBP',
   userRole,
   goals = [],
   onConnectPlatform,
   onCreated,
 }: {
   hasConnectedPlatform: boolean;
+  defaultCurrency?: string;
   userRole: string;
   goals?: GoalView[];
   onConnectPlatform?: (provider: 'meta' | 'reddit') => void;
@@ -44,6 +46,7 @@ export function MagicPromptCanvas({
   const { createGoal } = useWorkspace();
   const [urlInput, setUrlInput] = useState('');
   const [budget, setBudget] = useState<number>(25);
+  const [currency, setCurrency] = useState<string>(defaultCurrency);
   const [customBudget, setCustomBudget] = useState('');
   const [isCustom, setIsCustom] = useState(false);
   const [rail, setRail] = useState<'managed' | 'byo'>(hasConnectedPlatform ? 'byo' : 'managed');
@@ -94,7 +97,7 @@ export function MagicPromptCanvas({
     const ok = await createGoal({
       title: `Campaign for ${host}`,
       dailyBudget: effectiveBudget,
-      currency: 'USD',
+      currency,
       landingPageUrl: parsed.url,
     });
     setSubmitting(false);
@@ -237,9 +240,21 @@ export function MagicPromptCanvas({
               {/* Swiss Budget Pills */}
               <div>
                 <div className="flex items-center justify-between text-caption">
-                  <span className="font-semibold text-[#0B0D12]">Daily budget cap</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-[#0B0D12]">Daily budget cap</span>
+                    <select
+                      aria-label="Currency"
+                      value={currency}
+                      onChange={(e) => setCurrency(e.target.value)}
+                      className="rounded-md border border-[#CBD5E1] bg-white px-1.5 py-0.5 font-mono text-[11px] font-semibold text-[#0B0D12]"
+                    >
+                      <option value="GBP">GBP (£)</option>
+                      <option value="USD">USD ($)</option>
+                      <option value="EUR">EUR (€)</option>
+                    </select>
+                  </div>
                   <span className="font-mono text-[11px] text-slate-500">
-                    Max 7-day spend: ${effectiveBudget * 7}
+                    Max 7-day spend: {currency} {effectiveBudget * 7}
                   </span>
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">

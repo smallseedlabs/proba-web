@@ -199,9 +199,11 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
   const [goalStatus, setGoalStatus] = useState<HubGoalStatus | null>(null);
   const [copilotOverride, setCopilotOverride] = useState<boolean | null>(null);
   const [hasConnectedPlatform, setHasConnectedPlatform] = useState(true);
+  const [accountCurrency, setAccountCurrency] = useState('GBP');
   const [launchingAuto, setLaunchingAuto] = useState(false);
   const autoApprovedRef = useRef<Set<string>>(new Set());
   const launchedGoalIdsRef = useRef<Set<string>>(new Set());
+  const awaitingNewGoalRef = useRef<Set<string> | null>(null);
   const shortViewport = useMediaQuery(SHORT_VIEWPORT_QUERY);
   const selected = selectedId ? goals.find((g) => g.goalId === selectedId) : undefined;
   const pendingByThread = useMemo(() => {
@@ -264,12 +266,26 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
         if (controller.signal.aborted) return;
         const connected = res.connections.some((p) => p.status === 'connected');
         setHasConnectedPlatform(connected);
+        const connWithCurrency = res.connections.find((p) => p.status === 'connected' && p.accounts?.[0]?.currency);
+        const detectedCurrency = connWithCurrency?.accounts?.[0]?.currency;
+        if (detectedCurrency) setAccountCurrency(detectedCurrency);
       })
       .catch(() => {
         // leave default true on error
       });
     return () => controller.abort();
   }, [actionsClient]);
+
+  // Auto-navigate to the newly created goal when submitted from MagicPromptCanvas
+  useEffect(() => {
+    if (!awaitingNewGoalRef.current) return;
+    const prevIds = awaitingNewGoalRef.current;
+    const created = goals.find((g) => !prevIds.has(g.goalId));
+    if (created) {
+      awaitingNewGoalRef.current = null;
+      window.location.hash = routeHref({ section: 'goals', id: created.goalId });
+    }
+  }, [goals]);
 
   // In 1-Click Auto Mode, silently advance intermediate asks (URL attach & research review)
   // so the user only sees the single unified LaunchPreviewCard.
@@ -355,8 +371,12 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
         <div className="h-full overflow-y-auto px-4 py-6 md:px-6">
           <MagicPromptCanvas
             hasConnectedPlatform={hasConnectedPlatform}
+            defaultCurrency={accountCurrency}
             userRole={userRole}
             goals={goals}
+            onCreated={() => {
+              awaitingNewGoalRef.current = new Set(goals.map((g) => g.goalId));
+            }}
             onConnectPlatform={
               actionsClient
                 ? (provider) => {
@@ -410,8 +430,12 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
         <div className="h-full overflow-y-auto px-4 py-6 md:px-6">
           <MagicPromptCanvas
             hasConnectedPlatform={hasConnectedPlatform}
+            defaultCurrency={accountCurrency}
             userRole={userRole}
             goals={goals}
+            onCreated={() => {
+              awaitingNewGoalRef.current = new Set(goals.map((g) => g.goalId));
+            }}
             onConnectPlatform={
               actionsClient
                 ? (provider) => {
