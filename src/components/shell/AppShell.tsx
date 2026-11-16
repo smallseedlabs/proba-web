@@ -73,7 +73,13 @@ export function AppShell({
   };
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-background">
+    <div
+      className={
+        isAutoMode
+          ? 'flex h-dvh overflow-hidden bg-[#09090D] text-slate-100'
+          : 'flex h-dvh overflow-hidden bg-background'
+      }
+    >
       <a
         href="#main-content"
         onClick={(e) => {

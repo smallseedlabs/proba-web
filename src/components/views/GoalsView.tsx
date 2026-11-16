@@ -24,6 +24,7 @@ import { NewGoalDialog } from './NewGoalDialog';
 import { GoalStatusPanel } from './GoalStatusPanel';
 import { GeoVisibilityPanel } from './GeoVisibilityPanel';
 import { LaunchPreviewCard } from './LaunchPreviewCard';
+import { MagicPromptCanvas } from './MagicPromptCanvas';
 
 function GoalListItem({ goal, selected, pending }: { goal: GoalView; selected: boolean; pending: number }) {
   return (
@@ -189,7 +190,7 @@ function GoalHeader({
 export function GoalsView({ selectedId, session }: { selectedId?: string; session: Session }) {
   const workspace = useWorkspace();
   const { state, respond } = workspace;
-  const { mode, setMode } = useUIMode();
+  const { mode, setMode, userRole, canSwitchMode } = useUIMode();
   const actionsClient = useActionsClient();
   const goals = useGoals();
   const openAsks = useOpenAsks();
@@ -345,6 +346,25 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
   }
 
   if (goals.length === 0) {
+    if (mode === 'auto') {
+      return (
+        <div className="h-full overflow-y-auto px-4 py-6 md:px-6">
+          <MagicPromptCanvas
+            hasConnectedPlatform={hasConnectedPlatform}
+            userRole={userRole}
+            onConnectPlatform={
+              actionsClient
+                ? (provider) => {
+                    void actionsClient.startConnection(provider).then((r) => {
+                      window.location.assign(r.authorizeUrl);
+                    });
+                  }
+                : undefined
+            }
+          />
+        </div>
+      );
+    }
     const steps = [
       { title: 'Describe your goal', body: 'A product to launch, a market to test or an offer to validate.' },
       { title: 'Approve the plan', body: 'Proba proposes channels, creative and budget. Nothing runs until you approve.' },
@@ -380,6 +400,42 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
   }
 
   if (!selectedId) {
+    if (mode === 'auto') {
+      return (
+        <div className="h-full overflow-y-auto px-4 py-6 md:px-6">
+          <div className="mx-auto max-w-2xl space-y-6">
+            <MagicPromptCanvas
+              hasConnectedPlatform={hasConnectedPlatform}
+              userRole={userRole}
+              onConnectPlatform={
+                actionsClient
+                  ? (provider) => {
+                      void actionsClient.startConnection(provider).then((r) => {
+                        window.location.assign(r.authorizeUrl);
+                      });
+                    }
+                  : undefined
+              }
+            />
+            <div className="space-y-2">
+              <div className="text-caption font-semibold uppercase tracking-wide text-slate-400">Your Campaigns</div>
+              <div className="grid gap-2">
+                {goals.map((goal) => (
+                  <a
+                    key={goal.goalId}
+                    href={routeHref({ section: 'goals', id: goal.goalId })}
+                    className="flex items-center justify-between rounded-xl border border-white/10 bg-[#12121A] px-4 py-3 text-body transition hover:border-violet-500/40"
+                  >
+                    <span className="font-medium text-white">{goal.title}</span>
+                    <GoalStatusBadge status={goal.status} />
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="h-full overflow-y-auto px-4 py-6 md:px-6">
         <div className="mx-auto max-w-6xl space-y-6">
@@ -501,6 +557,7 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                       event={launchEvent}
                       ask={launchAsk}
                       hasConnectedPlatform={hasConnectedPlatform}
+                      canSwitchMode={canSwitchMode}
                       submitting={launchingAuto}
                       onConnectPlatform={
                         actionsClient
@@ -530,44 +587,50 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                     />
                   )}
                   {mode === 'auto' && hasLiveCampaigns && goalStatus && (
-                    <div className="rounded-xl border bg-surface p-6 shadow-card space-y-5">
-                      <div className="flex flex-wrap items-start justify-between gap-3 border-b pb-4">
+                    <div className="rounded-2xl border border-white/10 bg-[#12121A] p-6 text-slate-100 shadow-2xl space-y-5">
+                      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-white/10 pb-4">
                         <div>
                           <Badge tone={goalStatus.now.state === 'running' ? 'success' : 'warning'} dot>
                             {goalStatus.now.state === 'running' ? 'Live & Optimizing' : 'Active'}
                           </Badge>
-                          <h2 className="mt-2 text-section font-semibold text-foreground">{selected.title}</h2>
+                          <h2 className="mt-2 text-xl font-bold text-white">{selected.title}</h2>
                         </div>
                         <div className="flex items-center gap-2">
+                          <a
+                            href={routeHref({ section: 'goals' })}
+                            className="rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-caption font-medium text-slate-200 hover:bg-white/10"
+                          >
+                            + New Campaign
+                          </a>
                           {actionsClient && typeof actionsClient.pauseGoal === 'function' && (
-                            <Button
-                              size="sm"
-                              variant="outline"
+                            <button
+                              type="button"
                               onClick={() => void actionsClient.pauseGoal!(selected.goalId)}
+                              className="rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-caption font-medium text-slate-200 hover:bg-white/10"
                             >
-                              Pause campaign
-                            </Button>
+                              ⏸ Pause
+                            </button>
                           )}
                         </div>
                       </div>
                       <div className="grid grid-cols-3 gap-3">
-                        <div className="rounded-lg border bg-background p-3">
-                          <div className="text-caption text-muted-foreground">Spent</div>
-                          <div className="mt-1 text-heading font-semibold tabular-nums text-foreground">
+                        <div className="rounded-xl border border-white/10 bg-[#09090D] p-3.5">
+                          <div className="text-caption text-slate-400">Spent</div>
+                          <div className="mt-1 font-mono text-xl font-bold tabular-nums text-white">
                             {goalStatus.spend.spent !== null
                               ? formatCurrency(goalStatus.spend.spent, goalStatus.spend.currency ?? 'USD')
                               : '$0.00'}
                           </div>
                         </div>
-                        <div className="rounded-lg border bg-background p-3">
-                          <div className="text-caption text-muted-foreground">Visitors / Metric</div>
-                          <div className="mt-1 text-heading font-semibold tabular-nums text-foreground">
+                        <div className="rounded-xl border border-white/10 bg-[#09090D] p-3.5">
+                          <div className="text-caption text-slate-400">Visitors / Metric</div>
+                          <div className="mt-1 font-mono text-xl font-bold tabular-nums text-white">
                             {goalStatus.progress.actual !== null ? formatNumber(goalStatus.progress.actual) : '0'}
                           </div>
                         </div>
-                        <div className="rounded-lg border bg-background p-3">
-                          <div className="text-caption text-muted-foreground">Daily Cap</div>
-                          <div className="mt-1 text-heading font-semibold tabular-nums text-foreground">
+                        <div className="rounded-xl border border-white/10 bg-[#09090D] p-3.5">
+                          <div className="text-caption text-slate-400">Daily Cap</div>
+                          <div className="mt-1 font-mono text-xl font-bold tabular-nums text-white">
                             {goalStatus.spend.dailyCap !== null
                               ? formatCurrency(goalStatus.spend.dailyCap, goalStatus.spend.currency ?? 'USD')
                               : 'Auto'}
@@ -576,25 +639,27 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                       </div>
                       {goalStatus.decisions.length > 0 && (
                         <div>
-                          <div className="text-caption font-semibold text-foreground">Recent agent updates</div>
-                          <ul className="mt-2 space-y-1.5 text-caption text-muted-foreground">
+                          <div className="text-caption font-semibold text-slate-300">Recent agent updates</div>
+                          <ul className="mt-2 space-y-1.5 text-caption">
                             {goalStatus.decisions.slice(0, 3).map((d, i) => (
-                              <li key={i} className="rounded-md border bg-background px-3 py-2 text-foreground">
+                              <li key={i} className="rounded-lg border border-white/10 bg-[#09090D] px-3 py-2 text-slate-200">
                                 {d.summary}
                               </li>
                             ))}
                           </ul>
                         </div>
                       )}
-                      <div className="border-t pt-3 text-right">
-                        <button
-                          type="button"
-                          onClick={() => setMode('controlled')}
-                          className="text-caption font-medium text-muted-foreground hover:text-foreground"
-                        >
-                          Want charts, creative studio &amp; GEO? Switch to Controlled Mode →
-                        </button>
-                      </div>
+                      {canSwitchMode && (
+                        <div className="border-t border-white/10 pt-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => setMode('controlled')}
+                            className="text-caption font-medium text-slate-400 hover:text-white"
+                          >
+                            Want charts, creative studio &amp; GEO? Switch to Pro View →
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                   {(mode === 'controlled' || (mode === 'auto' && hasLiveCampaigns && openAskCount > 0)) && (

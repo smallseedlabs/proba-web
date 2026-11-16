@@ -45,7 +45,7 @@ function SignedInApp({
   return (
     <AnalyticsProvider client={services.analytics}>
       <ActionsProvider client={actions}>
-        <UIModeProvider workspaceId={workspace.id} defaultMode="auto">
+        <UIModeProvider workspaceId={workspace.id} userRole={session.user.role} defaultMode="auto">
           <WorkspaceProvider key={workspace.id} transport={transport} onSessionExpired={onSessionExpired}>
             <AppShell session={session} workspace={workspace} onSwitchWorkspace={setWorkspaceId} onSignOut={onSignOut} />
           </WorkspaceProvider>

@@ -17,6 +17,7 @@ const HUB_ERRORS: Record<string, AuthError['code']> = {
   token_expired: 'session_expired',
   invalid_token: 'session_expired',
   not_allowed: 'not_allowed',
+  access_not_enabled: 'not_allowed',
   email_not_verified: 'email_not_verified',
   email_required: 'not_allowed',
   account_conflict: 'account_exists',

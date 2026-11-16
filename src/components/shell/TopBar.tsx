@@ -54,10 +54,15 @@ export function TopBar({
   onEmergencyStop: () => void;
 }) {
   const paused = operations !== 'running';
-  const { mode, setMode } = useUIMode();
+  const { mode, setMode, canSwitchMode } = useUIMode();
   const isAuto = mode === 'auto';
   return (
-    <header className="flex h-16 shrink-0 items-center gap-3 border-b bg-surface px-4 lg:px-6">
+    <header
+      className={cn(
+        'flex h-16 shrink-0 items-center gap-3 border-b px-4 lg:px-6',
+        isAuto ? 'border-white/10 bg-[#09090D]/95 text-slate-100' : 'bg-surface'
+      )}
+    >
       {!isAuto && (
         <Button variant="ghost" size="icon" className="md:hidden" onClick={onOpenNav} aria-label="Open navigation">
           <MenuIcon className="h-5 w-5" aria-hidden="true" />
@@ -67,7 +72,10 @@ export function TopBar({
       {isAuto ? (
         <div className="flex items-center gap-2.5">
           <LogoMark className="h-7 w-7" />
-          <span className="text-section font-semibold tracking-tight text-foreground">Proba</span>
+          <span className="text-section font-semibold tracking-tight text-white">Proba</span>
+          <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-[11px] font-medium text-violet-300">
+            Instant Agent ⚡
+          </span>
         </div>
       ) : (
         <Menu
@@ -103,39 +111,50 @@ export function TopBar({
       )}
 
       <div className="ml-auto flex items-center gap-2">
-        <div
-          role="radiogroup"
-          aria-label="Workspace mode"
-          className="hidden items-center rounded-lg border bg-background p-0.5 sm:inline-flex"
-        >
-          <button
-            type="button"
-            role="radio"
-            aria-checked={mode === 'auto'}
-            onClick={() => setMode('auto')}
+        {canSwitchMode && (
+          <div
+            role="radiogroup"
+            aria-label="Workspace mode"
             className={cn(
-              'inline-flex items-center gap-1 rounded-md px-2 py-1 text-caption font-medium transition-colors',
-              mode === 'auto' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              'hidden items-center rounded-lg border p-0.5 sm:inline-flex',
+              isAuto ? 'border-white/10 bg-white/5' : 'bg-background'
             )}
           >
-            <Zap className="h-3 w-3" aria-hidden="true" />
-            <span className="hidden lg:inline">1-Click Auto</span>
-            <span className="lg:hidden">Auto</span>
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={mode === 'controlled'}
-            onClick={() => setMode('controlled')}
-            className={cn(
-              'inline-flex items-center gap-1 rounded-md px-2 py-1 text-caption font-medium transition-colors',
-              mode === 'controlled' ? 'bg-surface text-foreground shadow-sm border' : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <SlidersHorizontal className="h-3 w-3" aria-hidden="true" />
-            <span>Controlled</span>
-          </button>
-        </div>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={mode === 'auto'}
+              onClick={() => setMode('auto')}
+              className={cn(
+                'inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-caption font-medium transition-colors',
+                mode === 'auto'
+                  ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <Zap className="h-3 w-3" aria-hidden="true" />
+              <span className="hidden lg:inline">1-Click Auto</span>
+              <span className="lg:hidden">Auto</span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={mode === 'controlled'}
+              onClick={() => setMode('controlled')}
+              className={cn(
+                'inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-caption font-medium transition-colors',
+                mode === 'controlled'
+                  ? 'border bg-surface text-foreground shadow-sm'
+                  : isAuto
+                    ? 'text-slate-400 hover:text-white'
+                    : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <SlidersHorizontal className="h-3 w-3" aria-hidden="true" />
+              <span>Controlled</span>
+            </button>
+          </div>
+        )}
         {!isAuto && (
           <>
             <ConnectionIndicator status={connection} />
