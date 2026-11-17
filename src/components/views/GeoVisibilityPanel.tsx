@@ -73,7 +73,14 @@ export function GeoVisibilityPanel({
     setRunning(true);
     setError(null);
     try {
-      const domain = landingPageUrl.trim() || `${brandName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
+      const domainMatch = brandName.match(/([a-z0-9-]+(?:\.[a-z0-9-]+)+)/i);
+      const extractedHost = domainMatch?.[1]?.toLowerCase();
+      const cleanBrand = extractedHost
+        ? extractedHost.split('.')[0]
+        : brandName.replace(/^campaign for\s+/i, '').trim() || brandName;
+      const domain =
+        landingPageUrl.trim() ||
+        (extractedHost ? `https://${extractedHost}` : `${cleanBrand.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`);
       const prompts = customPrompts
         .split('\n')
         .map((s) => s.trim())
@@ -82,9 +89,9 @@ export function GeoVisibilityPanel({
         prompts.length > 0
           ? prompts
           : [
-              `best ${brandName} alternatives`,
-              `what is ${brandName} and is it worth it`,
-              `top tools for ${brandName} category`,
+              `best ${cleanBrand} alternatives`,
+              `what is ${cleanBrand} and is it worth it`,
+              `top tools for ${cleanBrand} category`,
             ];
       const competitors = competitorsInput
         .split(',')
@@ -94,7 +101,7 @@ export function GeoVisibilityPanel({
       const res = await runGoalGeoAudit({
         workspaceId,
         goalId,
-        brandName,
+        brandName: cleanBrand,
         domain,
         competitors,
         prompts: effectivePrompts,
@@ -117,7 +124,7 @@ export function GeoVisibilityPanel({
   }
 
   return (
-    <section className="rounded-xl border bg-surface p-4 shadow-sm" aria-label="AI Brand Visibility (GEO)">
+    <section className="rounded-2xl border border-[#E2E8F0] bg-white p-5 text-[#0B0D12] shadow-sm" aria-label="AI Brand Visibility (GEO)">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -150,7 +157,7 @@ export function GeoVisibilityPanel({
             type="button"
             disabled={running}
             onClick={handleRunAudit}
-            className="rounded-lg bg-primary px-3 py-1.5 text-caption font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            className="rounded-lg bg-[#2563EB] px-3 py-1.5 text-caption font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-50"
           >
             {running ? 'Auditing LLMs…' : latest ? 'Re-check Visibility' : 'Run AI Visibility Audit'}
           </button>
