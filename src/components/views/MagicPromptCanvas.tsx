@@ -1,13 +1,12 @@
 import { useState, type FormEvent } from 'react';
 import {
-  ArrowUpRight,
-  Bot,
+  ArrowRight,
+  CheckCircle2,
   Globe,
-  Layers,
   Link2,
   Search,
+  ShieldCheck,
   Sparkles,
-  Zap,
 } from 'lucide-react';
 import { runGoalGeoAudit, type GeoAuditResult, type GeoEngine } from '../../lib/geo/client';
 import { parseOptionalLandingPageUrl } from '../../lib/research';
@@ -18,12 +17,16 @@ import type { GoalView } from '../../state/selectors';
 import { useWorkspace } from '../../state/workspace';
 import { GoalStatusBadge } from '../registry/cards';
 
-const BUDGET_PRESETS = [10, 25, 50] as const;
+const BUDGET_OPTIONS = [
+  { amount: 10, tag: 'Starter', desc: '~25–45 visitors/day' },
+  { amount: 25, tag: 'Recommended', desc: '~70–120 visitors/day' },
+  { amount: 50, tag: 'Growth', desc: '~150–260 visitors/day' },
+] as const;
 
-const DEMO_CHIPS = [
-  { label: 'smallseedlabs.co.uk', url: 'https://smallseedlabs.co.uk', hook: 'Cut ops busywork by 80% with applied AI.' },
-  { label: 'aesop.com', url: 'https://aesop.com', hook: 'Botanical barrier repair, backed by dermatologists.' },
-  { label: 'linear.app', url: 'https://linear.app', hook: 'The workspace built for high-velocity product teams.' },
+const SAMPLE_BRANDS = [
+  { label: 'Small Seed Labs', url: 'https://smallseedlabs.co.uk', hook: 'Save hours every week with AI workflows built for busy teams.' },
+  { label: 'Aesop Skincare', url: 'https://aesop.com', hook: 'Botanical skincare crafted for calm, healthy skin.' },
+  { label: 'Linear App', url: 'https://linear.app', hook: 'Plan, build, and ship products without the busywork.' },
 ] as const;
 
 const ENGINE_LABELS: Record<GeoEngine, string> = {
@@ -61,6 +64,7 @@ export function MagicPromptCanvas({
   const [rail, setRail] = useState<'managed' | 'byo'>(
     userRole === 'instant_managed' ? 'managed' : hasConnectedPlatform ? 'byo' : 'managed'
   );
+  const [rightTab, setRightTab] = useState<'ad' | 'ai'>('ad');
   const [geoAudit, setGeoAudit] = useState<GeoAuditResult | null>(null);
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -68,9 +72,9 @@ export function MagicPromptCanvas({
   const [submitting, setSubmitting] = useState(false);
 
   const effectiveBudget = isCustom ? Number(customBudget) || 0 : budget;
-  const matchedDemo = DEMO_CHIPS.find((d) => d.url === urlInput.trim());
+  const matchedSample = SAMPLE_BRANDS.find((d) => d.url === urlInput.trim());
 
-  let previewHost = 'yourproduct.com';
+  let previewHost = 'yourwebsite.com';
   try {
     const candidate = urlInput.trim();
     if (candidate) {
@@ -89,18 +93,18 @@ export function MagicPromptCanvas({
       return;
     }
     if (!parsed.url) {
-      setError('Enter a website URL (e.g. https://yourproduct.com) to launch.');
+      setError('Please enter your website link (for example: yourbusiness.com).');
       return;
     }
     if (isCustom && (!customBudget.trim() || effectiveBudget <= 0 || Number.isNaN(effectiveBudget))) {
-      setError('Enter a valid custom daily budget above 0.');
+      setError('Please enter a daily budget above 0.');
       return;
     }
     if (effectiveBudget <= 0 || Number.isNaN(effectiveBudget)) {
-      setError('Pick a valid daily budget above 0.');
+      setError('Please pick a daily budget.');
       return;
     }
-    let host = 'your product';
+    let host = 'your website';
     try {
       host = new URL(parsed.url).hostname.replace(/^www\./, '');
     } catch {
@@ -128,13 +132,14 @@ export function MagicPromptCanvas({
     if (!urlInput.trim()) setUrlInput(effectiveInput);
     const parsed = parseOptionalLandingPageUrl(effectiveInput);
     const targetUrl = parsed.ok && parsed.url ? parsed.url : 'https://smallseedlabs.co.uk';
-    let host = 'yourproduct.com';
+    let host = 'yourwebsite.com';
     try {
       host = new URL(targetUrl).hostname.replace(/^www\./, '');
     } catch {
       // ignore
     }
     const brandName = host.split('.')[0] || 'YourBrand';
+    setRightTab('ai');
     setGeoLoading(true);
     try {
       const res = await runGoalGeoAudit({
@@ -150,7 +155,7 @@ export function MagicPromptCanvas({
       });
       setGeoAudit(res);
     } catch (err) {
-      setGeoError((err as Error).message || 'Could not run AI visibility check');
+      setGeoError((err as Error).message || 'Could not check AI visibility right now.');
     } finally {
       setGeoLoading(false);
     }
@@ -160,380 +165,403 @@ export function MagicPromptCanvas({
   const redditStatus = platformConnections?.reddit;
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-4">
-      {/* Compact 1-Line Purpose Strip */}
-      <div className="flex flex-wrap items-center justify-between gap-2 px-1">
-        <div className="flex flex-wrap items-baseline gap-2.5">
-          <h1 className="text-lg font-bold tracking-tight text-[#09090B]">1-Click Ad &amp; AI Visibility Agent</h1>
-          <span className="text-caption text-slate-500">
-            Paste your URL to auto-research, generate visuals, and launch capped Meta &amp; Reddit ads.
-          </span>
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-slate-600">
-          <span className="rounded-md border border-[#E5E7EB] bg-white px-2 py-0.5">Meta + Reddit Ads</span>
-          <span className="rounded-md border border-[#E5E7EB] bg-white px-2 py-0.5">Hard Daily Cap</span>
-          <span className="rounded-md border border-[#E5E7EB] bg-white px-2 py-0.5">LLM Search (GEO)</span>
-        </div>
-      </div>
+    <div className="mx-auto w-full max-w-[1440px] space-y-6">
+      <div className="grid gap-6 lg:grid-cols-12 lg:items-start">
+        {/* Left Column (7 cols): Friendly Guided Launch Studio + Recent Campaigns */}
+        <div className="space-y-6 lg:col-span-7">
+          <form
+            onSubmit={handleSubmit}
+            className="rounded-3xl border border-[#E2E8F0] bg-white p-6 shadow-sm sm:p-8"
+          >
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-[#EFF6FF] px-3 py-1 text-caption font-semibold text-[#2563EB]">
+              <Sparkles className="h-3.5 w-3.5" />
+              Automatic Ad &amp; AI Growth
+            </div>
 
-      {/* Option 2: Edge-to-Edge Command Strip */}
-      <form
-        onSubmit={handleSubmit}
-        className="rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-sm"
-      >
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-          {/* URL Input */}
-          <div className="relative min-w-0 flex-1">
-            <Globe className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              inputMode="url"
-              value={urlInput}
-              onChange={(e) => setUrlInput(e.target.value)}
-              placeholder="Enter website URL (e.g. smallseedlabs.co.uk)"
-              className="h-11 w-full rounded-xl border border-[#CBD5E1] bg-[#FAFAFA] pl-10 pr-4 text-body text-[#09090B] placeholder:text-slate-400 focus:border-[#18181B] focus:bg-white focus:outline-none"
-            />
-          </div>
+            <h1 className="mt-3 text-2xl font-bold tracking-tight text-[#0F172A] sm:text-3xl">
+              Turn your website into live ads in one click.
+            </h1>
+            <p className="mt-2 text-body text-slate-600">
+              Paste your website link below. Proba writes your ads, finds matching visuals, and runs campaigns on Meta &amp; Reddit within your daily limit.
+            </p>
 
-          {/* Budget Cap Strip */}
-          <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] p-1">
-            <select
-              aria-label="Currency"
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value)}
-              className="h-9 rounded-lg bg-white px-2 font-mono text-caption font-semibold text-[#09090B] border border-[#E5E7EB]"
-            >
-              <option value="GBP">GBP</option>
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
-            </select>
-            {BUDGET_PRESETS.map((amt) => {
-              const active = !isCustom && budget === amt;
-              return (
+            {/* URL Input + Primary CTA */}
+            <div className="mt-6">
+              <label htmlFor="proba-url-input" className="sr-only">
+                Your website link
+              </label>
+              <div className="flex flex-col gap-2.5 sm:flex-row">
+                <div className="relative flex-1">
+                  <Globe className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    id="proba-url-input"
+                    type="text"
+                    inputMode="url"
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                    placeholder="Enter your website (e.g. yourbrand.com)"
+                    className="h-12 w-full rounded-2xl border border-[#CBD5E1] bg-[#F8FAFC] pl-11 pr-4 text-body text-[#0F172A] placeholder:text-slate-400 focus:border-[#2563EB] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#2563EB]/15"
+                  />
+                </div>
                 <button
-                  key={amt}
+                  type="submit"
+                  disabled={submitting}
+                  className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-[#2563EB] px-6 text-body font-semibold text-white shadow-sm transition hover:bg-[#1D4ED8] disabled:opacity-50"
+                >
+                  {submitting ? 'Creating Ads…' : 'Create My Ads'}
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+              {error && <p className="mt-2 text-caption font-medium text-red-600">{error}</p>}
+
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-caption">
+                <span className="text-slate-500">Examples:</span>
+                {SAMPLE_BRANDS.map((sample) => (
+                  <button
+                    key={sample.label}
+                    type="button"
+                    onClick={() => setUrlInput(sample.url)}
+                    className="rounded-full border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-1 text-[12px] font-medium text-slate-700 transition hover:border-[#2563EB] hover:bg-[#EFF6FF] hover:text-[#2563EB]"
+                  >
+                    {sample.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Friendly Daily Budget Picker */}
+            <div className="mt-7 border-t border-[#F1F5F9] pt-6">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <span className="text-body font-semibold text-[#0F172A]">Daily budget limit</span>
+                  <span className="ml-2 text-caption text-slate-500">You can pause or cancel anytime</span>
+                </div>
+                <select
+                  aria-label="Currency"
+                  value={currency}
+                  onChange={(e) => setCurrency(e.target.value)}
+                  className="rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-2.5 py-1 text-caption font-semibold text-[#0F172A]"
+                >
+                  <option value="GBP">GBP (£)</option>
+                  <option value="USD">USD ($)</option>
+                  <option value="EUR">EUR (€)</option>
+                </select>
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                {BUDGET_OPTIONS.map((opt) => {
+                  const active = !isCustom && budget === opt.amount;
+                  return (
+                    <button
+                      key={opt.amount}
+                      type="button"
+                      onClick={() => {
+                        setIsCustom(false);
+                        setBudget(opt.amount);
+                      }}
+                      className={cn(
+                        'rounded-2xl border p-3.5 text-left transition',
+                        active
+                          ? 'border-[#2563EB] bg-[#EFF6FF] ring-1 ring-[#2563EB]'
+                          : 'border-[#E2E8F0] bg-white hover:border-slate-300'
+                      )}
+                    >
+                      <div className="text-[11px] font-semibold text-[#2563EB]">{opt.tag}</div>
+                      <div className="mt-0.5 text-lg font-bold text-[#0F172A]">
+                        {formatCurrency(opt.amount, currency)}
+                        <span className="text-caption font-normal text-slate-500">/day</span>
+                      </div>
+                      <div className="mt-1 text-[11px] text-slate-500">{opt.desc}</div>
+                    </button>
+                  );
+                })}
+                <button
                   type="button"
-                  onClick={() => {
-                    setIsCustom(false);
-                    setBudget(amt);
-                  }}
+                  onClick={() => setIsCustom(true)}
                   className={cn(
-                    'h-9 rounded-lg px-3 font-mono text-caption font-semibold transition',
-                    active ? 'bg-[#18181B] text-white shadow-sm' : 'text-slate-600 hover:bg-white hover:text-[#09090B]'
+                    'rounded-2xl border p-3.5 text-left transition',
+                    isCustom
+                      ? 'border-[#2563EB] bg-[#EFF6FF] ring-1 ring-[#2563EB]'
+                      : 'border-[#E2E8F0] bg-white hover:border-slate-300'
                   )}
                 >
-                  {formatCurrency(amt, currency)}/d
+                  <div className="text-[11px] font-semibold text-slate-500">Flexible</div>
+                  <div className="mt-0.5 text-lg font-bold text-[#0F172A]">Custom</div>
+                  <div className="mt-1 text-[11px] text-slate-500">Set your own cap</div>
                 </button>
-              );
-            })}
+              </div>
+
+              {isCustom && (
+                <div className="mt-3">
+                  <input
+                    type="number"
+                    min={1}
+                    value={customBudget}
+                    onChange={(e) => setCustomBudget(e.target.value)}
+                    placeholder={`Enter daily limit in ${currency} (e.g. 75)`}
+                    className="h-11 w-full rounded-xl border border-[#CBD5E1] bg-white px-3.5 text-body text-[#0F172A]"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Account Choice (Only shown when user can use own ad accounts) */}
+            {userRole !== 'instant_managed' && (
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-3.5">
+                <div className="flex items-center gap-2 text-caption">
+                  <span className="font-semibold text-[#0F172A]">Run ads using:</span>
+                  <button
+                    type="button"
+                    onClick={() => setRail('managed')}
+                    className={cn(
+                      'rounded-lg px-3 py-1 font-medium transition',
+                      rail === 'managed' ? 'bg-white text-[#2563EB] shadow-sm font-semibold' : 'text-slate-600'
+                    )}
+                  >
+                    Proba Managed
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRail('byo')}
+                    className={cn(
+                      'rounded-lg px-3 py-1 font-medium transition',
+                      rail === 'byo' ? 'bg-white text-[#2563EB] shadow-sm font-semibold' : 'text-slate-600'
+                    )}
+                  >
+                    My Ad Accounts
+                  </button>
+                </div>
+
+                {rail === 'byo' && (
+                  <div className="flex flex-wrap items-center gap-2 text-[12px]">
+                    {metaStatus === 'connected' ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 font-medium text-emerald-700">
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Meta ready
+                      </span>
+                    ) : onConnectPlatform ? (
+                      <button
+                        type="button"
+                        onClick={() => onConnectPlatform('meta')}
+                        className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 font-semibold text-amber-800 hover:bg-amber-100"
+                      >
+                        <Link2 className="h-3 w-3" />
+                        {metaStatus === 'needs_reconnect' ? 'Reconnect Meta' : 'Connect Meta'}
+                      </button>
+                    ) : null}
+
+                    {redditStatus === 'connected' ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 font-medium text-emerald-700">
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Reddit ready
+                      </span>
+                    ) : onConnectPlatform ? (
+                      <button
+                        type="button"
+                        onClick={() => onConnectPlatform('reddit')}
+                        className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-2.5 py-0.5 font-semibold text-[#0F172A] hover:bg-slate-50"
+                      >
+                        <Link2 className="h-3 w-3" /> Connect Reddit
+                      </button>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="mt-5 flex flex-wrap items-center gap-4 text-[12px] text-slate-500">
+              <span className="inline-flex items-center gap-1.5">
+                <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                Never spends above {formatCurrency(effectiveBudget || 25, currency)}/day
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                Review before going live
+              </span>
+            </div>
+          </form>
+
+          {/* Recent Campaigns */}
+          {goals.length > 0 && (
+            <section className="rounded-3xl border border-[#E2E8F0] bg-white p-6 shadow-sm">
+              <div className="flex items-center justify-between">
+                <h2 className="text-body font-bold text-[#0F172A]">Your Campaigns</h2>
+                <span className="text-caption text-slate-500">{goals.length} total</span>
+              </div>
+              <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+                {goals.slice(0, 6).map((goal) => (
+                  <a
+                    key={goal.goalId}
+                    href={routeHref({ section: 'goals', id: goal.goalId })}
+                    className="group flex items-center justify-between gap-3 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 transition hover:border-[#2563EB] hover:bg-white"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate text-body font-semibold text-[#0F172A] group-hover:text-[#2563EB]">
+                        {goal.title}
+                      </div>
+                      <div className="mt-0.5 text-[12px] text-slate-500">
+                        {goal.metrics?.budget ? `${formatCurrency(goal.metrics.budget, goal.metrics.currency ?? currency)}/day · ` : ''}
+                        {formatRelativeTime(goal.updatedAt)}
+                      </div>
+                    </div>
+                    <GoalStatusBadge status={goal.status} />
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+
+        {/* Right Column (5 cols): Visual Preview & Free AI Brand Check */}
+        <div className="rounded-3xl border border-[#E2E8F0] bg-white p-6 shadow-sm lg:col-span-5">
+          <div className="flex items-center justify-between gap-2 rounded-2xl bg-[#F1F5F9] p-1">
             <button
               type="button"
-              onClick={() => setIsCustom(true)}
+              onClick={() => setRightTab('ad')}
               className={cn(
-                'h-9 rounded-lg px-3 text-caption font-semibold transition',
-                isCustom ? 'bg-[#18181B] text-white shadow-sm' : 'text-slate-600 hover:bg-white hover:text-[#09090B]'
+                'flex-1 rounded-xl py-2 text-caption font-semibold transition',
+                rightTab === 'ad' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-600 hover:text-[#0F172A]'
               )}
             >
-              Custom
+              Sample Ad Preview
             </button>
-            {isCustom && (
-              <input
-                type="number"
-                min={1}
-                value={customBudget}
-                onChange={(e) => setCustomBudget(e.target.value)}
-                placeholder="75"
-                className="h-9 w-20 rounded-lg border border-[#CBD5E1] bg-white px-2.5 font-mono text-caption text-[#09090B]"
-              />
-            )}
-          </div>
-
-          {/* Account Rail & Platform Health */}
-          <div className="flex flex-wrap items-center gap-2">
-            {userRole !== 'instant_managed' && (
-              <div className="flex items-center rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] p-1 text-caption font-medium">
-                <button
-                  type="button"
-                  onClick={() => setRail('managed')}
-                  className={cn(
-                    'h-9 rounded-lg px-2.5 transition',
-                    rail === 'managed' ? 'bg-white text-[#09090B] shadow-sm font-semibold' : 'text-slate-500'
-                  )}
-                >
-                  Managed
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRail('byo')}
-                  className={cn(
-                    'h-9 rounded-lg px-2.5 transition',
-                    rail === 'byo' ? 'bg-white text-[#09090B] shadow-sm font-semibold' : 'text-slate-500'
-                  )}
-                >
-                  My Accounts
-                </button>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-[#18181B] px-5 text-body font-semibold text-white shadow-sm transition hover:bg-black disabled:opacity-50"
-            >
-              <Zap className="h-4 w-4 text-[#10B981]" />
-              {submitting ? 'Building…' : 'Generate Ads'}
-            </button>
-          </div>
-        </div>
-
-        {/* Sub-strip: Quick presets + Platform status pills + 7-day cap */}
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#F1F5F9] pt-2.5 text-[11px]">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-slate-400">Try:</span>
-            {DEMO_CHIPS.map((chip) => (
-              <button
-                key={chip.label}
-                type="button"
-                onClick={() => setUrlInput(chip.url)}
-                className="rounded-md border border-[#E5E7EB] bg-[#FAFAFA] px-2 py-0.5 font-mono text-slate-700 hover:border-[#18181B] hover:text-[#09090B]"
-              >
-                {chip.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {rail === 'byo' && (
-              <>
-                {metaStatus === 'connected' ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    Meta Connected
-                  </span>
-                ) : onConnectPlatform ? (
-                  <button
-                    type="button"
-                    onClick={() => onConnectPlatform('meta')}
-                    className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 font-semibold text-amber-800 hover:bg-amber-100"
-                  >
-                    <Link2 className="h-3 w-3" />
-                    {metaStatus === 'needs_reconnect' ? 'Reconnect Meta' : 'Connect Meta'}
-                  </button>
-                ) : null}
-
-                {redditStatus === 'connected' ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    Reddit Connected
-                  </span>
-                ) : onConnectPlatform ? (
-                  <button
-                    type="button"
-                    onClick={() => onConnectPlatform('reddit')}
-                    className="inline-flex items-center gap-1 rounded-md border border-[#E5E7EB] bg-white px-2 py-0.5 font-semibold text-[#09090B] hover:bg-slate-50"
-                  >
-                    <Link2 className="h-3 w-3" />
-                    Connect Reddit
-                  </button>
-                ) : null}
-              </>
-            )}
-            <span className="font-mono text-slate-500">
-              7-day cap: {formatCurrency((effectiveBudget || 25) * 7, currency)}
-            </span>
-          </div>
-        </div>
-        {error && <p className="mt-2 text-caption font-medium text-red-600">{error}</p>}
-      </form>
-
-      {/* Full-Width 3-Column Bento Workspace */}
-      <div className="grid gap-5 lg:grid-cols-12">
-        {/* Col 1 (4 cols): Campaigns */}
-        <section className="flex flex-col rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-sm lg:col-span-4">
-          <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-3">
-            <div className="flex items-center gap-2">
-              <Layers className="h-4 w-4 text-slate-500" />
-              <h2 className="text-body font-semibold text-[#09090B]">Campaigns</h2>
-            </div>
-            <span className="rounded-full bg-[#FAFAFA] px-2 py-0.5 font-mono text-[11px] font-semibold text-slate-600 border border-[#E5E7EB]">
-              {goals.length}
-            </span>
-          </div>
-
-          {goals.length === 0 ? (
-            <div className="flex flex-1 flex-col items-center justify-center py-10 text-center">
-              <Sparkles className="h-6 w-6 text-slate-300" />
-              <p className="mt-2 text-caption font-medium text-slate-600">No campaigns yet</p>
-              <p className="mt-0.5 text-[11px] text-slate-400">Enter a URL above to launch in one click.</p>
-            </div>
-          ) : (
-            <div className="mt-3 space-y-2 overflow-y-auto max-h-[420px] pr-1">
-              {goals.map((goal) => (
-                <a
-                  key={goal.goalId}
-                  href={routeHref({ section: 'goals', id: goal.goalId })}
-                  className="group flex items-center justify-between gap-3 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] px-3.5 py-2.5 transition hover:border-[#18181B] hover:bg-white"
-                >
-                  <div className="min-w-0">
-                    <div className="truncate text-body font-semibold text-[#09090B] group-hover:underline">
-                      {goal.title}
-                    </div>
-                    <div className="mt-0.5 flex items-center gap-2 font-mono text-[11px] text-slate-500">
-                      <span>{goal.metrics?.budget ? `${formatCurrency(goal.metrics.budget, goal.metrics.currency ?? currency)}/d` : 'Auto cap'}</span>
-                      <span>·</span>
-                      <span>{formatRelativeTime(goal.updatedAt)}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <GoalStatusBadge status={goal.status} />
-                    <ArrowUpRight className="h-3.5 w-3.5 text-slate-400 group-hover:text-[#09090B]" />
-                  </div>
-                </a>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Col 2 (4 cols): Live Ad Preview */}
-        <section className="flex flex-col rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-sm lg:col-span-4">
-          <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-3">
-            <span className="text-body font-semibold text-[#09090B]">Ad Creative Preview</span>
-            <span className="rounded-md bg-[#FAFAFA] px-2 py-0.5 font-mono text-[11px] text-slate-500 border border-[#E5E7EB]">
-              Meta · Reddit
-            </span>
-          </div>
-
-          <div className="mt-4 flex flex-1 flex-col justify-between gap-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] p-4">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#18181B] font-mono text-[11px] font-bold text-white">
-                    {previewHost.slice(0, 1).toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="text-caption font-semibold text-[#09090B]">{previewHost}</div>
-                    <div className="text-[10px] text-slate-400">Sponsored · Native Feed</div>
-                  </div>
-                </div>
-                <span className="rounded bg-white px-2 py-0.5 font-mono text-[10px] font-semibold text-slate-600 border border-[#E5E7EB]">
-                  {formatCurrency(effectiveBudget || 25, currency)}/d
-                </span>
-              </div>
-
-              <div className="rounded-lg border border-[#E5E7EB] bg-white p-3.5">
-                <div className="mb-2.5 flex h-24 items-center justify-center rounded-md border border-dashed border-[#CBD5E1] bg-gradient-to-br from-slate-50 to-slate-100 text-[11px] font-medium text-slate-500">
-                  Auto-sourced visual asset for {previewHost}
-                </div>
-                <div className="text-body font-semibold text-[#09090B]">
-                  {matchedDemo ? matchedDemo.hook : `Grow ${previewHost} faster with AI-managed ads`}
-                </div>
-                <p className="mt-1 text-caption text-slate-600">
-                  Researched from your site and capped at {formatCurrency(effectiveBudget || 25, currency)}/day.
-                </p>
-                <div className="mt-3 flex items-center justify-between border-t border-[#F1F5F9] pt-2.5 text-[11px]">
-                  <span className="font-mono text-slate-400 truncate">{previewHost}</span>
-                  <span className="rounded-md bg-[#18181B] px-2.5 py-1 font-semibold text-white">
-                    Learn More
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 border-t border-[#E5E7EB] pt-3 text-[11px]">
-              <div className="rounded-lg bg-white px-2.5 py-1.5 border border-[#E5E7EB]">
-                <div className="font-mono text-[10px] text-slate-400">01</div>
-                <div className="font-medium text-[#09090B]">Scans URL</div>
-              </div>
-              <div className="rounded-lg bg-white px-2.5 py-1.5 border border-[#E5E7EB]">
-                <div className="font-mono text-[10px] text-slate-400">02</div>
-                <div className="font-medium text-[#09090B]">Drafts Ads</div>
-              </div>
-              <div className="rounded-lg bg-white px-2.5 py-1.5 border border-[#E5E7EB]">
-                <div className="font-mono text-[10px] text-slate-400">03</div>
-                <div className="font-medium text-[#09090B]">Caps Spend</div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Col 3 (4 cols): AI Brand Visibility (GEO) */}
-        <section className="flex flex-col rounded-2xl border border-[#E5E7EB] bg-white p-5 shadow-sm lg:col-span-4">
-          <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-3">
-            <div className="flex items-center gap-2">
-              <Bot className="h-4 w-4 text-slate-600" />
-              <h2 className="text-body font-semibold text-[#09090B]">AI Brand Visibility (GEO)</h2>
-            </div>
             <button
               type="button"
-              onClick={handleRunGeoCheck}
-              disabled={geoLoading}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white px-2.5 py-1 text-caption font-semibold text-[#09090B] hover:bg-slate-50 disabled:opacity-50"
+              onClick={() => setRightTab('ai')}
+              className={cn(
+                'flex-1 rounded-xl py-2 text-caption font-semibold transition',
+                rightTab === 'ai' ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-600 hover:text-[#0F172A]'
+              )}
             >
-              <Search className="h-3.5 w-3.5" />
-              {geoLoading ? 'Scanning…' : geoAudit ? 'Re-scan' : 'Scan LLMs'}
+              AI Search Check
             </button>
           </div>
 
-          <div className="mt-4 flex-1 space-y-3">
-            {geoError && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-caption text-red-700">
-                {geoError}
-              </div>
-            )}
-
-            {geoAudit ? (
-              <>
-                <div className="flex items-center justify-between rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] px-4 py-3">
-                  <div>
-                    <div className="text-[11px] uppercase tracking-wide text-slate-500">Visibility Score</div>
-                    <div className="font-mono text-2xl font-bold text-[#09090B]">{geoAudit.visibilityScore}%</div>
+          {rightTab === 'ad' ? (
+            <div className="mt-5 space-y-5">
+              <div className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2563EB] text-body font-bold text-white">
+                      {previewHost.slice(0, 1).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="text-body font-semibold text-[#0F172A]">{previewHost}</div>
+                      <div className="text-[11px] text-slate-500">Sponsored · Meta &amp; Reddit</div>
+                    </div>
                   </div>
-                  <span className="rounded-full border border-[#E5E7EB] bg-white px-2.5 py-1 font-mono text-[11px] font-semibold text-slate-700">
-                    {previewHost}
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 border border-[#E2E8F0]">
+                    {formatCurrency(effectiveBudget || 25, currency)}/day
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {(Object.keys(ENGINE_LABELS) as GeoEngine[]).map((eng) => {
-                    const stats = geoAudit.engineScores[eng];
-                    const score = stats?.score ?? 0;
-                    const mentioned = (stats?.mentions ?? 0) > 0;
-                    return (
-                    <div key={eng} className="rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] px-3 py-2">
-                      <div className="flex items-center justify-between text-caption">
-                        <span className="font-semibold text-[#09090B]">{ENGINE_LABELS[eng]}</span>
-                        <span className="font-mono text-[11px] font-bold text-slate-700">{score}%</span>
-                      </div>
-                      <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
-                        <div
-                          className={cn('h-full rounded-full', mentioned ? 'bg-[#10B981]' : 'bg-amber-400')}
-                          style={{ width: `${Math.max(6, score)}%` }}
-                        />
-                      </div>
+
+                {/* Warm Visual Banner instead of dashed box */}
+                <div className="mt-3.5 overflow-hidden rounded-xl border border-[#E2E8F0] bg-white">
+                  <div className="relative flex h-44 flex-col justify-end bg-gradient-to-br from-[#1E3A8A] via-[#2563EB] to-[#38BDF8] p-5 text-white">
+                    <div className="text-[11px] font-semibold uppercase tracking-wider text-blue-100">
+                      Featured Offer
                     </div>
-                    );
-                  })}
+                    <div className="mt-1 text-lg font-bold leading-snug">
+                      {matchedSample ? matchedSample.hook : `Discover how ${previewHost} helps customers save time`}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 p-4">
+                    <div className="min-w-0">
+                      <div className="truncate text-caption font-semibold text-[#0F172A]">{previewHost}</div>
+                      <div className="text-[12px] text-slate-500">Tailored copy &amp; visuals from your site</div>
+                    </div>
+                    <span className="shrink-0 rounded-xl bg-[#0F172A] px-3.5 py-2 text-caption font-semibold text-white">
+                      Learn More
+                    </span>
+                  </div>
                 </div>
-              </>
-            ) : (
-              <div className="flex h-full flex-col justify-between gap-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] p-4">
-                <div className="space-y-2">
+              </div>
+
+              <div className="space-y-2.5 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-4 text-caption">
+                <div className="font-semibold text-[#0F172A]">What Proba handles automatically</div>
+                <div className="flex items-center gap-2 text-slate-600">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                  <span>Reads your website to write natural, accurate ads</span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-600">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                  <span>Finds real visuals &amp; launches on Meta and Reddit</span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-600">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                  <span>Protects your budget with automatic pause rules</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-5 space-y-4">
+              <div>
+                <h3 className="text-body font-bold text-[#0F172A]">How often do AI assistants recommend you?</h3>
+                <p className="mt-1 text-caption text-slate-600">
+                  Check whether ChatGPT, Gemini, Claude, and Perplexity mention <span className="font-semibold text-[#0F172A]">{previewHost}</span> when customers ask for recommendations.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleRunGeoCheck}
+                disabled={geoLoading}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#0F172A] px-4 py-3 text-body font-semibold text-white transition hover:bg-black disabled:opacity-50"
+              >
+                <Search className="h-4 w-4" />
+                {geoLoading ? 'Checking AI Assistants…' : geoAudit ? 'Run Fresh Check' : 'Check My AI Visibility'}
+              </button>
+
+              {geoError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-caption text-red-700">
+                  {geoError}
+                </div>
+              )}
+
+              {geoAudit ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+                    <div>
+                      <div className="text-caption text-slate-500">Overall AI Visibility</div>
+                      <div className="text-3xl font-bold text-[#0F172A]">{geoAudit.visibilityScore}%</div>
+                    </div>
+                    <span className="rounded-full bg-white px-3 py-1 text-caption font-semibold text-slate-700 border border-[#E2E8F0]">
+                      {previewHost}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {(Object.keys(ENGINE_LABELS) as GeoEngine[]).map((eng) => {
+                      const stats = geoAudit.engineScores[eng];
+                      const score = stats?.score ?? 0;
+                      const mentioned = (stats?.mentions ?? 0) > 0;
+                      return (
+                        <div key={eng} className="rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-3">
+                          <div className="flex items-center justify-between text-caption">
+                            <span className="font-semibold text-[#0F172A]">{ENGINE_LABELS[eng]}</span>
+                            <span className="font-bold text-slate-700">{score}%</span>
+                          </div>
+                          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200">
+                            <div
+                              className={cn('h-full rounded-full', mentioned ? 'bg-emerald-500' : 'bg-amber-400')}
+                              style={{ width: `${Math.max(8, score)}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] p-4">
                   {(['chatgpt', 'gemini', 'claude', 'perplexity'] as const).map((engine) => (
-                    <div key={engine} className="flex items-center justify-between rounded-lg border border-[#E5E7EB] bg-white px-3 py-2.5 text-caption">
-                      <span className="font-semibold text-[#09090B]">{ENGINE_LABELS[engine]}</span>
-                      <span className="font-mono text-[11px] text-slate-400">Ready to scan</span>
+                    <div key={engine} className="flex items-center justify-between rounded-xl bg-white px-3.5 py-2.5 text-caption border border-[#E2E8F0]">
+                      <span className="font-semibold text-[#0F172A]">{ENGINE_LABELS[engine]}</span>
+                      <span className="text-slate-400">Ready to check</span>
                     </div>
                   ))}
                 </div>
-                <div className="rounded-lg border border-[#E5E7EB] bg-white p-3 text-[11px] text-slate-600">
-                  <div className="font-semibold text-[#09090B]">Checks AI recommendation share</div>
-                  <p className="mt-0.5 text-slate-500">
-                    Measures how often AI assistants cite <span className="font-mono text-[#09090B]">{previewHost}</span> and generates <span className="font-mono">llms.txt</span> + FAQ fixes.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
