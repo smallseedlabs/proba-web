@@ -43,7 +43,7 @@ export function UIModeProvider({
 }) {
   const userRole = normalizeRole(rawRole);
   const canSwitchMode = userRole !== 'instant_managed';
-  const fallbackDefault: UIMode = defaultMode ?? 'auto';
+  const fallbackDefault: UIMode = defaultMode ?? (userRole === 'operator' ? 'controlled' : 'auto');
 
   const [mode, setModeState] = useState<UIMode>(() => {
     if (!canSwitchMode) return 'auto';
