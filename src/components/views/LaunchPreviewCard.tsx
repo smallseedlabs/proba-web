@@ -19,6 +19,8 @@ interface LaunchPreviewCardProps {
   event?: IncomingEvent;
   ask: AskPayload | undefined;
   status?: { state: string; detail?: string; message?: string } | null;
+  assistantReply?: string | null;
+  onReply?: (text: string) => Promise<void>;
   isPublishing?: boolean;
   isInstantManaged?: boolean;
   dailyBudget?: number;
@@ -37,6 +39,8 @@ export function LaunchPreviewCard({
   event,
   ask,
   status = null,
+  assistantReply = null,
+  onReply,
   isPublishing = false,
   isInstantManaged = false,
   dailyBudget = 20,
@@ -74,6 +78,8 @@ export function LaunchPreviewCard({
   const [imgFailed, setImgFailed] = useState(false);
   const [thinkingStep, setThinkingStep] = useState(0);
   const [elapsedSec, setElapsedSec] = useState(0);
+  const [replyText, setReplyText] = useState('');
+  const [replyBusy, setReplyBusy] = useState(false);
 
   useEffect(() => {
     setHeadline(initialHeadline);
@@ -102,6 +108,69 @@ export function LaunchPreviewCard({
 
   if (!ask) {
     const liveMessage = status?.message || status?.detail;
+    const isActivelyWorking = status?.state === 'thinking' || status?.state === 'running' || status?.state === 'working';
+    if (!isActivelyWorking && assistantReply && status?.state !== 'error') {
+      return (
+        <div className="rounded-2xl border border-amber-200 bg-white p-6 text-[#09090B] shadow-sm space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-caption font-semibold text-amber-800">
+              Agent Needs Details
+            </span>
+            <div className="flex items-center gap-3">
+              <a href="#/goals" className="text-caption font-semibold text-[#2563EB] hover:underline">
+                Try another URL
+              </a>
+              {canSwitchMode && (
+                <button
+                  type="button"
+                  onClick={onSwitchToControlled}
+                  className="inline-flex items-center gap-1 text-caption font-medium text-slate-500 hover:text-[#09090B]"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  Pro View
+                </button>
+              )}
+            </div>
+          </div>
+          <h2 className="text-xl font-bold text-[#09090B]">{goalTitle}</h2>
+          <div className="whitespace-pre-wrap rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] p-4 text-body text-slate-700 leading-relaxed">
+            {assistantReply}
+          </div>
+          {onReply && (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const trimmed = replyText.trim();
+                if (!trimmed || replyBusy) return;
+                setReplyBusy(true);
+                try {
+                  await onReply(trimmed);
+                  setReplyText('');
+                } finally {
+                  setReplyBusy(false);
+                }
+              }}
+              className="flex flex-col gap-2 sm:flex-row"
+            >
+              <input
+                type="text"
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="Describe your product/Reel or paste a landing page URL…"
+                className="h-11 flex-1 rounded-xl border border-[#CBD5E1] bg-white px-3.5 text-body text-[#09090B] focus:border-[#2563EB] focus:outline-none"
+              />
+              <button
+                type="submit"
+                disabled={replyBusy || !replyText.trim()}
+                className="h-11 rounded-xl bg-[#2563EB] px-5 text-body font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-50"
+              >
+                {replyBusy ? 'Sending…' : 'Send & Continue'}
+              </button>
+            </form>
+          )}
+        </div>
+      );
+    }
     if (status?.state === 'error') {
       return (
         <div className="rounded-2xl border border-red-200 bg-white p-6 text-[#09090B] shadow-sm">

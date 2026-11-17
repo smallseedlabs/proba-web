@@ -190,7 +190,7 @@ function GoalHeader({
 
 export function GoalsView({ selectedId, session }: { selectedId?: string; session: Session }) {
   const workspace = useWorkspace();
-  const { state, respond } = workspace;
+  const { state, respond, sendMessage } = workspace;
   const { mode, setMode, userRole, canSwitchMode } = useUIMode();
   const actionsClient = useActionsClient();
   const goals = useGoals();
@@ -378,6 +378,20 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
     [threadAsks]
   );
   const launchAsk = launchEvent ? askPayload(launchEvent) ?? undefined : undefined;
+  const latestAssistantMessage = useMemo(() => {
+    if (!selected?.threadId) return null;
+    for (let i = state.events.length - 1; i >= 0; i--) {
+      const ev = state.events[i];
+      if (ev.threadId !== selected.threadId) continue;
+      if (ev.type === 'message') {
+        const p = ev.payload as { role?: string; text?: string } | undefined;
+        if (p?.role === 'assistant' && typeof p.text === 'string' && p.text.trim()) {
+          return p.text.trim();
+        }
+      }
+    }
+    return null;
+  }, [state.events, selected?.threadId]);
 
   // AI-native default: in Auto Mode keep Co-pilot collapsed so LaunchPreviewCard / Command Center stays clean;
   // in Controlled Mode open Co-pilot when pre-launch or when asks are pending.
@@ -635,6 +649,14 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                       event={launchEvent}
                       ask={launchAsk}
                       status={status}
+                      assistantReply={latestAssistantMessage}
+                      onReply={
+                        selected.threadId
+                          ? async (text) => {
+                              await sendMessage(selected.threadId!, text);
+                            }
+                          : undefined
+                      }
                       dailyBudget={selected.metrics?.budget ?? 25}
                       currency={selected.metrics?.currency ?? accountCurrency}
                       isPublishing={Boolean(selected && launchedGoalIdsRef.current.has(selected.goalId))}
