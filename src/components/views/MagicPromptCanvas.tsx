@@ -364,11 +364,22 @@ export function MagicPromptCanvas({
                     )}
                   </span>
                 ) : (
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     {metaStatus === 'connected' ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-                        <CheckCircle2 className="h-3 w-3" /> Meta
-                      </span>
+                      <>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                          <CheckCircle2 className="h-3 w-3" /> Meta
+                        </span>
+                        {onConnectPlatform && (
+                          <button
+                            type="button"
+                            onClick={() => onConnectPlatform('meta')}
+                            className="text-[11px] font-medium text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-[#2563EB]"
+                          >
+                            Reconnect
+                          </button>
+                        )}
+                      </>
                     ) : onConnectPlatform ? (
                       <button
                         type="button"
@@ -379,9 +390,20 @@ export function MagicPromptCanvas({
                       </button>
                     ) : null}
                     {redditStatus === 'connected' ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-                        <CheckCircle2 className="h-3 w-3" /> Reddit
-                      </span>
+                      <>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                          <CheckCircle2 className="h-3 w-3" /> Reddit
+                        </span>
+                        {onConnectPlatform && (
+                          <button
+                            type="button"
+                            onClick={() => onConnectPlatform('reddit')}
+                            className="text-[11px] font-medium text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-[#2563EB]"
+                          >
+                            Reconnect
+                          </button>
+                        )}
+                      </>
                     ) : onConnectPlatform ? (
                       <button
                         type="button"
