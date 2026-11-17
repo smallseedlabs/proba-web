@@ -160,7 +160,22 @@ export function MagicPromptCanvas({
   const redditStatus = platformConnections?.reddit;
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] space-y-5">
+    <div className="mx-auto w-full max-w-[1600px] space-y-4">
+      {/* Compact 1-Line Purpose Strip */}
+      <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+        <div className="flex flex-wrap items-baseline gap-2.5">
+          <h1 className="text-lg font-bold tracking-tight text-[#09090B]">1-Click Ad &amp; AI Visibility Agent</h1>
+          <span className="text-caption text-slate-500">
+            Paste your URL to auto-research, generate visuals, and launch capped Meta &amp; Reddit ads.
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-medium text-slate-600">
+          <span className="rounded-md border border-[#E5E7EB] bg-white px-2 py-0.5">Meta + Reddit Ads</span>
+          <span className="rounded-md border border-[#E5E7EB] bg-white px-2 py-0.5">Hard Daily Cap</span>
+          <span className="rounded-md border border-[#E5E7EB] bg-white px-2 py-0.5">LLM Search (GEO)</span>
+        </div>
+      </div>
+
       {/* Option 2: Edge-to-Edge Command Strip */}
       <form
         onSubmit={handleSubmit}
@@ -388,35 +403,54 @@ export function MagicPromptCanvas({
             </span>
           </div>
 
-          <div className="mt-4 flex-1 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#18181B] font-mono text-[11px] font-bold text-white">
-                  {previewHost.slice(0, 1).toUpperCase()}
+          <div className="mt-4 flex flex-1 flex-col justify-between gap-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] p-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#18181B] font-mono text-[11px] font-bold text-white">
+                    {previewHost.slice(0, 1).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="text-caption font-semibold text-[#09090B]">{previewHost}</div>
+                    <div className="text-[10px] text-slate-400">Sponsored · Native Feed</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-caption font-semibold text-[#09090B]">{previewHost}</div>
-                  <div className="text-[10px] text-slate-400">Sponsored · Native Feed</div>
+                <span className="rounded bg-white px-2 py-0.5 font-mono text-[10px] font-semibold text-slate-600 border border-[#E5E7EB]">
+                  {formatCurrency(effectiveBudget || 25, currency)}/d
+                </span>
+              </div>
+
+              <div className="rounded-lg border border-[#E5E7EB] bg-white p-3.5">
+                <div className="mb-2.5 flex h-24 items-center justify-center rounded-md border border-dashed border-[#CBD5E1] bg-gradient-to-br from-slate-50 to-slate-100 text-[11px] font-medium text-slate-500">
+                  Auto-sourced visual asset for {previewHost}
+                </div>
+                <div className="text-body font-semibold text-[#09090B]">
+                  {matchedDemo ? matchedDemo.hook : `Grow ${previewHost} faster with AI-managed ads`}
+                </div>
+                <p className="mt-1 text-caption text-slate-600">
+                  Researched from your site and capped at {formatCurrency(effectiveBudget || 25, currency)}/day.
+                </p>
+                <div className="mt-3 flex items-center justify-between border-t border-[#F1F5F9] pt-2.5 text-[11px]">
+                  <span className="font-mono text-slate-400 truncate">{previewHost}</span>
+                  <span className="rounded-md bg-[#18181B] px-2.5 py-1 font-semibold text-white">
+                    Learn More
+                  </span>
                 </div>
               </div>
-              <span className="rounded bg-white px-2 py-0.5 font-mono text-[10px] font-semibold text-slate-600 border border-[#E5E7EB]">
-                {formatCurrency(effectiveBudget || 25, currency)}/d
-              </span>
             </div>
 
-            <div className="mt-3 rounded-lg border border-[#E5E7EB] bg-white p-3.5">
-              <div className="text-body font-semibold text-[#09090B]">
-                {matchedDemo ? matchedDemo.hook : `Grow ${previewHost} faster with AI-managed ads`}
+            <div className="grid grid-cols-3 gap-2 border-t border-[#E5E7EB] pt-3 text-[11px]">
+              <div className="rounded-lg bg-white px-2.5 py-1.5 border border-[#E5E7EB]">
+                <div className="font-mono text-[10px] text-slate-400">01</div>
+                <div className="font-medium text-[#09090B]">Scans URL</div>
               </div>
-              <p className="mt-1.5 text-caption text-slate-600">
-                Auto-researched from your site, paired with stock or AI visuals, and capped at{' '}
-                {formatCurrency(effectiveBudget || 25, currency)}/day.
-              </p>
-              <div className="mt-3 flex items-center justify-between border-t border-[#F1F5F9] pt-2.5 text-[11px]">
-                <span className="font-mono text-slate-400 truncate">{previewHost}</span>
-                <span className="rounded-md bg-[#18181B] px-2.5 py-1 font-semibold text-white">
-                  Learn More
-                </span>
+              <div className="rounded-lg bg-white px-2.5 py-1.5 border border-[#E5E7EB]">
+                <div className="font-mono text-[10px] text-slate-400">02</div>
+                <div className="font-medium text-[#09090B]">Drafts Ads</div>
+              </div>
+              <div className="rounded-lg bg-white px-2.5 py-1.5 border border-[#E5E7EB]">
+                <div className="font-mono text-[10px] text-slate-400">03</div>
+                <div className="font-medium text-[#09090B]">Caps Spend</div>
               </div>
             </div>
           </div>
@@ -481,18 +515,21 @@ export function MagicPromptCanvas({
                 </div>
               </>
             ) : (
-              <div className="flex h-full flex-col justify-between rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] p-4">
-                <div className="grid grid-cols-2 gap-2">
+              <div className="flex h-full flex-col justify-between gap-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] p-4">
+                <div className="space-y-2">
                   {(['chatgpt', 'gemini', 'claude', 'perplexity'] as const).map((engine) => (
-                    <div key={engine} className="rounded-lg border border-[#E5E7EB] bg-white px-3 py-2 text-caption">
+                    <div key={engine} className="flex items-center justify-between rounded-lg border border-[#E5E7EB] bg-white px-3 py-2.5 text-caption">
                       <span className="font-semibold text-[#09090B]">{ENGINE_LABELS[engine]}</span>
-                      <span className="ml-1.5 font-mono text-[11px] text-slate-400">—</span>
+                      <span className="font-mono text-[11px] text-slate-400">Ready to scan</span>
                     </div>
                   ))}
                 </div>
-                <p className="mt-3 text-[11px] text-slate-500">
-                  Measures how often AI engines cite <span className="font-mono text-[#09090B]">{previewHost}</span>.
-                </p>
+                <div className="rounded-lg border border-[#E5E7EB] bg-white p-3 text-[11px] text-slate-600">
+                  <div className="font-semibold text-[#09090B]">Checks AI recommendation share</div>
+                  <p className="mt-0.5 text-slate-500">
+                    Measures how often AI assistants cite <span className="font-mono text-[#09090B]">{previewHost}</span> and generates <span className="font-mono">llms.txt</span> + FAQ fixes.
+                  </p>
+                </div>
               </div>
             )}
           </div>
