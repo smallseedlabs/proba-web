@@ -327,32 +327,30 @@ export function MagicPromptCanvas({
               </div>
 
               <div className="flex flex-wrap items-center gap-3 text-[12px] text-slate-500">
-                {userRole !== 'instant_managed' && (
-                  <div className="flex items-center gap-1.5 rounded-full border border-[#E2E8F0] bg-[#F8FAFC] p-0.5">
-                    <button
-                      type="button"
-                      onClick={() => setRail('managed')}
-                      className={cn(
-                        'rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition',
-                        rail === 'managed' ? 'bg-white text-[#2563EB] shadow-sm' : 'text-slate-500'
-                      )}
-                    >
-                      Proba Managed
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRail('byo')}
-                      className={cn(
-                        'rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition',
-                        rail === 'byo' ? 'bg-white text-[#2563EB] shadow-sm' : 'text-slate-500'
-                      )}
-                    >
-                      Your Accounts
-                    </button>
-                  </div>
-                )}
+                <div className="flex items-center gap-1.5 rounded-full border border-[#E2E8F0] bg-[#F8FAFC] p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setRail('managed')}
+                    className={cn(
+                      'rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition',
+                      rail === 'managed' ? 'bg-white text-[#2563EB] shadow-sm' : 'text-slate-500'
+                    )}
+                  >
+                    Proba Managed
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRail('byo')}
+                    className={cn(
+                      'rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition',
+                      rail === 'byo' ? 'bg-white text-[#2563EB] shadow-sm' : 'text-slate-500'
+                    )}
+                  >
+                    Your Accounts
+                  </button>
+                </div>
 
-                {userRole !== 'instant_managed' && rail === 'byo' && (
+                {rail === 'byo' && (
                   <div className="flex items-center gap-1.5">
                     {metaStatus === 'connected' ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
