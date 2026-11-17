@@ -75,7 +75,7 @@ export function TopBar({
           <span className="text-section font-bold tracking-tight text-[#0B0D12]">Proba</span>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E2E8F0] bg-[#F5F7FA] px-2.5 py-0.5 text-[11px] font-semibold text-[#0B0D12]">
             <span className="h-2 w-2 rounded-full bg-[#84CC16]" aria-hidden="true" />
-            Instant Agent
+            Brand Growth Studio
           </span>
         </div>
       ) : (
@@ -201,7 +201,15 @@ export function TopBar({
                 {session.user.role && (
                   <>
                     {' '}
-                    <span className="block text-caption leading-tight text-muted-foreground">{session.user.role}</span>
+                    <span className="block text-caption leading-tight text-muted-foreground">
+                      {session.user.role === 'instant_managed'
+                        ? 'Managed Growth'
+                        : session.user.role === 'instant_byo'
+                          ? 'Connected Accounts'
+                          : session.user.role === 'operator'
+                            ? 'Growth Lead'
+                            : session.user.role}
+                    </span>
                   </>
                 )}
               </span>
