@@ -456,10 +456,9 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
             }}
             onConnectPlatform={
               actionsClient
-                ? (provider) => {
-                    void actionsClient.startConnection(provider).then((r) => {
-                      window.location.assign(r.authorizeUrl);
-                    });
+                ? async (provider) => {
+                    const r = await actionsClient.startConnection(provider);
+                    window.location.assign(r.authorizeUrl);
                   }
                 : undefined
             }
@@ -521,10 +520,9 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
             }}
             onConnectPlatform={
               actionsClient
-                ? (provider) => {
-                    void actionsClient.startConnection(provider).then((r) => {
-                      window.location.assign(r.authorizeUrl);
-                    });
+                ? async (provider) => {
+                    const r = await actionsClient.startConnection(provider);
+                    window.location.assign(r.authorizeUrl);
                   }
                 : undefined
             }

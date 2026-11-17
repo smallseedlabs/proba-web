@@ -76,7 +76,7 @@ export function MagicPromptCanvas({
   defaultCurrency?: string;
   userRole: string;
   goals?: GoalView[];
-  onConnectPlatform?: (provider: 'meta' | 'reddit') => void;
+  onConnectPlatform?: (provider: 'meta' | 'reddit') => Promise<void> | void;
   onBeforeCreate?: () => void;
   onCreated?: () => void;
 }) {
@@ -113,6 +113,16 @@ export function MagicPromptCanvas({
 
   const activeGoals = goals.filter((g) => g.status === 'active' || g.status === 'paused' || g.status === 'completed');
   const archivedGoals = goals.filter((g) => g.status === 'cancelled');
+
+  async function handleConnect(provider: 'meta' | 'reddit') {
+    if (!onConnectPlatform) return;
+    setError(null);
+    try {
+      await onConnectPlatform(provider);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Could not connect ${provider}.`);
+    }
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -373,7 +383,7 @@ export function MagicPromptCanvas({
                         {onConnectPlatform && (
                           <button
                             type="button"
-                            onClick={() => onConnectPlatform('meta')}
+                            onClick={() => void handleConnect('meta')}
                             className="text-[11px] font-medium text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-[#2563EB]"
                           >
                             Reconnect
@@ -383,7 +393,7 @@ export function MagicPromptCanvas({
                     ) : onConnectPlatform ? (
                       <button
                         type="button"
-                        onClick={() => onConnectPlatform('meta')}
+                        onClick={() => void handleConnect('meta')}
                         className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800"
                       >
                         <Link2 className="h-3 w-3" /> {metaStatus === 'needs_reconnect' ? 'Reconnect Meta' : 'Connect Meta'}
@@ -397,7 +407,7 @@ export function MagicPromptCanvas({
                         {onConnectPlatform && (
                           <button
                             type="button"
-                            onClick={() => onConnectPlatform('reddit')}
+                            onClick={() => void handleConnect('reddit')}
                             className="text-[11px] font-medium text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-[#2563EB]"
                           >
                             Reconnect
@@ -407,7 +417,7 @@ export function MagicPromptCanvas({
                     ) : onConnectPlatform ? (
                       <button
                         type="button"
-                        onClick={() => onConnectPlatform('reddit')}
+                        onClick={() => void handleConnect('reddit')}
                         className="inline-flex items-center gap-1 rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-[#0F172A]"
                       >
                         <Link2 className="h-3 w-3" /> Connect Reddit
