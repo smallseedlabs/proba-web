@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ChartColumn, ChevronDown, MessageSquare, PanelRightClose, Plus, ShieldCheck, Target, X } from 'lucide-react';
-import type { GoalStatus as HubGoalStatus } from '../../lib/actions/client';
+import type { CreativeRecord, GoalStatus as HubGoalStatus } from '../../lib/actions/client';
 import type { Session } from '../../lib/auth';
 import { routeHref } from '../../lib/router';
 import { cn } from '../../lib/utils/cn';
@@ -197,6 +197,9 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
   const [creating, setCreating] = useState(false);
   const [goalsDrawerOpen, setGoalsDrawerOpen] = useState(false);
   const [goalStatus, setGoalStatus] = useState<HubGoalStatus | null>(null);
+  const [goalCreative, setGoalCreative] = useState<CreativeRecord | null>(null);
+  const [confirmCancelAuto, setConfirmCancelAuto] = useState(false);
+  const [autoActionBusy, setAutoActionBusy] = useState(false);
   const [copilotOverride, setCopilotOverride] = useState<boolean | null>(null);
   const [hasConnectedPlatform, setHasConnectedPlatform] = useState(true);
   const [accountCurrency, setAccountCurrency] = useState('GBP');
@@ -233,8 +236,10 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
   }, []);
 
   useEffect(() => {
+    setConfirmCancelAuto(false);
     if (!actionsClient || !selected?.goalId) {
       setGoalStatus(null);
+      setGoalCreative(null);
       return;
     }
     const controller = new AbortController();
@@ -246,6 +251,18 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
       .catch(() => {
         if (!controller.signal.aborted) setGoalStatus(null);
       });
+    if (typeof actionsClient.getCreative === 'function') {
+      actionsClient
+        .getCreative(selected.goalId, controller.signal)
+        .then((c) => {
+          if (!controller.signal.aborted) setGoalCreative(c);
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setGoalCreative(null);
+        });
+    } else {
+      setGoalCreative(null);
+    }
     return () => controller.abort();
   }, [actionsClient, selected?.goalId, state.events.length]);
 
@@ -611,7 +628,7 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                             </span>
                             <h2 className="mt-2 text-xl font-bold text-[#0B0D12]">{selected.title}</h2>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <a
                               href={routeHref({ section: 'goals' })}
                               className="rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-caption font-semibold text-[#0B0D12] hover:bg-slate-50"
@@ -621,11 +638,62 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                             {actionsClient && typeof actionsClient.pauseGoal === 'function' && (
                               <button
                                 type="button"
-                                onClick={() => void actionsClient.pauseGoal!(selected.goalId)}
-                                className="rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-caption font-semibold text-[#0B0D12] hover:bg-slate-50"
+                                disabled={autoActionBusy}
+                                onClick={async () => {
+                                  setAutoActionBusy(true);
+                                  try {
+                                    await actionsClient.pauseGoal!(selected.goalId);
+                                    const refreshed = await actionsClient.getGoalStatus(selected.goalId);
+                                    setGoalStatus(refreshed);
+                                  } finally {
+                                    setAutoActionBusy(false);
+                                  }
+                                }}
+                                className="rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-caption font-semibold text-[#0B0D12] hover:bg-slate-50 disabled:opacity-50"
                               >
                                 Pause
                               </button>
+                            )}
+                            {actionsClient && typeof actionsClient.cancelGoal === 'function' && goalStatus.goal.status !== 'cancelled' && (
+                              confirmCancelAuto ? (
+                                <span className="inline-flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    disabled={autoActionBusy}
+                                    onClick={async () => {
+                                      setAutoActionBusy(true);
+                                      try {
+                                        await actionsClient.cancelGoal!(selected.goalId);
+                                        setConfirmCancelAuto(false);
+                                        const refreshed = await actionsClient.getGoalStatus(selected.goalId);
+                                        setGoalStatus(refreshed);
+                                      } finally {
+                                        setAutoActionBusy(false);
+                                      }
+                                    }}
+                                    className="rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-caption font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                                  >
+                                    Confirm cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={autoActionBusy}
+                                    onClick={() => setConfirmCancelAuto(false)}
+                                    className="rounded-lg border border-[#CBD5E1] bg-white px-2.5 py-1.5 text-caption text-slate-600 hover:text-[#0B0D12]"
+                                  >
+                                    Keep
+                                  </button>
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={autoActionBusy}
+                                  onClick={() => setConfirmCancelAuto(true)}
+                                  className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-caption font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                >
+                                  Cancel campaign
+                                </button>
+                              )
                             )}
                           </div>
                         </div>
@@ -652,6 +720,61 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                                 : 'Auto'}
                             </div>
                           </div>
+                        </div>
+                        {/* Corresponding Platform Ads & Creative */}
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="rounded-xl border border-[#E2E8F0] bg-[#F5F7FA] p-3.5">
+                            <div className="text-caption font-semibold text-slate-600">Platform Ads ({goalStatus.now.campaigns.length})</div>
+                            <ul className="mt-2 space-y-2">
+                              {goalStatus.now.campaigns.map((c) => (
+                                <li key={c.probaCampaignId} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-caption">
+                                  <div>
+                                    <span className="font-semibold uppercase text-[#0B0D12]">{c.platform}</span>
+                                    <span className="ml-2 text-slate-500">{c.delivery?.label ?? 'Active'}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {(c.delivery?.postUrl || c.delivery?.previewUrl) && (
+                                      <a
+                                        href={c.delivery?.postUrl ?? c.delivery?.previewUrl ?? '#'}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="font-semibold text-[#2563EB] hover:underline"
+                                      >
+                                        View ad ↗
+                                      </a>
+                                    )}
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          {goalCreative?.creative && (
+                            <div className="rounded-xl border border-[#E2E8F0] bg-[#F5F7FA] p-3.5">
+                              <div className="text-caption font-semibold text-slate-600">Active Ad Creative</div>
+                              <div className="mt-2 rounded-lg border border-[#E2E8F0] bg-white p-3">
+                                {'imageUrl' in goalCreative.creative && typeof goalCreative.creative.imageUrl === 'string' && goalCreative.creative.imageUrl && (
+                                  <img
+                                    src={goalCreative.creative.imageUrl}
+                                    alt={goalCreative.creative.headline ?? 'Ad creative'}
+                                    className="mb-2 h-28 w-full rounded object-cover"
+                                  />
+                                )}
+                                {'mediaUrl' in goalCreative.creative && typeof goalCreative.creative.mediaUrl === 'string' && goalCreative.creative.mediaUrl && (
+                                  <img
+                                    src={goalCreative.creative.mediaUrl}
+                                    alt={goalCreative.creative.headline ?? 'Ad creative'}
+                                    className="mb-2 h-28 w-full rounded object-cover"
+                                  />
+                                )}
+                                <div className="text-body font-semibold text-[#0B0D12]">
+                                  {goalCreative.creative.headline ?? 'Untitled creative'}
+                                </div>
+                                <p className="mt-0.5 line-clamp-3 text-caption text-slate-600">
+                                  {goalCreative.creative.body}
+                                </p>
+                              </div>
+                            </div>
+                          )}
                         </div>
                         {goalStatus.decisions.length > 0 && (
                           <div>
