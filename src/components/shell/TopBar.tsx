@@ -1,6 +1,7 @@
 import { Building2, ChevronsUpDown, CirclePause, CirclePlay, LogOut, Menu as MenuIcon, OctagonX, Settings, SlidersHorizontal, Wifi, WifiOff, Zap } from 'lucide-react';
 import type { Session, Workspace } from '../../lib/auth';
 import type { ConnectionStatus } from '../../lib/transport';
+import { routeHref } from '../../lib/router';
 import { cn } from '../../lib/utils/cn';
 import { initials } from '../../lib/utils/format';
 import { useUIMode } from '../../state/ui-mode';
@@ -70,14 +71,18 @@ export function TopBar({
       )}
 
       {isAuto ? (
-        <div className="flex items-center gap-2.5">
+        <a
+          href={routeHref({ section: 'goals' })}
+          aria-label="Go to Proba home"
+          className="flex items-center gap-2.5 rounded-lg px-1 py-0.5 transition hover:opacity-85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
           <LogoMark className="h-7 w-7" />
           <span className="text-section font-bold tracking-tight text-[#0B0D12]">Proba</span>
           <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E2E8F0] bg-[#F5F7FA] px-2.5 py-0.5 text-[11px] font-semibold text-[#0B0D12]">
             <span className="h-2 w-2 rounded-full bg-[#84CC16]" aria-hidden="true" />
             Brand Growth Studio
           </span>
-        </div>
+        </a>
       ) : (
         <Menu
           align="start"
