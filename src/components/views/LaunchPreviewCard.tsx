@@ -18,7 +18,7 @@ interface LaunchPreviewCardProps {
   goalTitle: string;
   event?: IncomingEvent;
   ask: AskPayload | undefined;
-  status?: { state: string; detail?: string } | null;
+  status?: { state: string; detail?: string; message?: string } | null;
   isPublishing?: boolean;
   isInstantManaged?: boolean;
   dailyBudget?: number;
@@ -101,41 +101,42 @@ export function LaunchPreviewCard({
   }, [ask, status?.state]);
 
   if (!ask) {
+    const liveMessage = status?.message || status?.detail;
     if (status?.state === 'error') {
       return (
-        <div className="rounded-2xl border border-red-200 bg-white p-7 text-[#0B0D12] shadow-sm">
+        <div className="rounded-2xl border border-red-200 bg-white p-6 text-[#09090B] shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <span className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-caption font-semibold text-red-700">
-              Agent hit an issue
+              Action Needed
             </span>
             {canSwitchMode && (
               <button
                 type="button"
                 onClick={onSwitchToControlled}
-                className="inline-flex items-center gap-1 text-caption font-medium text-slate-500 hover:text-[#0B0D12]"
+                className="inline-flex items-center gap-1 text-caption font-medium text-slate-500 hover:text-[#09090B]"
               >
                 <SlidersHorizontal className="h-3.5 w-3.5" />
                 Pro View
               </button>
             )}
           </div>
-          <h2 className="mt-4 text-xl font-bold text-[#0B0D12]">{goalTitle}</h2>
+          <h2 className="mt-3 text-xl font-bold text-[#09090B]">{goalTitle}</h2>
           <p className="mt-2 rounded-xl border border-red-100 bg-red-50/70 p-3.5 text-body text-red-800">
-            {status.detail || 'The agent encountered an error while preparing this campaign.'}
+            {liveMessage || 'The agent encountered an error while preparing this campaign.'}
           </p>
           {onConnectPlatform && !hasConnectedPlatform && !isInstantManaged && (
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => onConnectPlatform('meta')}
-                className="rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-caption font-semibold text-[#0B0D12] hover:bg-slate-50"
+                className="rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-caption font-semibold text-[#09090B] hover:bg-slate-50"
               >
                 Connect Meta
               </button>
               <button
                 type="button"
                 onClick={() => onConnectPlatform('reddit')}
-                className="rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-caption font-semibold text-[#0B0D12] hover:bg-slate-50"
+                className="rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-caption font-semibold text-[#09090B] hover:bg-slate-50"
               >
                 Connect Reddit
               </button>
@@ -147,73 +148,95 @@ export function LaunchPreviewCard({
 
     if (isPublishing) {
       return (
-        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-7 text-[#0B0D12] shadow-sm">
+        <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 text-[#09090B] shadow-sm">
           <div className="flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2 rounded-full border border-[#DBEAFE] bg-[#EFF6FF] px-3 py-1 text-caption font-semibold text-[#2563EB]">
+            <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-caption font-semibold text-emerald-700">
               <Rocket className="h-3.5 w-3.5 animate-pulse" />
               Publishing Campaign
             </span>
+            <span className="font-mono text-[11px] text-slate-500">{elapsedSec}s</span>
           </div>
-          <h2 className="mt-4 text-xl font-bold text-[#0B0D12]">{goalTitle}</h2>
-          <p className="mt-2 text-body text-slate-600">
-            {status?.detail || 'Creating your campaign and ad set on connected ad platforms…'}
+          <h2 className="mt-3 text-xl font-bold text-[#09090B]">{goalTitle}</h2>
+          <p className="mt-1.5 text-body text-slate-600">
+            {liveMessage || 'Creating your campaign and ad set on connected ad platforms…'}
           </p>
         </div>
       );
     }
 
     return (
-      <div className="rounded-2xl border border-[#E2E8F0] bg-white p-7 text-[#0B0D12] shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-2 rounded-full border border-[#E2E8F0] bg-[#F5F7FA] px-3 py-1 text-caption font-semibold text-[#0B0D12]">
-              <Sparkles className="h-3.5 w-3.5 animate-pulse text-[#2563EB]" />
-              Proba Agent Working
-            </span>
-            <span className="font-mono text-[11px] text-slate-500">{elapsedSec}s</span>
-          </div>
-          {canSwitchMode && (
-            <button
-              type="button"
-              onClick={onSwitchToControlled}
-              className="inline-flex items-center gap-1 text-caption font-medium text-slate-500 hover:text-[#0B0D12]"
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              Pro View
-            </button>
-          )}
-        </div>
-        <h2 className="mt-4 text-xl font-bold text-[#0B0D12]">{goalTitle}</h2>
-        <p className="mt-1.5 text-caption font-medium text-[#2563EB]">
-          {status?.detail || 'Researching your landing page, generating creative assets, and preparing ad drafts (typically 20–40s)…'}
-        </p>
-        <div className="mt-5 space-y-2.5">
-          {THINKING_STEPS.map((label, idx) => (
-            <div
-              key={label}
-              className={cn(
-                'flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-body transition-all',
-                idx === thinkingStep
-                  ? 'border-[#2563EB] bg-[#EFF6FF] font-semibold text-[#0B0D12]'
-                  : idx < thinkingStep
-                    ? 'border-[#BBF7D0] bg-[#F0FDF4] text-[#166534]'
-                    : 'border-[#E2E8F0] bg-[#F5F7FA] text-slate-400'
-              )}
-            >
-              <div className="flex items-center gap-3">
-                <span
-                  className={cn(
-                    'h-2 w-2 rounded-full',
-                    idx === thinkingStep ? 'animate-pulse bg-[#2563EB]' : idx < thinkingStep ? 'bg-[#84CC16]' : 'bg-slate-300'
-                  )}
-                />
-                <span>{label}</span>
-              </div>
-              {idx === thinkingStep && (
-                <span className="font-mono text-[11px] font-medium text-[#2563EB]">In progress…</span>
-              )}
+      <div className="grid gap-5 lg:grid-cols-12">
+        <div className="rounded-2xl border border-[#E5E7EB] bg-white p-6 text-[#09090B] shadow-sm lg:col-span-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-2 rounded-full border border-[#E5E7EB] bg-[#FAFAFA] px-3 py-1 text-caption font-semibold text-[#09090B]">
+                <Sparkles className="h-3.5 w-3.5 animate-pulse text-[#10B981]" />
+                Building Campaign
+              </span>
+              <span className="font-mono text-[11px] text-slate-500">{elapsedSec}s</span>
             </div>
-          ))}
+            {canSwitchMode && (
+              <button
+                type="button"
+                onClick={onSwitchToControlled}
+                className="inline-flex items-center gap-1 text-caption font-medium text-slate-500 hover:text-[#09090B]"
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Pro View
+              </button>
+            )}
+          </div>
+          <h2 className="mt-4 text-lg font-bold text-[#09090B]">{goalTitle}</h2>
+          {liveMessage && (
+            <p className="mt-1 text-caption font-medium text-slate-600">{liveMessage}</p>
+          )}
+          <div className="mt-4 space-y-2">
+            {THINKING_STEPS.map((label, idx) => (
+              <div
+                key={label}
+                className={cn(
+                  'flex items-center justify-between gap-3 rounded-xl border px-3.5 py-2 text-caption transition-all',
+                  idx === thinkingStep
+                    ? 'border-[#18181B] bg-[#FAFAFA] font-semibold text-[#09090B]'
+                    : idx < thinkingStep
+                      ? 'border-emerald-200 bg-emerald-50/70 text-emerald-800'
+                      : 'border-[#E5E7EB] bg-white text-slate-400'
+                )}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className={cn(
+                      'h-2 w-2 rounded-full',
+                      idx === thinkingStep ? 'animate-pulse bg-[#18181B]' : idx < thinkingStep ? 'bg-[#10B981]' : 'bg-slate-300'
+                    )}
+                  />
+                  <span>{label}</span>
+                </div>
+                {idx === thinkingStep && (
+                  <span className="font-mono text-[10px] font-medium text-slate-500">Active</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col justify-between rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-sm lg:col-span-7">
+          <div className="flex items-center justify-between border-b border-[#F1F5F9] pb-3">
+            <span className="text-caption font-semibold uppercase tracking-wide text-slate-500">
+              Live Ad Draft Preview
+            </span>
+            <span className="font-mono text-[11px] text-slate-400">Meta · Reddit</span>
+          </div>
+          <div className="my-4 space-y-3 rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] p-5">
+            <div className="h-36 w-full animate-pulse rounded-lg bg-slate-200/70" />
+            <div className="h-5 w-2/3 animate-pulse rounded bg-slate-200/80" />
+            <div className="h-3.5 w-full animate-pulse rounded bg-slate-200/60" />
+            <div className="h-3.5 w-4/5 animate-pulse rounded bg-slate-200/60" />
+          </div>
+          <div className="flex items-center justify-between text-[11px] text-slate-400">
+            <span>Cap: {formatCurrency(dailyBudget, currency)}/day</span>
+            <span>Preparing preview…</span>
+          </div>
         </div>
       </div>
     );

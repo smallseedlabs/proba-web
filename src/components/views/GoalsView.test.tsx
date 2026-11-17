@@ -282,6 +282,7 @@ describe('GoalsView header', () => {
     );
 
     expect(await screen.findByText('Platform Ads (2)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Download Report/i })).toBeInTheDocument();
     expect(screen.getByText('meta')).toBeInTheDocument();
     expect(screen.getByText('reddit')).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /View ad/i })).toHaveLength(2);
