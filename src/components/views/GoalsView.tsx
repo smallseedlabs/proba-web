@@ -200,8 +200,11 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
   const [goalCreative, setGoalCreative] = useState<CreativeRecord | null>(null);
   const [confirmCancelAuto, setConfirmCancelAuto] = useState(false);
   const [autoActionBusy, setAutoActionBusy] = useState(false);
+  const [autoActionError, setAutoActionError] = useState<string | null>(null);
+  const [creativeImgFailed, setCreativeImgFailed] = useState(false);
   const [copilotOverride, setCopilotOverride] = useState<boolean | null>(null);
   const [hasConnectedPlatform, setHasConnectedPlatform] = useState(true);
+  const [platformConnections, setPlatformConnections] = useState<{ meta?: string; reddit?: string }>({});
   const [accountCurrency, setAccountCurrency] = useState('GBP');
   const [launchingAuto, setLaunchingAuto] = useState(false);
   const autoApprovedRef = useRef<Set<string>>(new Set());
@@ -237,6 +240,8 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
 
   useEffect(() => {
     setConfirmCancelAuto(false);
+    setAutoActionError(null);
+    setCreativeImgFailed(false);
     if (!actionsClient || !selected?.goalId) {
       setGoalStatus(null);
       setGoalCreative(null);
@@ -283,12 +288,20 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
         if (controller.signal.aborted) return;
         const connected = res.connections.some((p) => p.status === 'connected');
         setHasConnectedPlatform(connected);
+        const byProvider: { meta?: string; reddit?: string } = {};
+        for (const c of res.connections) {
+          if (c.provider === 'meta') byProvider.meta = c.status;
+          if (c.provider === 'reddit') byProvider.reddit = c.status;
+        }
+        setPlatformConnections(byProvider);
         const connWithCurrency = res.connections.find((p) => p.status === 'connected' && p.accounts?.[0]?.currency);
         const detectedCurrency = connWithCurrency?.accounts?.[0]?.currency;
         if (detectedCurrency) setAccountCurrency(detectedCurrency);
       })
       .catch(() => {
-        // leave default true on error
+        if (!controller.signal.aborted && userRole !== 'instant_managed') {
+          setHasConnectedPlatform(false);
+        }
       });
     return () => controller.abort();
   }, [actionsClient]);
@@ -388,11 +401,17 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
         <div className="h-full overflow-y-auto px-4 py-6 md:px-6">
           <MagicPromptCanvas
             hasConnectedPlatform={hasConnectedPlatform}
+            platformConnections={platformConnections}
             defaultCurrency={accountCurrency}
             userRole={userRole}
             goals={goals}
-            onCreated={() => {
+            onBeforeCreate={() => {
               awaitingNewGoalRef.current = new Set(goals.map((g) => g.goalId));
+            }}
+            onCreated={() => {
+              if (!awaitingNewGoalRef.current) {
+                awaitingNewGoalRef.current = new Set(goals.map((g) => g.goalId));
+              }
             }}
             onConnectPlatform={
               actionsClient
@@ -447,11 +466,17 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
         <div className="h-full overflow-y-auto px-4 py-6 md:px-6">
           <MagicPromptCanvas
             hasConnectedPlatform={hasConnectedPlatform}
+            platformConnections={platformConnections}
             defaultCurrency={accountCurrency}
             userRole={userRole}
             goals={goals}
-            onCreated={() => {
+            onBeforeCreate={() => {
               awaitingNewGoalRef.current = new Set(goals.map((g) => g.goalId));
+            }}
+            onCreated={() => {
+              if (!awaitingNewGoalRef.current) {
+                awaitingNewGoalRef.current = new Set(goals.map((g) => g.goalId));
+              }
             }}
             onConnectPlatform={
               actionsClient
@@ -516,7 +541,16 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
           </Button>
           <span className="hidden text-[11px] text-muted-foreground sm:inline">⌘K</span>
         </div>
-        <Button size="sm" onClick={() => setCreating(true)}>
+        <Button
+          size="sm"
+          onClick={() => {
+            if (mode === 'auto') {
+              window.location.hash = routeHref({ section: 'goals' });
+            } else {
+              setCreating(true);
+            }
+          }}
+        >
           <Plus className="h-4 w-4" aria-hidden="true" />
           New goal
         </Button>
@@ -586,6 +620,9 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                       goalTitle={selected.title}
                       event={launchEvent}
                       ask={launchAsk}
+                      status={status}
+                      isPublishing={Boolean(selected && launchedGoalIdsRef.current.has(selected.goalId))}
+                      isInstantManaged={userRole === 'instant_managed'}
                       hasConnectedPlatform={hasConnectedPlatform}
                       canSwitchMode={canSwitchMode}
                       submitting={launchingAuto}
@@ -617,14 +654,36 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                       }}
                     />
                   )}
-                  {mode === 'auto' && hasLiveCampaigns && goalStatus && (
+                  {mode === 'auto' && hasLiveCampaigns && goalStatus && (() => {
+                    const isCancelled = goalStatus.goal.status === 'cancelled';
+                    const isPaused = goalStatus.goal.status === 'paused';
+                    const statusDot = isCancelled
+                      ? 'bg-red-500'
+                      : isPaused
+                        ? 'bg-amber-500'
+                        : 'bg-[#84CC16]';
+                    const statusText = isCancelled
+                      ? 'Cancelled'
+                      : isPaused
+                        ? 'Paused'
+                        : goalStatus.now.state === 'running'
+                          ? 'Live & Optimizing'
+                          : 'Active';
+                    const creative = goalCreative?.creative;
+                    const creativeImgUrl =
+                      creative && 'imageUrl' in creative && typeof creative.imageUrl === 'string' && creative.imageUrl
+                        ? creative.imageUrl
+                        : creative && 'mediaUrl' in creative && typeof creative.mediaUrl === 'string' && creative.mediaUrl
+                          ? creative.mediaUrl
+                          : null;
+                    return (
                     <div className="space-y-5">
                       <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 text-[#0B0D12] shadow-sm space-y-5">
                         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#E2E8F0] pb-4">
                           <div>
                             <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E2E8F0] bg-[#F5F7FA] px-2.5 py-0.5 text-[11px] font-semibold text-[#0B0D12]">
-                              <span className="h-2 w-2 rounded-full bg-[#84CC16]" />
-                              {goalStatus.now.state === 'running' ? 'Live & Optimizing' : 'Active'}
+                              <span className={cn('h-2 w-2 rounded-full', statusDot)} />
+                              {statusText}
                             </span>
                             <h2 className="mt-2 text-xl font-bold text-[#0B0D12]">{selected.title}</h2>
                           </div>
@@ -635,16 +694,19 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                             >
                               + New Campaign
                             </a>
-                            {actionsClient && typeof actionsClient.pauseGoal === 'function' && (
+                            {actionsClient && typeof actionsClient.pauseGoal === 'function' && !isCancelled && !isPaused && (
                               <button
                                 type="button"
                                 disabled={autoActionBusy}
                                 onClick={async () => {
                                   setAutoActionBusy(true);
+                                  setAutoActionError(null);
                                   try {
                                     await actionsClient.pauseGoal!(selected.goalId);
                                     const refreshed = await actionsClient.getGoalStatus(selected.goalId);
                                     setGoalStatus(refreshed);
+                                  } catch (err) {
+                                    setAutoActionError((err as Error).message || 'Could not pause campaign.');
                                   } finally {
                                     setAutoActionBusy(false);
                                   }
@@ -654,7 +716,7 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                                 Pause
                               </button>
                             )}
-                            {actionsClient && typeof actionsClient.cancelGoal === 'function' && goalStatus.goal.status !== 'cancelled' && (
+                            {actionsClient && typeof actionsClient.cancelGoal === 'function' && !isCancelled && (
                               confirmCancelAuto ? (
                                 <span className="inline-flex items-center gap-1.5">
                                   <button
@@ -662,11 +724,14 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                                     disabled={autoActionBusy}
                                     onClick={async () => {
                                       setAutoActionBusy(true);
+                                      setAutoActionError(null);
                                       try {
                                         await actionsClient.cancelGoal!(selected.goalId);
                                         setConfirmCancelAuto(false);
                                         const refreshed = await actionsClient.getGoalStatus(selected.goalId);
                                         setGoalStatus(refreshed);
+                                      } catch (err) {
+                                        setAutoActionError((err as Error).message || 'Could not cancel campaign.');
                                       } finally {
                                         setAutoActionBusy(false);
                                       }
@@ -697,19 +762,26 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                             )}
                           </div>
                         </div>
+                        {autoActionError && (
+                          <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2 text-caption text-red-700">
+                            {autoActionError}
+                          </p>
+                        )}
                         <div className="grid grid-cols-3 gap-3">
                           <div className="rounded-xl border border-[#E2E8F0] bg-[#F5F7FA] p-3.5">
                             <div className="text-caption text-slate-500">Spent</div>
                             <div className="mt-1 font-mono text-xl font-bold tabular-nums text-[#0B0D12]">
                               {goalStatus.spend.spent !== null
                                 ? formatCurrency(goalStatus.spend.spent, goalStatus.spend.currency ?? 'USD')
-                                : '$0.00'}
+                                : formatCurrency(0, goalStatus.spend.currency ?? 'USD')}
                             </div>
                           </div>
                           <div className="rounded-xl border border-[#E2E8F0] bg-[#F5F7FA] p-3.5">
-                            <div className="text-caption text-slate-500">Visitors / Metric</div>
+                            <div className="text-caption capitalize text-slate-500">
+                              {(goalStatus.progress.metric ?? 'Metric').replace(/_/g, ' ')}
+                            </div>
                             <div className="mt-1 font-mono text-xl font-bold tabular-nums text-[#0B0D12]">
-                              {goalStatus.progress.actual !== null ? formatNumber(goalStatus.progress.actual) : '0'}
+                              {goalStatus.progress.actual !== null ? formatNumber(goalStatus.progress.actual) : '—'}
                             </div>
                           </div>
                           <div className="rounded-xl border border-[#E2E8F0] bg-[#F5F7FA] p-3.5">
@@ -723,14 +795,19 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                         </div>
                         {/* Corresponding Platform Ads & Creative */}
                         <div className="grid gap-3 sm:grid-cols-2">
-                          <div className="rounded-xl border border-[#E2E8F0] bg-[#F5F7FA] p-3.5">
+                          <div className={cn('rounded-xl border border-[#E2E8F0] bg-[#F5F7FA] p-3.5', !creative && 'sm:col-span-2')}>
                             <div className="text-caption font-semibold text-slate-600">Platform Ads ({goalStatus.now.campaigns.length})</div>
                             <ul className="mt-2 space-y-2">
                               {goalStatus.now.campaigns.map((c) => (
                                 <li key={c.probaCampaignId} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#E2E8F0] bg-white px-3 py-2 text-caption">
-                                  <div>
-                                    <span className="font-semibold uppercase text-[#0B0D12]">{c.platform}</span>
-                                    <span className="ml-2 text-slate-500">{c.delivery?.label ?? 'Active'}</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className={cn(
+                                      'rounded px-1.5 py-0.5 text-[10px] font-bold uppercase',
+                                      c.platform === 'meta' ? 'bg-blue-50 text-blue-700' : 'bg-orange-50 text-orange-700'
+                                    )}>
+                                      {c.platform}
+                                    </span>
+                                    <span className="text-slate-600">{c.delivery?.label ?? 'Active'}</span>
                                   </div>
                                   <div className="flex items-center gap-2">
                                     {(c.delivery?.postUrl || c.delivery?.previewUrl) && (
@@ -748,29 +825,23 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                               ))}
                             </ul>
                           </div>
-                          {goalCreative?.creative && (
+                          {creative && (
                             <div className="rounded-xl border border-[#E2E8F0] bg-[#F5F7FA] p-3.5">
                               <div className="text-caption font-semibold text-slate-600">Active Ad Creative</div>
                               <div className="mt-2 rounded-lg border border-[#E2E8F0] bg-white p-3">
-                                {'imageUrl' in goalCreative.creative && typeof goalCreative.creative.imageUrl === 'string' && goalCreative.creative.imageUrl && (
+                                {creativeImgUrl && !creativeImgFailed && (
                                   <img
-                                    src={goalCreative.creative.imageUrl}
-                                    alt={goalCreative.creative.headline ?? 'Ad creative'}
-                                    className="mb-2 h-28 w-full rounded object-cover"
-                                  />
-                                )}
-                                {'mediaUrl' in goalCreative.creative && typeof goalCreative.creative.mediaUrl === 'string' && goalCreative.creative.mediaUrl && (
-                                  <img
-                                    src={goalCreative.creative.mediaUrl}
-                                    alt={goalCreative.creative.headline ?? 'Ad creative'}
+                                    src={creativeImgUrl}
+                                    alt={creative.headline ?? 'Ad creative'}
+                                    onError={() => setCreativeImgFailed(true)}
                                     className="mb-2 h-28 w-full rounded object-cover"
                                   />
                                 )}
                                 <div className="text-body font-semibold text-[#0B0D12]">
-                                  {goalCreative.creative.headline ?? 'Untitled creative'}
+                                  {creative.headline ?? 'Untitled creative'}
                                 </div>
                                 <p className="mt-0.5 line-clamp-3 text-caption text-slate-600">
-                                  {goalCreative.creative.body}
+                                  {creative.body}
                                 </p>
                               </div>
                             </div>
@@ -801,13 +872,14 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                         )}
                       </div>
                       <GeoVisibilityPanel
-                        workspaceId="seedbed"
+                        workspaceId={session?.workspaces?.[0]?.id ?? 'seedbed'}
                         goalId={selected.goalId}
                         brandName={selected.title}
                         landingPageUrl=""
                       />
                     </div>
-                  )}
+                    );
+                  })()}
                   {(mode === 'controlled' || (mode === 'auto' && hasLiveCampaigns && openAskCount > 0)) && (
                     <DecisionInbox
                       goalId={selected.goalId}

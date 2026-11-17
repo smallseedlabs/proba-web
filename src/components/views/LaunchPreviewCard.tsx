@@ -18,6 +18,9 @@ interface LaunchPreviewCardProps {
   goalTitle: string;
   event?: IncomingEvent;
   ask: AskPayload | undefined;
+  status?: { state: string; detail?: string } | null;
+  isPublishing?: boolean;
+  isInstantManaged?: boolean;
   dailyBudget?: number;
   currency?: string;
   landingPageUrl?: string;
@@ -33,6 +36,9 @@ export function LaunchPreviewCard({
   goalTitle,
   event,
   ask,
+  status = null,
+  isPublishing = false,
+  isInstantManaged = false,
   dailyBudget = 20,
   currency = 'USD',
   landingPageUrl,
@@ -65,23 +71,86 @@ export function LaunchPreviewCard({
   const [headline, setHeadline] = useState(initialHeadline);
   const [body, setBody] = useState(initialBody);
   const [imageUrl, setImageUrl] = useState(initialImage);
+  const [imgFailed, setImgFailed] = useState(false);
   const [thinkingStep, setThinkingStep] = useState(0);
 
   useEffect(() => {
     setHeadline(initialHeadline);
     setBody(initialBody);
     setImageUrl(initialImage);
+    setImgFailed(false);
   }, [initialHeadline, initialBody, initialImage]);
 
   useEffect(() => {
-    if (ask) return;
+    if (ask || status?.state === 'error') return;
     const t = window.setInterval(() => {
-      setThinkingStep((s) => (s + 1) % THINKING_STEPS.length);
+      setThinkingStep((s) => Math.min(s + 1, THINKING_STEPS.length - 1));
     }, 2200);
     return () => window.clearInterval(t);
-  }, [ask]);
+  }, [ask, status?.state]);
 
   if (!ask) {
+    if (status?.state === 'error') {
+      return (
+        <div className="rounded-2xl border border-red-200 bg-white p-7 text-[#0B0D12] shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-caption font-semibold text-red-700">
+              Agent hit an issue
+            </span>
+            {canSwitchMode && (
+              <button
+                type="button"
+                onClick={onSwitchToControlled}
+                className="inline-flex items-center gap-1 text-caption font-medium text-slate-500 hover:text-[#0B0D12]"
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Pro View
+              </button>
+            )}
+          </div>
+          <h2 className="mt-4 text-xl font-bold text-[#0B0D12]">{goalTitle}</h2>
+          <p className="mt-2 rounded-xl border border-red-100 bg-red-50/70 p-3.5 text-body text-red-800">
+            {status.detail || 'The agent encountered an error while preparing this campaign.'}
+          </p>
+          {onConnectPlatform && !hasConnectedPlatform && !isInstantManaged && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => onConnectPlatform('meta')}
+                className="rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-caption font-semibold text-[#0B0D12] hover:bg-slate-50"
+              >
+                Connect Meta
+              </button>
+              <button
+                type="button"
+                onClick={() => onConnectPlatform('reddit')}
+                className="rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-caption font-semibold text-[#0B0D12] hover:bg-slate-50"
+              >
+                Connect Reddit
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    if (isPublishing) {
+      return (
+        <div className="rounded-2xl border border-[#E2E8F0] bg-white p-7 text-[#0B0D12] shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#DBEAFE] bg-[#EFF6FF] px-3 py-1 text-caption font-semibold text-[#2563EB]">
+              <Rocket className="h-3.5 w-3.5 animate-pulse" />
+              Publishing Campaign
+            </span>
+          </div>
+          <h2 className="mt-4 text-xl font-bold text-[#0B0D12]">{goalTitle}</h2>
+          <p className="mt-2 text-body text-slate-600">
+            {status?.detail || 'Creating your campaign and ad set on connected ad platforms…'}
+          </p>
+        </div>
+      );
+    }
+
     return (
       <div className="rounded-2xl border border-[#E2E8F0] bg-white p-7 text-[#0B0D12] shadow-sm">
         <div className="flex items-center justify-between gap-3">
@@ -101,6 +170,9 @@ export function LaunchPreviewCard({
           )}
         </div>
         <h2 className="mt-4 text-xl font-bold text-[#0B0D12]">{goalTitle}</h2>
+        {status?.detail && (
+          <p className="mt-1.5 text-caption font-medium text-[#2563EB]">{status.detail}</p>
+        )}
         <div className="mt-5 space-y-2.5">
           {THINKING_STEPS.map((label, idx) => (
             <div
@@ -187,9 +259,9 @@ export function LaunchPreviewCard({
           <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
             Ad Preview ({platformLabel})
           </div>
-          {imageUrl && (
+          {imageUrl && !imgFailed && (
             <div className="mt-2.5 overflow-hidden rounded-lg border border-[#E2E8F0] bg-white">
-              <img src={imageUrl} alt={headline} className="h-44 w-full object-cover" />
+              <img src={imageUrl} alt={headline} onError={() => setImgFailed(true)} className="h-44 w-full object-cover" />
             </div>
           )}
           <p className="mt-3 text-body font-semibold text-[#0B0D12]">{headline}</p>
@@ -297,8 +369,11 @@ export function LaunchPreviewCard({
 
         <button
           type="button"
-          disabled={submitting || !hasConnectedPlatform}
-          onClick={() => onLaunch(editing ? { headline, body, imageUrl: imageUrl || undefined } : undefined)}
+          disabled={submitting || (!hasConnectedPlatform && !isInstantManaged)}
+          onClick={() => {
+            const hasEdits = headline !== initialHeadline || body !== initialBody || imageUrl !== initialImage;
+            void onLaunch(hasEdits ? { headline, body, imageUrl: imageUrl || undefined } : undefined);
+          }}
           className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-6 py-2.5 text-body font-semibold text-white shadow-sm transition hover:bg-[#1D4ED8] disabled:opacity-50"
         >
           <Rocket className="h-4 w-4" />

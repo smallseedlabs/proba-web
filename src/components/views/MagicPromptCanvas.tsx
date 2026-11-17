@@ -4,7 +4,7 @@ import { runGoalGeoAudit, type GeoAuditResult, type GeoEngine } from '../../lib/
 import { parseOptionalLandingPageUrl } from '../../lib/research';
 import { routeHref } from '../../lib/router';
 import { cn } from '../../lib/utils/cn';
-import { formatRelativeTime } from '../../lib/utils/format';
+import { formatCurrency, formatRelativeTime } from '../../lib/utils/format';
 import type { GoalView } from '../../state/selectors';
 import { useWorkspace } from '../../state/workspace';
 import { GoalStatusBadge } from '../registry/cards';
@@ -30,17 +30,21 @@ const ENGINE_LABELS: Record<GeoEngine, string> = {
 
 export function MagicPromptCanvas({
   hasConnectedPlatform,
+  platformConnections,
   defaultCurrency = 'GBP',
   userRole,
   goals = [],
   onConnectPlatform,
+  onBeforeCreate,
   onCreated,
 }: {
   hasConnectedPlatform: boolean;
+  platformConnections?: { meta?: string; reddit?: string };
   defaultCurrency?: string;
   userRole: string;
   goals?: GoalView[];
   onConnectPlatform?: (provider: 'meta' | 'reddit') => void;
+  onBeforeCreate?: () => void;
   onCreated?: () => void;
 }) {
   const { createGoal } = useWorkspace();
@@ -83,8 +87,12 @@ export function MagicPromptCanvas({
       setError('Enter your website URL (e.g. https://yourproduct.com) to generate ads.');
       return;
     }
+    if (isCustom && (!customBudget.trim() || Number(customBudget) <= 0 || Number.isNaN(Number(customBudget)))) {
+      setError('Enter a valid custom daily budget above 0.');
+      return;
+    }
     if (effectiveBudget <= 0 || Number.isNaN(effectiveBudget)) {
-      setError('Pick a valid daily budget above $0.');
+      setError('Pick a valid daily budget above 0.');
       return;
     }
     let host = 'your product';
@@ -93,6 +101,7 @@ export function MagicPromptCanvas({
     } catch {
       // ignore
     }
+    onBeforeCreate?.();
     setSubmitting(true);
     const ok = await createGoal({
       title: `Campaign for ${host}`,
@@ -100,16 +109,19 @@ export function MagicPromptCanvas({
       currency,
       landingPageUrl: parsed.url,
     });
-    setSubmitting(false);
     if (ok) {
       setUrlInput('');
       onCreated?.();
+    } else {
+      setSubmitting(false);
     }
   }
 
   async function handleRunGeoCheck() {
     setGeoError(null);
-    const parsed = parseOptionalLandingPageUrl(urlInput || 'https://smallseedlabs.co.uk');
+    const effectiveInput = urlInput.trim() || 'https://smallseedlabs.co.uk';
+    if (!urlInput.trim()) setUrlInput(effectiveInput);
+    const parsed = parseOptionalLandingPageUrl(effectiveInput);
     const targetUrl = parsed.ok && parsed.url ? parsed.url : 'https://smallseedlabs.co.uk';
     let host = 'yourproduct.com';
     try {
@@ -192,7 +204,7 @@ export function MagicPromptCanvas({
                   <div className="relative flex-1">
                     <Globe className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <input
-                      type="url"
+                      type="text"
                       inputMode="url"
                       value={urlInput}
                       onChange={(e) => setUrlInput(e.target.value)}
@@ -254,7 +266,7 @@ export function MagicPromptCanvas({
                     </select>
                   </div>
                   <span className="font-mono text-[11px] text-slate-500">
-                    Max 7-day spend: {currency} {effectiveBudget * 7}
+                    Max 7-day spend: {formatCurrency(effectiveBudget * 7, currency)}
                   </span>
                 </div>
                 <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -275,7 +287,9 @@ export function MagicPromptCanvas({
                             : 'border-[#E2E8F0] bg-white text-slate-600 hover:border-slate-300'
                         )}
                       >
-                        <div className="font-mono text-body font-bold text-[#0B0D12]">{p.label}</div>
+                        <div className="font-mono text-body font-bold text-[#0B0D12]">
+                          {formatCurrency(p.amount, currency)}/day
+                        </div>
                         <div className="text-[11px] text-slate-500">{p.tag}</div>
                       </button>
                     );
@@ -300,7 +314,7 @@ export function MagicPromptCanvas({
                     min={1}
                     value={customBudget}
                     onChange={(e) => setCustomBudget(e.target.value)}
-                    placeholder="Enter daily USD cap (e.g. 75)"
+                    placeholder={`Enter daily ${currency} cap (e.g. 75)`}
                     className="mt-2 w-full rounded-xl border border-[#CBD5E1] bg-white px-3 py-2 font-mono text-body text-[#0B0D12]"
                   />
                 )}
@@ -337,23 +351,35 @@ export function MagicPromptCanvas({
                     </button>
                   )}
                 </div>
-                {rail === 'byo' && !hasConnectedPlatform && onConnectPlatform && (
+                {rail === 'byo' && onConnectPlatform && (
                   <div className="mt-2.5 flex flex-wrap items-center gap-2 border-t border-[#E2E8F0] pt-2.5">
-                    <span className="text-[11px] text-slate-500">1-click connect:</span>
-                    <button
-                      type="button"
-                      onClick={() => onConnectPlatform('meta')}
-                      className="rounded-md border border-[#CBD5E1] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#0B0D12] hover:bg-slate-50"
-                    >
-                      Connect Meta
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onConnectPlatform('reddit')}
-                      className="rounded-md border border-[#CBD5E1] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#0B0D12] hover:bg-slate-50"
-                    >
-                      Connect Reddit
-                    </button>
+                    <span className="text-[11px] text-slate-500">Platforms:</span>
+                    {platformConnections?.meta === 'connected' ? (
+                      <span className="rounded-md border border-[#BBF7D0] bg-[#F0FDF4] px-2.5 py-1 text-[11px] font-semibold text-[#166534]">
+                        Meta Connected ✓
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onConnectPlatform('meta')}
+                        className="rounded-md border border-[#CBD5E1] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#0B0D12] hover:bg-slate-50"
+                      >
+                        Connect Meta →
+                      </button>
+                    )}
+                    {platformConnections?.reddit === 'connected' ? (
+                      <span className="rounded-md border border-[#BBF7D0] bg-[#F0FDF4] px-2.5 py-1 text-[11px] font-semibold text-[#166534]">
+                        Reddit Connected ✓
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onConnectPlatform('reddit')}
+                        className="rounded-md border border-[#CBD5E1] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#0B0D12] hover:bg-slate-50"
+                      >
+                        Connect Reddit →
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -480,7 +506,7 @@ export function MagicPromptCanvas({
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[#65A30D]" />
-                    <span>Enforces ${effectiveBudget}/day cap &amp; pauses losers</span>
+                    <span>Enforces {formatCurrency(effectiveBudget, currency)}/day cap &amp; pauses losers</span>
                   </div>
                 </div>
               </div>

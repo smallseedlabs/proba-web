@@ -6,6 +6,7 @@ import type { Session } from '../../lib/auth';
 import { SHORT_VIEWPORT_QUERY } from '../../lib/utils/useMediaQuery';
 import { ActionsProvider } from '../../state/actions';
 import { AnalyticsProvider } from '../../state/analytics';
+import { UIModeProvider } from '../../state/ui-mode';
 import { WorkspaceProvider } from '../../state/workspace';
 import { ToastProvider } from '../ui/toast';
 import { GoalsView } from './GoalsView';
@@ -188,5 +189,107 @@ describe('GoalsView header', () => {
     // User can open the Co-pilot / Override drawer on demand.
     await user.click(screen.getByRole('button', { name: /Co-pilot \/ Override/i }));
     expect(screen.getByRole('complementary', { name: 'Proba Co-pilot' })).toBeInTheDocument();
+  });
+
+  it('1-Click Auto Live View shows platform ads, active creative, and supports 2-step cancel campaign', async () => {
+    const user = userEvent.setup();
+    const liveStatus = {
+      goal: { goalId: 'g1', title: 'Launch outdoor range', status: 'active' },
+      now: {
+        state: 'running',
+        campaigns: [
+          {
+            probaCampaignId: 'camp_meta_1',
+            platform: 'meta',
+            platformCampaignId: '123',
+            status: 'active',
+            delivery: {
+              state: 'delivering',
+              label: 'Delivering',
+              summary: 'Delivering',
+              causes: [],
+              postUrl: 'https://www.facebook.com/ads/library/?id=123',
+              previewUrl: null,
+            },
+          },
+          {
+            probaCampaignId: 'camp_reddit_1',
+            platform: 'reddit',
+            platformCampaignId: '456',
+            status: 'active',
+            delivery: {
+              state: 'in_moderation',
+              label: 'In moderation',
+              summary: 'In moderation',
+              causes: [],
+              postUrl: 'https://www.reddit.com/comments/1xw4s5r',
+              previewUrl: null,
+            },
+          },
+        ],
+        pendingProposals: 0,
+      },
+      next: null,
+      spend: { spent: 12.5, dailyCap: 25, totalCap: 175, currency: 'GBP' },
+      progress: { metric: 'clicks', target: 100, actual: 42, checkpointsDone: [] },
+      decisions: [],
+    };
+    const cancelledStatus = {
+      ...liveStatus,
+      goal: { ...liveStatus.goal, status: 'cancelled' },
+      now: { ...liveStatus.now, state: 'stopped' },
+    };
+    const getGoalStatus = vi.fn()
+      .mockResolvedValueOnce(liveStatus)
+      .mockResolvedValueOnce(cancelledStatus);
+    const getCreative = vi.fn().mockResolvedValue({
+      goalId: 'g1',
+      creative: {
+        type: 'IMAGE',
+        headline: 'Trail Boots Built for UK Rain',
+        body: 'Waterproof grip for muddy paths.',
+        mediaUrl: 'https://upload.wikimedia.org/wikipedia/commons/a/ab/Boots.jpg',
+      },
+      updatedAt: '2026-11-17T00:00:00.000Z',
+    });
+    const cancelGoal = vi.fn().mockResolvedValue({ ok: true });
+    const listConnections = vi.fn().mockResolvedValue({ connections: [] });
+    const transport: TransportClient = {
+      status: 'open',
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      sendCommand: vi.fn(),
+      subscribe: (l) => {
+        EVENTS.forEach((e) => l(e));
+        return () => {};
+      },
+      onStatusChange: () => () => {},
+    };
+
+    const autoSession = { ...SESSION, role: 'instant_managed' as const };
+    render(
+      <ToastProvider>
+        <UIModeProvider userRole="instant_managed">
+          <ActionsProvider client={{ getGoalStatus, getCreative, cancelGoal, listConnections } as never}>
+            <AnalyticsProvider client={{ getSummary: vi.fn().mockResolvedValue({ granularity: 'day', series: [] }) }}>
+              <WorkspaceProvider transport={transport} onSessionExpired={vi.fn()}>
+                <GoalsView selectedId="g1" session={autoSession} />
+              </WorkspaceProvider>
+            </AnalyticsProvider>
+          </ActionsProvider>
+        </UIModeProvider>
+      </ToastProvider>
+    );
+
+    expect(await screen.findByText('Platform Ads (2)')).toBeInTheDocument();
+    expect(screen.getByText('meta')).toBeInTheDocument();
+    expect(screen.getByText('reddit')).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: /View ad/i })).toHaveLength(2);
+    expect(await screen.findByText('Trail Boots Built for UK Rain')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Cancel campaign' }));
+    await user.click(screen.getByRole('button', { name: 'Confirm cancel' }));
+    expect(cancelGoal).toHaveBeenCalledWith('g1');
+    expect(await screen.findByText('Cancelled')).toBeInTheDocument();
   });
 });
