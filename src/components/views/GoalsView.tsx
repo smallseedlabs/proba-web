@@ -571,6 +571,9 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
             <Badge tone="neutral" className="ml-0.5">{active} active / {goals.length}</Badge>
             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
           </Button>
+          <Badge tone={userRole === 'instant_managed' || !hasConnectedPlatform ? 'warning' : 'neutral'}>
+            {userRole === 'instant_managed' || !hasConnectedPlatform ? 'Smallseed Managed' : 'Your Account'}
+          </Badge>
           <span className="hidden text-[11px] text-muted-foreground sm:inline">⌘K</span>
         </div>
         <Button

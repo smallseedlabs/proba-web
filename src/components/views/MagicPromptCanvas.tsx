@@ -350,7 +350,20 @@ export function MagicPromptCanvas({
                   </button>
                 </div>
 
-                {rail === 'byo' && (
+                {rail === 'managed' ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#EFF6FF] px-2.5 py-0.5 text-[11px] font-medium text-[#1D4ED8]">
+                    Using Smallseed Managed Account
+                    {onConnectPlatform && (
+                      <button
+                        type="button"
+                        onClick={() => setRail('byo')}
+                        className="underline decoration-[#2563EB]/50 underline-offset-2 hover:text-[#1E40AF]"
+                      >
+                        Connect yours
+                      </button>
+                    )}
+                  </span>
+                ) : (
                   <div className="flex items-center gap-1.5">
                     {metaStatus === 'connected' ? (
                       <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">

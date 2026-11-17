@@ -357,6 +357,9 @@ export function LaunchPreviewCard({
               Agent Decision Ready
             </Badge>
             <Badge tone="neutral">{platformLabel}</Badge>
+            <Badge tone={isInstantManaged || !hasConnectedPlatform ? 'warning' : 'neutral'}>
+              {isInstantManaged || !hasConnectedPlatform ? 'Account: Smallseed Managed' : 'Account: Connected'}
+            </Badge>
           </div>
           <h2 className="mt-2 text-xl font-bold text-[#0B0D12]">{goalTitle}</h2>
         </div>
