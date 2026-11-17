@@ -73,6 +73,7 @@ export function LaunchPreviewCard({
   const [imageUrl, setImageUrl] = useState(initialImage);
   const [imgFailed, setImgFailed] = useState(false);
   const [thinkingStep, setThinkingStep] = useState(0);
+  const [elapsedSec, setElapsedSec] = useState(0);
 
   useEffect(() => {
     setHeadline(initialHeadline);
@@ -82,11 +83,21 @@ export function LaunchPreviewCard({
   }, [initialHeadline, initialBody, initialImage]);
 
   useEffect(() => {
-    if (ask || status?.state === 'error') return;
-    const t = window.setInterval(() => {
+    if (ask || status?.state === 'error') {
+      setElapsedSec(0);
+      return;
+    }
+    const start = Date.now();
+    const stepTimer = window.setInterval(() => {
       setThinkingStep((s) => Math.min(s + 1, THINKING_STEPS.length - 1));
-    }, 2200);
-    return () => window.clearInterval(t);
+    }, 3500);
+    const secTimer = window.setInterval(() => {
+      setElapsedSec(Math.floor((Date.now() - start) / 1000));
+    }, 1000);
+    return () => {
+      window.clearInterval(stepTimer);
+      window.clearInterval(secTimer);
+    };
   }, [ask, status?.state]);
 
   if (!ask) {
@@ -154,10 +165,13 @@ export function LaunchPreviewCard({
     return (
       <div className="rounded-2xl border border-[#E2E8F0] bg-white p-7 text-[#0B0D12] shadow-sm">
         <div className="flex items-center justify-between gap-3">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[#E2E8F0] bg-[#F5F7FA] px-3 py-1 text-caption font-semibold text-[#0B0D12]">
-            <Sparkles className="h-3.5 w-3.5 animate-pulse text-[#2563EB]" />
-            Proba Agent Working
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#E2E8F0] bg-[#F5F7FA] px-3 py-1 text-caption font-semibold text-[#0B0D12]">
+              <Sparkles className="h-3.5 w-3.5 animate-pulse text-[#2563EB]" />
+              Proba Agent Working
+            </span>
+            <span className="font-mono text-[11px] text-slate-500">{elapsedSec}s</span>
+          </div>
           {canSwitchMode && (
             <button
               type="button"
@@ -170,15 +184,15 @@ export function LaunchPreviewCard({
           )}
         </div>
         <h2 className="mt-4 text-xl font-bold text-[#0B0D12]">{goalTitle}</h2>
-        {status?.detail && (
-          <p className="mt-1.5 text-caption font-medium text-[#2563EB]">{status.detail}</p>
-        )}
+        <p className="mt-1.5 text-caption font-medium text-[#2563EB]">
+          {status?.detail || 'Researching your landing page, generating creative assets, and preparing ad drafts (typically 20–40s)…'}
+        </p>
         <div className="mt-5 space-y-2.5">
           {THINKING_STEPS.map((label, idx) => (
             <div
               key={label}
               className={cn(
-                'flex items-center gap-3 rounded-xl border px-4 py-2.5 text-body transition-all',
+                'flex items-center justify-between gap-3 rounded-xl border px-4 py-2.5 text-body transition-all',
                 idx === thinkingStep
                   ? 'border-[#2563EB] bg-[#EFF6FF] font-semibold text-[#0B0D12]'
                   : idx < thinkingStep
@@ -186,13 +200,18 @@ export function LaunchPreviewCard({
                     : 'border-[#E2E8F0] bg-[#F5F7FA] text-slate-400'
               )}
             >
-              <span
-                className={cn(
-                  'h-2 w-2 rounded-full',
-                  idx === thinkingStep ? 'bg-[#2563EB]' : idx < thinkingStep ? 'bg-[#84CC16]' : 'bg-slate-300'
-                )}
-              />
-              <span>{label}</span>
+              <div className="flex items-center gap-3">
+                <span
+                  className={cn(
+                    'h-2 w-2 rounded-full',
+                    idx === thinkingStep ? 'animate-pulse bg-[#2563EB]' : idx < thinkingStep ? 'bg-[#84CC16]' : 'bg-slate-300'
+                  )}
+                />
+                <span>{label}</span>
+              </div>
+              {idx === thinkingStep && (
+                <span className="font-mono text-[11px] font-medium text-[#2563EB]">In progress…</span>
+              )}
             </div>
           ))}
         </div>
