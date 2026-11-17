@@ -384,10 +384,14 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
       const ev = state.events[i];
       if (ev.threadId !== selected.threadId) continue;
       if (ev.type === 'message') {
-        const p = ev.payload as { role?: string; text?: string } | undefined;
-        if (p?.role === 'assistant' && typeof p.text === 'string' && p.text.trim()) {
-          return p.text.trim();
-        }
+        const p = ev.payload as { source?: string; role?: string; text?: string } | undefined;
+        const isUser = p?.source === 'user' || p?.role === 'user';
+        if (isUser) return null;
+        const text =
+          (typeof p?.text === 'string' && p.text.trim()) ||
+          (typeof ev.fallbackText === 'string' && ev.fallbackText.trim()) ||
+          '';
+        if (text) return text;
       }
     }
     return null;

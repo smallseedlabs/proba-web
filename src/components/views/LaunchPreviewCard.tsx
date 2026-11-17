@@ -108,8 +108,7 @@ export function LaunchPreviewCard({
 
   if (!ask) {
     const liveMessage = status?.message || status?.detail;
-    const isActivelyWorking = status?.state === 'thinking' || status?.state === 'running' || status?.state === 'working';
-    if (!isActivelyWorking && assistantReply && status?.state !== 'error') {
+    if (assistantReply && status?.state !== 'error') {
       return (
         <div className="rounded-2xl border border-amber-200 bg-white p-6 text-[#09090B] shadow-sm space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
