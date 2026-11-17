@@ -204,12 +204,21 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
   const [autoActionError, setAutoActionError] = useState<string | null>(null);
   const [creativeImgFailed, setCreativeImgFailed] = useState(false);
   const [copilotOverride, setCopilotOverride] = useState<boolean | null>(null);
-  const [hasConnectedPlatform, setHasConnectedPlatform] = useState(true);
+  const [hasConnectedPlatform, setHasConnectedPlatform] = useState(false);
   const [platformConnections, setPlatformConnections] = useState<{ meta?: string; reddit?: string }>({});
   const [accountCurrency, setAccountCurrency] = useState('GBP');
   const [launchingAuto, setLaunchingAuto] = useState(false);
   const autoApprovedRef = useRef<Set<string>>(new Set());
-  const launchedGoalIdsRef = useRef<Set<string>>(new Set());
+  const launchedGoalIdsRef = useRef<Set<string>>(
+    (() => {
+      try {
+        const raw = typeof window !== 'undefined' ? window.sessionStorage.getItem('proba.launchedGoalIds') : null;
+        return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+      } catch {
+        return new Set<string>();
+      }
+    })()
+  );
   const awaitingNewGoalRef = useRef<Set<string> | null>(null);
   const shortViewport = useMediaQuery(SHORT_VIEWPORT_QUERY);
   const selected = selectedId ? goals.find((g) => g.goalId === selectedId) : undefined;
@@ -571,24 +580,26 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
             <Badge tone="neutral" className="ml-0.5">{active} active / {goals.length}</Badge>
             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
           </Button>
-          <Badge tone={userRole === 'instant_managed' || !hasConnectedPlatform ? 'warning' : 'neutral'}>
-            {userRole === 'instant_managed' || !hasConnectedPlatform ? 'Smallseed Managed' : 'Your Account'}
+          <Badge tone={hasConnectedPlatform ? 'success' : 'neutral'}>
+            {hasConnectedPlatform ? 'Your Account' : 'Smallseed Managed'}
           </Badge>
           <span className="hidden text-[11px] text-muted-foreground sm:inline">⌘K</span>
         </div>
-        <Button
-          size="sm"
-          onClick={() => {
-            if (mode === 'auto') {
-              window.location.hash = routeHref({ section: 'goals' });
-            } else {
-              setCreating(true);
-            }
-          }}
-        >
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          New goal
-        </Button>
+        {!(mode === 'auto' && hasLiveCampaigns) && (
+          <Button
+            size="sm"
+            onClick={() => {
+              if (mode === 'auto') {
+                window.location.hash = routeHref({ section: 'goals' });
+              } else {
+                setCreating(true);
+              }
+            }}
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            New goal
+          </Button>
+        )}
       </div>
 
       {goalsDrawerOpen && (
@@ -687,6 +698,11 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                       onLaunch={async (edited) => {
                         if (!launchEvent) return;
                         launchedGoalIdsRef.current.add(selected.goalId);
+                        try {
+                          window.sessionStorage.setItem('proba.launchedGoalIds', JSON.stringify([...launchedGoalIdsRef.current]));
+                        } catch {
+                          // ignore storage errors
+                        }
                         setLaunchingAuto(true);
                         try {
                           await respond(launchEvent, {

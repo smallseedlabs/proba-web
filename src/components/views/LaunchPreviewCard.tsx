@@ -357,8 +357,8 @@ export function LaunchPreviewCard({
               Agent Decision Ready
             </Badge>
             <Badge tone="neutral">{platformLabel}</Badge>
-            <Badge tone={isInstantManaged || !hasConnectedPlatform ? 'warning' : 'neutral'}>
-              {isInstantManaged || !hasConnectedPlatform ? 'Account: Smallseed Managed' : 'Account: Connected'}
+            <Badge tone={hasConnectedPlatform ? 'success' : 'neutral'}>
+              {hasConnectedPlatform ? 'Account: Your Account' : 'Account: Smallseed Managed'}
             </Badge>
           </div>
           <h2 className="mt-2 text-xl font-bold text-[#0B0D12]">{goalTitle}</h2>
@@ -444,7 +444,7 @@ export function LaunchPreviewCard({
             </div>
           </dl>
 
-          {!hasConnectedPlatform && onConnectPlatform && (
+          {!hasConnectedPlatform && !isInstantManaged && onConnectPlatform && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
               <p className="text-caption font-semibold text-amber-900">Connect an ad platform to publish</p>
               <div className="mt-2 flex flex-wrap gap-2">
