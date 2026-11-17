@@ -339,14 +339,22 @@ export function LaunchPreviewCard({
   const communities = Array.isArray(targeting.communities)
     ? (targeting.communities as string[]).slice(0, 4).join(', ')
     : null;
+  const rationale = typeof draft.rationale === 'string' && draft.rationale.trim() ? draft.rationale.trim() : null;
+  const planReasons =
+    plan.reasons && typeof plan.reasons === 'object' && !Array.isArray(plan.reasons)
+      ? Object.entries(plan.reasons as Record<string, unknown>)
+          .filter(([, v]) => typeof v === 'string' && v.trim().length > 0)
+          .slice(0, 3)
+          .map(([k, v]) => ({ key: k, reason: String(v) }))
+      : [];
 
   return (
-    <div className="rounded-2xl border border-[#E2E8F0] bg-white p-6 text-[#0B0D12] shadow-sm">
+    <div className="rounded-2xl border border-[#2563EB]/40 bg-white p-6 text-[#0B0D12] shadow-md ring-4 ring-[#2563EB]/10">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#E2E8F0] pb-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone="success" dot>
-              Ready to launch
+              Agent Decision Ready
             </Badge>
             <Badge tone="neutral">{platformLabel}</Badge>
           </div>
@@ -410,6 +418,21 @@ export function LaunchPreviewCard({
                     <ExternalLink className="h-3 w-3" />
                   </a>
                 </dd>
+              </div>
+            )}
+            {(rationale || planReasons.length > 0) && (
+              <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-3 text-caption">
+                <dt className="font-semibold text-[#0B0D12]">Why Proba chose this</dt>
+                {rationale && <dd className="mt-1 text-slate-600">{rationale}</dd>}
+                {planReasons.length > 0 && (
+                  <ul className="mt-1.5 space-y-1 text-[12px] text-slate-600">
+                    {planReasons.map((r) => (
+                      <li key={r.key}>
+                        <span className="font-semibold capitalize text-[#0B0D12]">{r.key}:</span> {r.reason}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
             <div className="flex items-start gap-2 rounded-xl border border-[#BBF7D0] bg-[#F0FDF4] p-3 text-caption text-[#166534]">
