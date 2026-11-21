@@ -692,11 +692,13 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                       }}
                       onLaunch={async (edited) => {
                         if (!launchEvent) return;
-                        launchedGoalIdsRef.current.add(selected.goalId);
-                        try {
-                          window.sessionStorage.setItem('proba.launchedGoalIds', JSON.stringify([...launchedGoalIdsRef.current]));
-                        } catch {
-                          // ignore storage errors
+                        if (launchAsk?.askType !== 'plan_approval') {
+                          launchedGoalIdsRef.current.add(selected.goalId);
+                          try {
+                            window.sessionStorage.setItem('proba.launchedGoalIds', JSON.stringify([...launchedGoalIdsRef.current]));
+                          } catch {
+                            // ignore storage errors
+                          }
                         }
                         setLaunchingAuto(true);
                         try {

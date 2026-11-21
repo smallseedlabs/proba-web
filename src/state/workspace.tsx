@@ -156,8 +156,10 @@ export function WorkspaceProvider({
       const command = request.command;
       const needsSpendToken =
         ask !== null &&
-        choice === 'approve' &&
-        (ask.askType === 'plan_approval' || ask.askType === 'action_approval');
+        (choice === 'approve' || choice === 'edit') &&
+        (ask.askType === 'plan_approval' ||
+          (ask.askType === 'action_approval' &&
+            (ask.costEffect != null || ask.risk === 'high')));
 
       let approvalToken: string | undefined;
       if (needsSpendToken && transport.mintApprovalToken) {

@@ -235,7 +235,7 @@ describe('GoalStatusPanel', () => {
     const watchdogStatus = {
       ...STATUS,
       watchdogPaused: true,
-      spend: { ...STATUS.spend, spent: 15, dailyCap: 5, totalCap: 50, currency: 'USD' },
+      spend: { ...STATUS.spend, spent: 15, dailyCap: 5, totalCap: 50, currency: 'USD', paceRatio: 3.1 },
       next: { checkAt: '2026-11-21T16:00:00Z', reason: 'Spend Watchdog paused campaign at 3.1x pace' },
     };
     const client = {

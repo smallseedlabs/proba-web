@@ -77,11 +77,6 @@ function CampaignCard({ goal }: { goal: GoalView }) {
               className={m.spend / m.budget >= 0.8 ? 'h-full rounded-full bg-warning' : 'h-full rounded-full bg-primary'}
               style={{ width: `${Math.min(100, (m.spend / m.budget) * 100)}%` }}
             />
-            <div
-              data-testid="campaign-pace-marker"
-              className="absolute top-0 h-full w-0.5 bg-amber-600"
-              style={{ left: `${Math.min(100, (m.spend / m.budget) * 100)}%` }}
-            />
           </div>
         ) : null}
       </a>

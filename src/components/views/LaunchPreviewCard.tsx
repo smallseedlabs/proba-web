@@ -516,7 +516,9 @@ export function LaunchPreviewCard({
         >
           <Rocket className="h-4 w-4" />
           {submitting
-            ? 'Launching…'
+            ? ask.askType === 'plan_approval'
+              ? 'Approving…'
+              : 'Launching…'
             : ask.askType === 'plan_approval'
               ? 'Approve Plan'
               : uiProps.toolName === 'ads.create_campaign' || ask.askType === 'action_approval'

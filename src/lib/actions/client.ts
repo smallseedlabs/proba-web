@@ -592,6 +592,17 @@ export class HubActionsClient implements ActionsClient {
     return this.parse(z.object({ ok: z.boolean(), paused: z.number(), failed: z.number() }), body);
   }
 
+  async getGoalCosts(
+    goalId: string,
+    signal?: AbortSignal
+  ): Promise<{ goalId: string; totalUsd: number; count: number }> {
+    const body = await this.request('GET', `/v1/goals/${encodeURIComponent(goalId)}/costs`, undefined, signal);
+    return this.parse(
+      z.object({ goalId: z.string(), totalUsd: z.number(), count: z.number() }),
+      body
+    );
+  }
+
   private parse<T>(schema: z.ZodType<T>, body: unknown): T {
     const parsed = schema.safeParse(body);
     if (!parsed.success) throw new ActionsError('bad_response', 'The Hub returned a response we could not read.');

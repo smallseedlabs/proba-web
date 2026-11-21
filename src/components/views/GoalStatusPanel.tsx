@@ -47,15 +47,18 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [confirmingKillSwitch, setConfirmingKillSwitch] = useState(false);
   const [pauseError, setPauseError] = useState<string | null>(null);
+  const [goalCosts, setGoalCosts] = useState<{ totalUsd: number; count: number } | null>(null);
   const [localRefresh, setLocalRefresh] = useState(0);
 
   useEffect(() => {
     setConfirmingCancel(false);
+    setConfirmingKillSwitch(false);
     setPausingTarget(null);
     setPauseError(null);
     if (!client) return;
     const controller = new AbortController();
     setStatus(null);
+    setGoalCosts(null);
     client
       .getGoalStatus(goalId, controller.signal)
       .then(setStatus)
@@ -65,6 +68,12 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
         .listGoalCreatives(goalId, controller.signal)
         .then(setVariants)
         .catch(() => setVariants([]));
+    }
+    const getCosts = (client as { getGoalCosts?: (id: string, signal?: AbortSignal) => Promise<{ totalUsd: number; count: number }> }).getGoalCosts;
+    if (typeof getCosts === 'function') {
+      getCosts.call(client, goalId, controller.signal)
+        .then(setGoalCosts)
+        .catch(() => setGoalCosts(null));
     }
     return () => controller.abort();
   }, [client, goalId, refreshKey, localRefresh]);
@@ -134,13 +143,18 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
   };
 
   const handleKillSwitch = async () => {
-    const killFn = (client as { killSwitch?: () => Promise<unknown> } | null)?.killSwitch;
+    const killFn = (
+      client as { killSwitch?: () => Promise<{ ok?: boolean; paused?: number; failed?: number }> } | null
+    )?.killSwitch;
     if (!killFn) return;
     setPausingTarget('kill_switch');
     setPauseError(null);
     try {
-      await killFn();
+      const res = await killFn();
       setConfirmingKillSwitch(false);
+      if (res && typeof res.failed === 'number' && res.failed > 0) {
+        setPauseError(`Stopped ${res.paused ?? 0} campaign(s), but ${res.failed} failed to pause. Check platform connections.`);
+      }
       setLocalRefresh((n) => n + 1);
     } catch (err) {
       setPauseError(err instanceof Error ? err.message : 'Failed to trigger emergency kill-switch.');
@@ -155,12 +169,7 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
     now.campaigns.some((c) => Boolean((c as { watchdogPaused?: boolean }).watchdogPaused));
 
   const rawPaceRatio = (spend as unknown as { paceRatio?: unknown }).paceRatio;
-  const paceRatio =
-    typeof rawPaceRatio === 'number'
-      ? rawPaceRatio
-      : spend.dailyCap && spend.dailyCap > 0 && spend.spent !== null
-        ? Number((spend.spent / spend.dailyCap).toFixed(2))
-        : null;
+  const paceRatio = typeof rawPaceRatio === 'number' ? rawPaceRatio : null;
 
   return (
     <section aria-label="Goal status" className="mb-6 rounded-xl border bg-card p-4 shadow-card">
@@ -214,6 +223,11 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
             {spend.totalCap !== null ? ` of ${money(spend.totalCap, spend.currency)}` : ''}
             {spend.dailyCap !== null ? (
               <span className="block text-caption font-normal text-muted-foreground">Daily budget {money(spend.dailyCap, spend.currency)}</span>
+            ) : null}
+            {goalCosts && goalCosts.count > 0 ? (
+              <span className="block text-caption font-normal text-muted-foreground">
+                AI &amp; media costs ${goalCosts.totalUsd.toFixed(2)} ({goalCosts.count})
+              </span>
             ) : null}
           </dd>
         </div>
@@ -301,7 +315,8 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
             ) : null}
             {client && typeof (client as { killSwitch?: unknown }).killSwitch === 'function' ? (
               confirmingKillSwitch ? (
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-caption font-medium text-danger">Stops all live campaigns in workspace:</span>
                   <button
                     type="button"
                     disabled={pausingTarget !== null}
