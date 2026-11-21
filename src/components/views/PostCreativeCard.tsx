@@ -30,6 +30,7 @@ export function PostCreativeCard({ goalId }: { goalId: string }) {
   const [callToAction, setCallToAction] = useState('');
   const [subreddits, setSubreddits] = useState('');
   const [approvedAt, setApprovedAt] = useState<string | null>(null);
+  const [spendGate, setSpendGate] = useState<{ justification: string; costUsd: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const id = useId();
@@ -41,6 +42,15 @@ export function PostCreativeCard({ goalId }: { goalId: string }) {
       .getCreative(goalId, controller.signal)
       .then((record) => {
         setApprovedAt(record.approvedAt);
+        const recExt = record as unknown as {
+          spendGate?: { justification?: string; estimatedCostUsd?: number };
+        };
+        if (recExt.spendGate?.justification) {
+          setSpendGate({
+            justification: recExt.spendGate.justification,
+            costUsd: recExt.spendGate.estimatedCostUsd ?? 0,
+          });
+        }
         const c = record.creative;
         if (!c) return;
         setType(c.type);
@@ -143,6 +153,11 @@ export function PostCreativeCard({ goalId }: { goalId: string }) {
             <FieldHint id={`${id}-subs-hint`}>Optional, separated by commas.</FieldHint>
           </div>
           <FieldError id={`${id}-error`}>{error ?? undefined}</FieldError>
+          {spendGate && (
+            <p data-testid="spend-gate-info" className="text-caption text-muted-foreground">
+              Spend gate: {spendGate.justification} · ${spendGate.costUsd.toFixed(2)}
+            </p>
+          )}
           <Button type="submit" loading={saving}>
             Approve post
           </Button>
