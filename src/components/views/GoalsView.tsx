@@ -340,8 +340,8 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
     }
   }, [goals]);
 
-  // In 1-Click Auto Mode, silently advance intermediate asks (URL attach & research review)
-  // so the user only sees the single unified LaunchPreviewCard.
+  // In 1-Click Auto Mode, only auto-advance non-spend prerequisites (URL attach & research review).
+  // plan_approval, ads.create_campaign, and action_approval always require an explicit user click (H0-01).
   useEffect(() => {
     if (mode !== 'auto' || hasLiveCampaigns || !selected) return;
     for (const ev of threadAsks) {
@@ -358,11 +358,7 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
         continue;
       }
       const isAttachPage = toolName === 'page.attach_user_page' || /attach_user_page/i.test(ask.title);
-      const isCreateAfterLaunch =
-        launchedGoalIdsRef.current.has(selected.goalId) &&
-        (toolName === 'ads.create_campaign' || ask.askType === 'action_approval');
-      const isIntermediate = ask.askType === 'plan_approval' || isAttachPage || isCreateAfterLaunch;
-      if (isIntermediate) {
+      if (isAttachPage) {
         autoApprovedRef.current.add(ask.askId);
         void respond(ev, { id: 'approve' });
       }
@@ -378,6 +374,7 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
         const toolName = typeof uiProps.toolName === 'string' ? uiProps.toolName : '';
         const isAttachPage = toolName === 'page.attach_user_page' || /attach_user_page/i.test(a.title);
         return (
+          a.askType === 'plan_approval' ||
           String(ev.ui?.component ?? '').includes('creative_draft') ||
           toolName === 'creative.draft_post' ||
           toolName === 'ads.create_campaign' ||
@@ -675,7 +672,7 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                       }
                       dailyBudget={selected.metrics?.budget ?? 25}
                       currency={selected.metrics?.currency ?? accountCurrency}
-                      isPublishing={Boolean(selected && launchedGoalIdsRef.current.has(selected.goalId))}
+                      isPublishing={Boolean(selected && launchedGoalIdsRef.current.has(selected.goalId) && !launchAsk)}
                       isInstantManaged={userRole === 'instant_managed'}
                       hasConnectedPlatform={hasConnectedPlatform}
                       canSwitchMode={canSwitchMode}

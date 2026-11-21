@@ -494,14 +494,16 @@ export function LaunchPreviewCard({
       )}
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[#E2E8F0] pt-4">
-        <button
-          type="button"
-          onClick={() => setEditing((v) => !v)}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-caption font-semibold text-[#0B0D12] hover:bg-slate-50"
-        >
-          <Pencil className="h-3.5 w-3.5" />
-          {editing ? 'Done editing' : 'Edit details'}
-        </button>
+        {ask.askType !== 'plan_approval' ? (
+          <button
+            type="button"
+            onClick={() => setEditing((v) => !v)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[#CBD5E1] bg-white px-3 py-2 text-caption font-semibold text-[#0B0D12] hover:bg-slate-50"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            {editing ? 'Done editing' : 'Edit details'}
+          </button>
+        ) : <span />}
 
         <button
           type="button"
@@ -513,7 +515,13 @@ export function LaunchPreviewCard({
           className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-6 py-2.5 text-body font-semibold text-white shadow-sm transition hover:bg-[#1D4ED8] disabled:opacity-50"
         >
           <Rocket className="h-4 w-4" />
-          {submitting ? 'Launching…' : `Launch Campaign (${formatCurrency(budgetValue, budgetCurrency)}/day)`}
+          {submitting
+            ? 'Launching…'
+            : ask.askType === 'plan_approval'
+              ? 'Approve Plan'
+              : uiProps.toolName === 'ads.create_campaign' || ask.askType === 'action_approval'
+                ? `Approve Spend & Launch (${formatCurrency(budgetValue, budgetCurrency)}/day)`
+                : `Launch Campaign (${formatCurrency(budgetValue, budgetCurrency)}/day)`}
         </button>
       </div>
     </div>
