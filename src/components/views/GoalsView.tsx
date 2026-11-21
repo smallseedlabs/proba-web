@@ -398,6 +398,13 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
           (typeof ev.fallbackText === 'string' && ev.fallbackText.trim()) ||
           '';
         if (text) return text;
+      } else if (ev.type === 'error') {
+        const p = ev.payload as { message?: string } | undefined;
+        const msg =
+          (typeof p?.message === 'string' && p.message.trim()) ||
+          (typeof ev.fallbackText === 'string' && ev.fallbackText.trim()) ||
+          'Something went wrong.';
+        return `Error: ${msg}`;
       }
     }
     return null;
