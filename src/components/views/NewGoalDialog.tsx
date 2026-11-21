@@ -49,7 +49,9 @@ export function NewGoalDialog({ open, onClose }: { open: boolean; onClose: () =>
     const next: typeof errors = {};
     const landing = parseOptionalLandingPageUrl(landingPageUrl);
     if (!landing.ok) {
-      next.landingPageUrl = landing.message;
+      next.landingPageUrl = landing.message.startsWith('landingPageUrl ')
+        ? `Landing page URL ${landing.message.slice('landingPageUrl '.length)}`
+        : landing.message;
     } else if (isAuto && !landing.url) {
       next.landingPageUrl = 'Enter your website URL (https://...) to generate a campaign.';
     }
@@ -153,7 +155,10 @@ export function NewGoalDialog({ open, onClose }: { open: boolean; onClose: () =>
                 placeholder="https://yourproduct.com"
                 aria-invalid={errors.landingPageUrl ? true : undefined}
                 aria-describedby={errors.landingPageUrl ? ids.landingError : undefined}
-                onChange={(e) => setLandingPageUrl(e.target.value)}
+                onChange={(e) => {
+              setLandingPageUrl(e.target.value);
+              setErrors((prev) => (prev.landingPageUrl ? { ...prev, landingPageUrl: undefined } : prev));
+            }}
               />
               <FieldError id={ids.landingError}>{errors.landingPageUrl}</FieldError>
             </div>
@@ -276,7 +281,10 @@ export function NewGoalDialog({ open, onClose }: { open: boolean; onClose: () =>
             placeholder="https://"
             aria-invalid={errors.landingPageUrl ? true : undefined}
             aria-describedby={[errors.landingPageUrl ? ids.landingError : null, ids.landingHint].filter(Boolean).join(' ')}
-            onChange={(e) => setLandingPageUrl(e.target.value)}
+            onChange={(e) => {
+              setLandingPageUrl(e.target.value);
+              setErrors((prev) => (prev.landingPageUrl ? { ...prev, landingPageUrl: undefined } : prev));
+            }}
           />
           <FieldError id={ids.landingError}>{errors.landingPageUrl}</FieldError>
           <FieldHint id={ids.landingHint}>

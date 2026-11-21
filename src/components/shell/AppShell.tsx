@@ -25,6 +25,7 @@ const TITLES: Record<string, string> = {
   approvals: 'Approvals',
   activity: 'Activity',
   campaigns: 'Campaigns',
+  studio: 'Studio',
   actions: 'Reviews',
   marketing: 'Marketing',
   settings: 'Settings',
