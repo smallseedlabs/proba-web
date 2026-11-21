@@ -3,6 +3,7 @@ import type { CreativeVariantRecord, GoalStatus } from '../../lib/actions/client
 import { formatDateTime, formatCurrency, formatNumber, formatRelativeTime } from '../../lib/utils/format';
 import { useActionsClient } from '../../state/actions';
 import { Badge } from '../ui/badge';
+import { SpendBarComponent } from '../registry/spend-bar';
 import { EnhanceCreativeModal } from './EnhanceCreativeModal';
 import { PlatformDeliveryMatrix } from './PlatformDeliveryMatrix';
 
@@ -44,6 +45,7 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
   const [enhancingVariant, setEnhancingVariant] = useState<CreativeVariantRecord | null>(null);
   const [pausingTarget, setPausingTarget] = useState<string | null>(null);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const [confirmingKillSwitch, setConfirmingKillSwitch] = useState(false);
   const [pauseError, setPauseError] = useState<string | null>(null);
   const [localRefresh, setLocalRefresh] = useState(0);
 
@@ -131,8 +133,45 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
     }
   };
 
+  const handleKillSwitch = async () => {
+    const killFn = (client as { killSwitch?: () => Promise<unknown> } | null)?.killSwitch;
+    if (!killFn) return;
+    setPausingTarget('kill_switch');
+    setPauseError(null);
+    try {
+      await killFn();
+      setConfirmingKillSwitch(false);
+      setLocalRefresh((n) => n + 1);
+    } catch (err) {
+      setPauseError(err instanceof Error ? err.message : 'Failed to trigger emergency kill-switch.');
+    } finally {
+      setPausingTarget(null);
+    }
+  };
+
+  const watchdogPaused =
+    Boolean((status as { watchdogPaused?: boolean }).watchdogPaused) ||
+    Boolean(next?.reason?.toLowerCase().includes('watchdog')) ||
+    now.campaigns.some((c) => Boolean((c as { watchdogPaused?: boolean }).watchdogPaused));
+
+  const rawPaceRatio = (spend as unknown as { paceRatio?: unknown }).paceRatio;
+  const paceRatio =
+    typeof rawPaceRatio === 'number'
+      ? rawPaceRatio
+      : spend.dailyCap && spend.dailyCap > 0 && spend.spent !== null
+        ? Number((spend.spent / spend.dailyCap).toFixed(2))
+        : null;
+
   return (
     <section aria-label="Goal status" className="mb-6 rounded-xl border bg-card p-4 shadow-card">
+      {watchdogPaused ? (
+        <div
+          role="alert"
+          className="mb-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-body text-danger"
+        >
+          <span className="font-semibold">Safety stop (Spend Watchdog):</span> Campaign spend pace exceeded safe limits and was automatically paused.
+        </div>
+      ) : null}
       {isCancelled ? (
         <div className="mb-3 rounded-lg border border-border bg-muted/40 px-3 py-2 text-body text-foreground">
           <span className="font-semibold">{goal.status === 'inactive' ? 'Goal inactive.' : 'Goal cancelled.'}</span>{' '}
@@ -196,6 +235,25 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
         </div>
       </dl>
 
+      {spend.totalCap !== null && spend.spent !== null ? (
+        <div className="mt-4">
+          <SpendBarComponent
+            fallbackText=""
+            ui={{
+              component: 'spend_bar',
+              version: '1',
+              props: {
+                title: 'Goal spend vs. cap',
+                spent: spend.spent,
+                budget: spend.totalCap,
+                currency: spend.currency ?? 'USD',
+                paceRatio,
+              },
+            }}
+          />
+        </div>
+      ) : null}
+
       <div className="mt-4 border-t pt-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">Platforms &amp; delivery status</h2>
@@ -238,6 +296,37 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
                   className="rounded border border-danger/30 bg-surface px-2.5 py-1 text-caption font-medium text-danger hover:bg-danger/10 disabled:opacity-50"
                 >
                   Cancel goal
+                </button>
+              )
+            ) : null}
+            {client && typeof (client as { killSwitch?: unknown }).killSwitch === 'function' ? (
+              confirmingKillSwitch ? (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={pausingTarget !== null}
+                    onClick={handleKillSwitch}
+                    className="rounded border border-danger bg-danger px-2.5 py-1 text-caption font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                  >
+                    {pausingTarget === 'kill_switch' ? 'Stopping all…' : 'Confirm kill-switch'}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={pausingTarget !== null}
+                    onClick={() => setConfirmingKillSwitch(false)}
+                    className="rounded border border-input/70 bg-surface px-2 py-1 text-caption text-muted-foreground hover:text-foreground disabled:opacity-50"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={pausingTarget !== null}
+                  onClick={() => setConfirmingKillSwitch(true)}
+                  className="rounded border border-danger/50 bg-danger/10 px-2.5 py-1 text-caption font-semibold text-danger hover:bg-danger/20 disabled:opacity-50"
+                >
+                  Kill-switch
                 </button>
               )
             ) : null}

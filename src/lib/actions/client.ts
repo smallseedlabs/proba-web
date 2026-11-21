@@ -587,6 +587,11 @@ export class HubActionsClient implements ActionsClient {
     await this.request('DELETE', `/v1/assets/${encodeURIComponent(id)}`);
   }
 
+  async killSwitch(): Promise<{ ok: boolean; paused: number; failed: number }> {
+    const body = await this.request('POST', '/v1/kill-switch', {});
+    return this.parse(z.object({ ok: z.boolean(), paused: z.number(), failed: z.number() }), body);
+  }
+
   private parse<T>(schema: z.ZodType<T>, body: unknown): T {
     const parsed = schema.safeParse(body);
     if (!parsed.success) throw new ActionsError('bad_response', 'The Hub returned a response we could not read.');
