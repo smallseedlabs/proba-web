@@ -229,4 +229,32 @@ describe('GoalStatusPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirm cancel Reddit' }));
     await vi.waitFor(() => expect(cancelCampaign).toHaveBeenCalledWith('c1'));
   });
+
+  it('H1-07: renders spend/cap bar with pace marker, watchdog safety banner, and kill-switch with confirm', async () => {
+    const killSwitch = vi.fn(async () => ({ ok: true, paused: 1, failed: 0 }));
+    const watchdogStatus = {
+      ...STATUS,
+      watchdogPaused: true,
+      spend: { ...STATUS.spend, spent: 15, dailyCap: 5, totalCap: 50, currency: 'USD' },
+      next: { checkAt: '2026-11-21T16:00:00Z', reason: 'Spend Watchdog paused campaign at 3.1x pace' },
+    };
+    const client = {
+      getGoalStatus: vi.fn(async () => watchdogStatus),
+      killSwitch,
+    } as unknown as ActionsClient;
+
+    render(
+      <ActionsProvider client={client}>
+        <GoalStatusPanel goalId="g1" />
+      </ActionsProvider>
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Spend Watchdog/);
+    expect(screen.getByTestId('spend-pace-marker')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Kill-switch' }));
+    expect(killSwitch).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm kill-switch' }));
+    await vi.waitFor(() => expect(killSwitch).toHaveBeenCalledTimes(1));
+  });
 });

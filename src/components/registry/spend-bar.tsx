@@ -15,7 +15,16 @@ function spendState(percent: number): { label: string; tone: Tone; bar: string }
 }
 
 export function SpendBarComponent({ ui, fallbackText }: ComponentRendererProps) {
-  const props = ui.props as { spent?: number; budget?: number; currency?: string; period?: string; showPercentage?: boolean; title?: string };
+  const props = ui.props as {
+    spent?: number;
+    budget?: number;
+    currency?: string;
+    period?: string;
+    showPercentage?: boolean;
+    title?: string;
+    paceRatio?: number | null;
+    pacePercent?: number | null;
+  };
   const spent = Math.max(0, props.spent ?? 0);
   const budget = Math.max(0, props.budget ?? 0);
   const percent = budget > 0 ? (spent / budget) * 100 : 0;
@@ -23,6 +32,13 @@ export function SpendBarComponent({ ui, fallbackText }: ComponentRendererProps) 
   const remaining = budget - spent;
   const labelId = useId();
   const showPct = props.showPercentage !== false;
+  const paceRatio = typeof props.paceRatio === 'number' && Number.isFinite(props.paceRatio) ? props.paceRatio : null;
+  const paceLeft =
+    typeof props.pacePercent === 'number' && Number.isFinite(props.pacePercent)
+      ? Math.min(100, Math.max(0, props.pacePercent))
+      : paceRatio !== null
+        ? Math.min(100, Math.max(0, (paceRatio / 3) * 100))
+        : null;
 
   return (
     <Card className="px-5 py-4">
@@ -60,6 +76,14 @@ export function SpendBarComponent({ ui, fallbackText }: ComponentRendererProps) 
           aria-hidden="true"
           title={`Alert threshold at ${WARNING_AT}%`}
         />
+        {paceLeft !== null && (
+          <div
+            data-testid="spend-pace-marker"
+            className="absolute top-[-4px] h-[20px] w-1 rounded bg-amber-600"
+            style={{ left: `${paceLeft}%` }}
+            title={paceRatio !== null ? `Spend pace ${paceRatio.toFixed(1)}×` : `Expected pace ${Math.round(paceLeft)}%`}
+          />
+        )}
       </div>
 
       <div className="mt-2.5 flex flex-wrap justify-between gap-2 text-caption text-muted-foreground">
@@ -67,6 +91,7 @@ export function SpendBarComponent({ ui, fallbackText }: ComponentRendererProps) 
           {showPct && <span className="font-semibold text-foreground">{Math.round(percent)}% used</span>}
           {showPct && ' · '}
           {remaining >= 0 ? `${formatCurrency(remaining, props.currency)} remaining` : `${formatCurrency(-remaining, props.currency)} over cap`}
+          {paceRatio !== null && ` · ${paceRatio.toFixed(1)}× pace`}
         </span>
         <span>Alert threshold {WARNING_AT}%</span>
       </div>
