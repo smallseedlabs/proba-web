@@ -18,6 +18,7 @@ export class TransportError extends Error {
 
 export interface TransportClient {
   sendCommand(command: OutgoingCommand): Promise<void>;
+  mintApprovalToken?(askId: string): Promise<string>;
   subscribe(onEvent: (event: IncomingEvent) => void): () => void;
   onStatusChange(listener: (status: ConnectionStatus) => void): () => void;
   readonly status: ConnectionStatus;
