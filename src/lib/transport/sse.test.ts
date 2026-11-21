@@ -197,4 +197,22 @@ describe('SSETransport', () => {
     transport = new SSETransport({ apiBaseUrl: 'http://hub.test', fetchImpl });
     await expect(transport.sendCommand(command)).rejects.toMatchObject({ code: 'network' });
   });
+
+  it('mints an approval token via POST /v1/asks/:askId/approval-token', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ token: 'tok-0123456789abcdef', askId: 'ask-1', expiresAt: '2026-11-21T12:10:00Z' }),
+    });
+    transport = new SSETransport({ apiBaseUrl: 'http://hub.test', token: 'jwt-1', fetchImpl });
+    const token = await transport.mintApprovalToken('ask-1');
+    expect(token).toBe('tok-0123456789abcdef');
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'http://hub.test/v1/asks/ask-1/approval-token',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { Authorization: 'Bearer jwt-1' },
+      })
+    );
+  });
 });

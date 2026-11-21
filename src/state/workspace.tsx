@@ -154,16 +154,50 @@ export function WorkspaceProvider({
 
       let ok: boolean;
       const command = request.command;
+      const needsSpendToken =
+        ask !== null &&
+        choice === 'approve' &&
+        (ask.askType === 'plan_approval' || ask.askType === 'action_approval');
+
+      let approvalToken: string | undefined;
+      if (needsSpendToken && transport.mintApprovalToken) {
+        try {
+          approvalToken = await transport.mintApprovalToken(ask.askId);
+        } catch (error) {
+          if (error instanceof TransportError) {
+            if (error.code === 'unauthorized') {
+              onSessionExpired();
+            } else {
+              notify({ tone: 'danger', title: 'Could not send', description: error.message });
+            }
+          } else {
+            notify({ tone: 'danger', title: 'Could not send', description: 'Approval verification failed.' });
+          }
+          dispatch({ type: 'decision', askId: ask.askId, decision: null });
+          return;
+        }
+      }
+
       if (command && typeof command.type === 'string') {
-        ok = await send(
-          command.type as OutgoingCommand['type'],
-          (command.payload as Record<string, unknown>) ?? {},
-          event.threadId
-        );
+        const basePayload = (command.payload as Record<string, unknown>) ?? {};
+        const payloadWithToken =
+          command.type === 'answer_ask' && approvalToken
+            ? { ...basePayload, approvalToken }
+            : basePayload;
+        ok = await send(command.type as OutgoingCommand['type'], payloadWithToken, event.threadId);
       } else if (ask) {
         const values =
           request.values ?? ((ASK_CHOICES as readonly string[]).includes(request.id) ? undefined : { answer: request.id });
-        ok = await send('answer_ask', { askId: ask.askId, choice, ...(values ? { values } : {}) }, event.threadId);
+        ok = await send(
+          'answer_ask',
+          {
+            askId: ask.askId,
+            choice,
+            ...(values ? { values } : {}),
+            ...(approvalToken ? { approvalToken } : {}),
+          },
+          event.threadId
+        );
       } else {
         ok = true;
       }
@@ -195,7 +229,7 @@ export function WorkspaceProvider({
         }
       }
     },
-    [send, notify]
+    [send, notify, transport, onSessionExpired]
   );
 
   const control = useCallback(
@@ -223,7 +257,7 @@ export function WorkspaceProvider({
       // Accepted is not applied: state.operations changes only when the Hub's status event arrives.
       return ok;
     },
-    [send, notify]
+    [send, notify, transport, onSessionExpired]
   );
 
   const createGoal = useCallback(
@@ -245,7 +279,7 @@ export function WorkspaceProvider({
       }
       return ok;
     },
-    [send, notify]
+    [send, notify, transport, onSessionExpired]
   );
 
   const api = useMemo<WorkspaceApi>(

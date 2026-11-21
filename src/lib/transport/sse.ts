@@ -144,6 +144,42 @@ export class SSETransport implements TransportClient {
     }
   }
 
+  async mintApprovalToken(askId: string): Promise<string> {
+    const url = new URL(`/v1/asks/${encodeURIComponent(askId)}/approval-token`, this.options.apiBaseUrl);
+    const headers: Record<string, string> = {};
+    if (this.options.token) {
+      headers.Authorization = `Bearer ${this.options.token}`;
+    }
+
+    let response: Response;
+    try {
+      const doFetch = this.options.fetchImpl ?? fetch;
+      response = await doFetch(url.toString(), {
+        method: 'POST',
+        headers,
+      });
+    } catch {
+      throw new TransportError('network', "We couldn't reach Proba. Check your connection and try again.");
+    }
+
+    if (response.status === 401) {
+      this.markUnauthorized();
+      throw new TransportError('unauthorized', 'Your session has expired. Please sign in again.', 401);
+    }
+    if (response.status >= 400 && response.status < 500) {
+      throw new TransportError('rejected', 'This approval request could not be verified.', response.status);
+    }
+    if (!response.ok) {
+      throw new TransportError('server', 'Proba is having trouble right now. Please try again.', response.status);
+    }
+
+    const body = (await response.json()) as { token?: unknown } | null;
+    if (typeof body?.token !== 'string' || body.token.length < 16) {
+      throw new TransportError('server', 'Invalid approval token response from Proba.', response.status);
+    }
+    return body.token;
+  }
+
   private async wasRejected(response: Response): Promise<boolean> {
     try {
       const body = (await response.json()) as { status?: unknown } | null;
