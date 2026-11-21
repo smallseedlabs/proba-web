@@ -362,7 +362,7 @@ export function MagicPromptCanvas({
 
                 {rail === 'managed' ? (
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-[#EFF6FF] px-2.5 py-0.5 text-[11px] font-medium text-[#1D4ED8]">
-                    Using Smallseed Managed Account
+                    Using Proba Managed Account
                     {onConnectPlatform && (
                       <button
                         type="button"
@@ -378,13 +378,13 @@ export function MagicPromptCanvas({
                     {metaStatus === 'connected' ? (
                       <>
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-                          <CheckCircle2 className="h-3 w-3" /> Meta
+                          <CheckCircle2 className="h-3 w-3" /> Meta (FB & IG)
                         </span>
                         {onConnectPlatform && (
                           <button
                             type="button"
                             onClick={() => void handleConnect('meta')}
-                            className="text-[11px] font-medium text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-[#2563EB]"
+                            className="px-1 py-0.5 text-[11px] font-medium text-slate-500 underline decoration-slate-300 underline-offset-2 hover:text-[#2563EB]"
                           >
                             Reconnect
                           </button>
@@ -394,9 +394,9 @@ export function MagicPromptCanvas({
                       <button
                         type="button"
                         onClick={() => void handleConnect('meta')}
-                        className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800"
+                        className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800"
                       >
-                        <Link2 className="h-3 w-3" /> {metaStatus === 'needs_reconnect' ? 'Reconnect Meta' : 'Connect Meta'}
+                        <Link2 className="h-3 w-3" /> {metaStatus === 'needs_reconnect' ? 'Reconnect Meta (FB & IG)' : 'Connect Meta (FB & IG)'}
                       </button>
                     ) : null}
                     {redditStatus === 'connected' ? (
