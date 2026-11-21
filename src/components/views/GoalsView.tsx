@@ -579,7 +579,7 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
             <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
           </Button>
           <Badge tone={hasConnectedPlatform ? 'success' : 'neutral'}>
-            {hasConnectedPlatform ? 'Your Account' : 'Smallseed Managed'}
+            {hasConnectedPlatform ? 'Your Account' : 'Proba Managed'}
           </Badge>
           <span className="hidden text-[11px] text-muted-foreground sm:inline">⌘K</span>
         </div>

@@ -358,7 +358,7 @@ export function LaunchPreviewCard({
             </Badge>
             <Badge tone="neutral">{platformLabel}</Badge>
             <Badge tone={hasConnectedPlatform ? 'success' : 'neutral'}>
-              {hasConnectedPlatform ? 'Account: Your Account' : 'Account: Smallseed Managed'}
+              {hasConnectedPlatform ? 'Account: Your Account' : 'Account: Proba Managed'}
             </Badge>
           </div>
           <h2 className="mt-2 text-xl font-bold text-[#0B0D12]">{goalTitle}</h2>

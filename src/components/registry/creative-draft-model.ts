@@ -1,10 +1,14 @@
 /** Brain-drafted Reddit post carried on an approval card (ui props.creativeDraft). */
 export const CTA_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'LEARN_MORE', label: 'Learn More' },
+  { value: 'WATCH_NOW', label: 'Watch Now' },
+  { value: 'VIEW_MORE', label: 'View More' },
   { value: 'SIGN_UP', label: 'Sign Up' },
   { value: 'SHOP_NOW', label: 'Shop Now' },
   { value: 'GET_QUOTE', label: 'Get Quote' },
   { value: 'DOWNLOAD', label: 'Download' },
+  { value: 'SUBSCRIBE', label: 'Subscribe' },
+  { value: 'APPLY_NOW', label: 'Apply Now' },
 ];
 
 export interface CreativeDraftProps {
