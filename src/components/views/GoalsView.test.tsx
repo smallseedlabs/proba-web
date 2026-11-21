@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { IncomingEvent, TransportClient } from '../../lib/transport';
 import type { Session } from '../../lib/auth';
@@ -292,5 +292,111 @@ describe('GoalsView header', () => {
     await user.click(screen.getByRole('button', { name: 'Confirm cancel' }));
     expect(cancelGoal).toHaveBeenCalledWith('g1');
     expect(await screen.findByText('Cancelled')).toBeInTheDocument();
+  });
+
+  it('H0-01: never auto-approves plan_approval, ads.create_campaign, or action_approval in auto mode while still advancing attach_user_page', async () => {
+    const user = userEvent.setup();
+    const sendCommand = vi.fn().mockResolvedValue({ ok: true });
+    const EVENTS_H0: IncomingEvent[] = [
+      {
+        kind: 'event',
+        seq: 1,
+        at: '2026-11-21T10:00:00Z',
+        threadId: 't_h0',
+        type: 'goal_updated',
+        payload: { goalId: 'g_h0', threadId: 't_h0', title: 'Test reel', status: 'active', metrics: { budget: 25, currency: 'GBP' } },
+      },
+      {
+        kind: 'event',
+        seq: 2,
+        at: '2026-11-21T10:00:01Z',
+        threadId: 't_h0',
+        type: 'ask',
+        payload: {
+          askId: 'ask_attach',
+          askType: 'action_approval',
+          title: 'Attach landing page',
+          status: 'open',
+          options: [{ id: 'approve', label: 'Approve', style: 'primary' }],
+        },
+        ui: { component: 'approval_card', version: '1', props: { toolName: 'page.attach_user_page' } },
+      },
+      {
+        kind: 'event',
+        seq: 3,
+        at: '2026-11-21T10:00:02Z',
+        threadId: 't_h0',
+        type: 'ask',
+        payload: {
+          askId: 'ask_plan',
+          askType: 'plan_approval',
+          title: 'Approve plan',
+          status: 'open',
+          options: [{ id: 'approve', label: 'Approve', style: 'primary' }],
+        },
+      },
+      {
+        kind: 'event',
+        seq: 4,
+        at: '2026-11-21T10:00:03Z',
+        threadId: 't_h0',
+        type: 'ask',
+        payload: {
+          askId: 'ask_spend',
+          askType: 'action_approval',
+          title: 'Create Reddit campaign',
+          status: 'open',
+          options: [{ id: 'approve', label: 'Approve', style: 'primary' }],
+        },
+        ui: { component: 'approval_card', version: '1', props: { toolName: 'ads.create_campaign', dailyBudget: 25, currency: 'GBP' } },
+      },
+    ];
+    const transport: TransportClient = {
+      status: 'open',
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      sendCommand,
+      subscribe: (l) => {
+        EVENTS_H0.forEach((e) => l(e));
+        return () => {};
+      },
+      onStatusChange: () => () => {},
+    };
+    const autoSession = { ...SESSION, role: 'instant_managed' as const };
+    render(
+      <ToastProvider>
+        <UIModeProvider userRole="instant_managed">
+          <ActionsProvider
+            client={{
+              getGoalStatus: vi.fn().mockResolvedValue(null),
+              getCreative: vi.fn().mockResolvedValue(null),
+              listConnections: vi.fn().mockResolvedValue({ connections: [] }),
+            } as never}
+          >
+            <AnalyticsProvider client={{ getSummary: vi.fn().mockResolvedValue({ granularity: 'day', series: [] }) }}>
+              <WorkspaceProvider transport={transport} onSessionExpired={vi.fn()}>
+                <GoalsView selectedId="g_h0" session={autoSession} />
+              </WorkspaceProvider>
+            </AnalyticsProvider>
+          </ActionsProvider>
+        </UIModeProvider>
+      </ToastProvider>
+    );
+
+    await waitFor(() => expect(sendCommand).toHaveBeenCalledTimes(1));
+    expect(sendCommand).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'answer_ask',
+      payload: expect.objectContaining({ askId: 'ask_attach', choice: 'approve' }),
+    }));
+    const approveBtn = await screen.findByRole('button', { name: 'Approve Plan' });
+    await user.click(approveBtn);
+    await waitFor(() =>
+      expect(sendCommand).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'answer_ask',
+          payload: expect.objectContaining({ askId: 'ask_plan', choice: 'approve' }),
+        })
+      )
+    );
   });
 });
