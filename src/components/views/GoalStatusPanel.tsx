@@ -399,8 +399,10 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
           </div>
           <div>
             <p className="text-caption text-muted-foreground">Spend &amp; pacing</p>
-            <p className="font-semibold text-foreground">
-              {money(spend.spent, spend.currency)}{' '}
+            <p className="font-semibold tabular-nums text-foreground">
+              {spend.spent === null && now.campaigns.length === 0
+                ? `${money(0, spend.currency)} (Pre-launch)`
+                : money(spend.spent, spend.currency)}{' '}
               {(spend.totalCap ?? spend.dailyCap) !== null ? `/ ${money(spend.totalCap ?? spend.dailyCap, spend.currency)}` : ''}
             </p>
           </div>

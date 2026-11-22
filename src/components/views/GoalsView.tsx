@@ -1050,7 +1050,7 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
               {copilotOpen && (
                 <aside
                   aria-label="Proba Co-pilot"
-                  className="flex min-h-0 w-full flex-col border-l bg-surface-sunken/30 lg:w-[400px] xl:w-[440px] shrink-0"
+                  className="fixed inset-y-0 right-0 z-30 flex min-h-0 w-full max-w-[400px] flex-col border-l bg-surface shadow-xl lg:static lg:z-auto lg:max-w-none lg:w-[400px] xl:w-[440px] lg:bg-surface-sunken/30 lg:shadow-none shrink-0"
                 >
                   <div className="flex items-center justify-between border-b px-4 py-2.5">
                     <span className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">

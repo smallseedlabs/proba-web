@@ -388,9 +388,9 @@ export function LaunchPreviewCard({
           <p className="mt-3 text-body font-semibold text-[#0B0D12]">{headline}</p>
           <p className="mt-1 whitespace-pre-wrap text-caption text-slate-600 line-clamp-4">{body}</p>
           {destination && (
-            <div className="mt-3 flex items-center justify-between border-t border-[#E2E8F0] pt-2 text-[11px] text-slate-500">
-              <span className="truncate">{destination}</span>
-              <span className="rounded bg-[#2563EB] px-2 py-0.5 font-semibold text-white">
+            <div className="mt-3 flex items-center justify-between gap-2 border-t border-[#E2E8F0] pt-2 text-[11px] text-slate-500">
+              <span className="min-w-0 truncate">{destination}</span>
+              <span className="shrink-0 rounded bg-[#2563EB] px-2 py-0.5 font-semibold text-white">
                 {typeof draft.ctaType === 'string' ? draft.ctaType.replace(/_/g, ' ') : 'Learn More'}
               </span>
             </div>
@@ -415,10 +415,10 @@ export function LaunchPreviewCard({
             {destination && (
               <div>
                 <dt className="text-caption text-slate-500">Destination URL</dt>
-                <dd className="truncate text-caption">
-                  <a href={destination} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[#2563EB] hover:underline">
-                    {destination}
-                    <ExternalLink className="h-3 w-3" />
+                <dd className="text-caption">
+                  <a href={destination} target="_blank" rel="noreferrer" className="inline-flex max-w-full min-w-0 items-center gap-1 text-[#2563EB] hover:underline">
+                    <span className="truncate">{destination}</span>
+                    <ExternalLink className="h-3 w-3 shrink-0" />
                   </a>
                 </dd>
               </div>

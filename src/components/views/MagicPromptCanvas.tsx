@@ -233,7 +233,7 @@ export function MagicPromptCanvas({
           {/* Single Floating Command Bar */}
           <form onSubmit={handleSubmit} className="mt-7">
             <div className="flex flex-col gap-2 rounded-2xl border border-[#CBD5E1] bg-white p-2 shadow-lg shadow-slate-200/60 focus-within:border-[#2563EB] focus-within:ring-4 focus-within:ring-[#2563EB]/10 lg:flex-row lg:items-center">
-              <div className="relative flex-1">
+              <div className="relative min-w-0 flex-1">
                 <Globe className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   id="proba-url-input"
@@ -247,12 +247,12 @@ export function MagicPromptCanvas({
               </div>
 
               {/* Compact Segmented Budget Pill Inside Command Bar */}
-              <div className="flex flex-wrap items-center justify-center gap-1 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-1">
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-1 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-1 sm:justify-start">
                 <select
                   aria-label="Currency"
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
-                  className="h-9 rounded-lg bg-white px-2 text-caption font-semibold text-[#0F172A] border border-[#E2E8F0]"
+                  className="h-9 shrink-0 rounded-lg border border-[#E2E8F0] bg-white px-2 text-caption font-semibold text-[#0F172A] leading-none"
                 >
                   <option value="GBP">£ GBP</option>
                   <option value="USD">$ USD</option>

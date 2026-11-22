@@ -25,7 +25,7 @@ export const NativeSelect = forwardRef<HTMLSelectElement, SelectHTMLAttributes<H
   { className, ...props },
   ref
 ) {
-  return <select ref={ref} className={cn(controlBase, 'h-10 pr-8', className)} {...props} />;
+  return <select ref={ref} className={cn(controlBase, 'h-10 pr-2.5', className)} {...props} />;
 });
 
 export function Label({ htmlFor, children, required, className }: { htmlFor?: string; children: ReactNode; required?: boolean; className?: string }) {
