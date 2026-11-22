@@ -75,11 +75,11 @@ const campaignSchema = z.object({
 
 const summarySchema = z
   .object({
-    outcome: z.string().optional(),
-    asOf: z.string().optional(),
-    unknownMetrics: z.boolean().optional(),
-    metrics: z.array(metricRowSchema).optional(),
-    reviewWindowUntil: z.string().optional(),
+    outcome: z.string().nullable().optional(),
+    asOf: z.string().nullable().optional(),
+    unknownMetrics: z.union([z.boolean(), z.array(z.string())]).nullable().optional(),
+    metrics: z.array(metricRowSchema).nullable().optional(),
+    reviewWindowUntil: z.string().nullable().optional(),
   })
   .passthrough();
 
