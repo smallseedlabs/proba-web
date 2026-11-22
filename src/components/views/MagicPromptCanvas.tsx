@@ -248,16 +248,19 @@ export function MagicPromptCanvas({
 
               {/* Compact Segmented Budget Pill Inside Command Bar */}
               <div className="flex shrink-0 flex-wrap items-center justify-between gap-1 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-1 sm:justify-start">
-                <select
-                  aria-label="Currency"
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className="h-9 shrink-0 rounded-lg border border-[#E2E8F0] bg-white px-2 text-caption font-semibold text-[#0F172A] leading-none"
-                >
-                  <option value="GBP">£ GBP</option>
-                  <option value="USD">$ USD</option>
-                  <option value="EUR">€ EUR</option>
-                </select>
+                <div className="relative shrink-0">
+                  <select
+                    aria-label="Currency"
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value)}
+                    className="h-9 shrink-0 appearance-none rounded-lg border border-[#E2E8F0] bg-white pl-2.5 pr-6 text-caption font-semibold text-[#0F172A]"
+                  >
+                    <option value="GBP">£ GBP</option>
+                    <option value="USD">$ USD</option>
+                    <option value="EUR">€ EUR</option>
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+                </div>
                 {BUDGET_PRESETS.map((opt) => {
                   const active = !isCustom && budget === opt.amount;
                   return (
