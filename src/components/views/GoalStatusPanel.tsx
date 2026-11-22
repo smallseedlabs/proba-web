@@ -143,14 +143,14 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
   };
 
   const handleKillSwitch = async () => {
-    const killFn = (
-      client as { killSwitch?: () => Promise<{ ok?: boolean; paused?: number; failed?: number }> } | null
-    )?.killSwitch;
-    if (!killFn) return;
+    const killClient = client as unknown as {
+      killSwitch?: () => Promise<{ ok?: boolean; paused?: number; failed?: number }>;
+    } | null;
+    if (!killClient || typeof killClient.killSwitch !== 'function') return;
     setPausingTarget('kill_switch');
     setPauseError(null);
     try {
-      const res = await killFn();
+      const res = await killClient.killSwitch();
       setConfirmingKillSwitch(false);
       if (res && typeof res.failed === 'number' && res.failed > 0) {
         setPauseError(`Stopped ${res.paused ?? 0} campaign(s), but ${res.failed} failed to pause. Check platform connections.`);
