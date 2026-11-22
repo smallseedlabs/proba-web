@@ -361,6 +361,14 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
       if (isAttachPage) {
         autoApprovedRef.current.add(ask.askId);
         void respond(ev, { id: 'approve' });
+        continue;
+      }
+      // Once the operator has made the explicit 1-click "Approve Spend & Launch" decision
+      // for this goal in 1-Click Auto mode, auto-advance follow-up draft/launch asks so
+      // multi-step / multi-platform launches complete in 1 click instead of 3-4 clicks.
+      if (launchedGoalIdsRef.current.has(selected.goalId)) {
+        autoApprovedRef.current.add(ask.askId);
+        void respond(ev, { id: 'approve' });
       }
     }
   }, [mode, hasLiveCampaigns, selected, threadAsks, respond]);
@@ -699,13 +707,11 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                       }}
                       onLaunch={async (edited) => {
                         if (!launchEvent) return;
-                        if (launchAsk?.askType !== 'plan_approval') {
-                          launchedGoalIdsRef.current.add(selected.goalId);
-                          try {
-                            window.sessionStorage.setItem('proba.launchedGoalIds', JSON.stringify([...launchedGoalIdsRef.current]));
-                          } catch {
-                            // ignore storage errors
-                          }
+                        launchedGoalIdsRef.current.add(selected.goalId);
+                        try {
+                          window.sessionStorage.setItem('proba.launchedGoalIds', JSON.stringify([...launchedGoalIdsRef.current]));
+                        } catch {
+                          // ignore storage errors
                         }
                         setLaunchingAuto(true);
                         try {
