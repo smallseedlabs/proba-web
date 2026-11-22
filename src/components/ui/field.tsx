@@ -1,5 +1,5 @@
 import { forwardRef, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
-import { CircleAlert, ChevronDown } from 'lucide-react';
+import { CircleAlert } from 'lucide-react';
 import { cn } from '../../lib/utils/cn';
 
 const controlBase =
@@ -25,12 +25,7 @@ export const NativeSelect = forwardRef<HTMLSelectElement, SelectHTMLAttributes<H
   { className, ...props },
   ref
 ) {
-  return (
-    <div className="relative">
-      <select ref={ref} className={cn(controlBase, 'h-10 appearance-none pr-8', className)} {...props} />
-      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
-    </div>
-  );
+  return <select ref={ref} className={cn(controlBase, 'h-10 pr-2.5', className)} {...props} />;
 });
 
 export function Label({ htmlFor, children, required, className }: { htmlFor?: string; children: ReactNode; required?: boolean; className?: string }) {
