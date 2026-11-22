@@ -707,6 +707,9 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                       }}
                       onLaunch={async (edited) => {
                         if (!launchEvent) return;
+                        if (launchAsk?.askId) {
+                          autoApprovedRef.current.add(launchAsk.askId);
+                        }
                         launchedGoalIdsRef.current.add(selected.goalId);
                         try {
                           window.sessionStorage.setItem('proba.launchedGoalIds', JSON.stringify([...launchedGoalIdsRef.current]));
