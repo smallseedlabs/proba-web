@@ -363,19 +363,8 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
         void respond(ev, { id: 'approve' });
         continue;
       }
-      // Once the operator has made the explicit 1-click "Approve Spend & Launch" decision
-      // for this goal in 1-Click Auto mode, auto-advance follow-up draft/launch asks so
-      // multi-cell and multi-platform launches complete in 1 click instead of stalling after Cell 1.
-      const isLaunchFlowAsk =
-        ask.askType === 'plan_approval' ||
-        toolName === 'creative.draft_post' ||
-        toolName === 'ads.create_campaign' ||
-        /create_campaign|draft_post/i.test(ask.title) ||
-        String(ev.ui?.component ?? '').includes('creative_draft');
-      if (launchedGoalIdsRef.current.has(selected.goalId) && isLaunchFlowAsk) {
-        autoApprovedRef.current.add(ask.askId);
-        void respond(ev, { id: 'approve' });
-      }
+      // G1 invariant: plan_approval, creative drafts, ads.create_campaign and every other spend ask
+      // are answered only by an explicit operator click on that ask. Nothing here may answer them.
     }
   }, [mode, hasLiveCampaigns, selected, threadAsks, respond]);
 

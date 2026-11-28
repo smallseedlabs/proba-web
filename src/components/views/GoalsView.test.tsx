@@ -398,5 +398,12 @@ describe('GoalsView header', () => {
         })
       )
     );
+    // G1 invariant: approving the plan must never auto-answer the follow-up spend ask.
+    await new Promise((r) => setTimeout(r, 300));
+    const answeredIds = sendCommand.mock.calls.map(
+      (c) => ((c[0] as { payload?: { askId?: string } }).payload ?? {}).askId
+    );
+    expect(answeredIds).not.toContain('ask_spend');
+    expect(answeredIds.filter((id) => id === 'ask_plan')).toHaveLength(1);
   });
 });
