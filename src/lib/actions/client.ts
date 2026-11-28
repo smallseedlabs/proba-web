@@ -132,7 +132,7 @@ const creativeResponseSchema = z.object({
   creative: creativeSchema.nullable(),
   targeting: z.record(z.string(), z.unknown()).nullable(),
   approvedAt: z.string().nullable(),
-});
+}).passthrough();
 
 const nullableNumber = z.number().nullable();
 const campaignDeliverySchema = z.object({
@@ -160,6 +160,7 @@ const goalStatusSchema = z.object({
     campaigns: z.array(
       z.object({
         probaCampaignId: z.string(),
+        campaignName: z.string().nullable().optional(),
         platform: z.string(),
         accountId: z.string().nullable().optional(),
         providerCampaignId: z.string().nullable().optional(),
@@ -168,12 +169,12 @@ const goalStatusSchema = z.object({
         reviewEnabled: z.boolean(),
         lastReviewedAt: z.string().nullable(),
         delivery: campaignDeliverySchema.nullable().optional(),
-      })
+      }).passthrough()
     ),
     pendingProposals: z.number(),
   }),
   next: z.object({ checkAt: z.string(), reason: z.string().nullable(), probaCampaignId: z.string() }).nullable(),
-  spend: z.object({ spent: nullableNumber, dailyCap: nullableNumber, totalCap: nullableNumber, currency: z.string().nullable() }),
+  spend: z.object({ spent: nullableNumber, dailyCap: nullableNumber, totalCap: nullableNumber, currency: z.string().nullable(), paceRatio: nullableNumber.optional() }).passthrough(),
   progress: z.object({ metric: z.string().nullable(), target: nullableNumber, actual: nullableNumber, checkpointsDone: z.array(z.string()) }),
   decisions: z.array(
     z.object({
@@ -190,7 +191,7 @@ const goalStatusSchema = z.object({
       proposal: z.object({ id: z.string(), verb: z.string(), status: z.string() }).nullable(),
     })
   ),
-});
+}).passthrough();
 
 const providerAccountSchema = z.object({
   id: z.string(),
@@ -264,7 +265,7 @@ export const creativeVariantSchema = z.object({
 });
 export type CreativeVariantRecord = z.infer<typeof creativeVariantSchema>;
 export type GoalStatus = z.infer<typeof goalStatusSchema>;
-export type ReviewIntent = 'report' | 'propose_pause' | 'propose_cap';
+export type ReviewIntent = 'report' | 'propose_pause' | 'propose_cap' | 'brain';
 
 export interface RegisterCampaignInput {
   goalId: string;
@@ -320,8 +321,10 @@ export interface ActionsClient {
   /** Goal page: Now / Next / Spend vs cap / Progress / Recent decisions (audited numbers; unknown is null). */
   getGoalStatus(goalId: string, signal?: AbortSignal): Promise<GoalStatus>;
   pauseGoal?(goalId: string): Promise<{ paused: number; failed: number }>;
+  resumeGoal?(goalId: string): Promise<{ resumed: number; failed: number }>;
   cancelGoal?(goalId: string): Promise<{ goalId: string; status: string; paused: number; failed: number; proposalsCancelled: number }>;
   pauseCampaign?(campaignId: string): Promise<{ paused: number; failed: number }>;
+  resumeCampaign?(campaignId: string): Promise<{ resumed: number; failed: number }>;
   cancelCampaign?(campaignId: string): Promise<{ probaCampaignId: string; paused: number; failed: number; proposalsCancelled: number }>;
   saveCreative(goalId: string, creative: ApprovedCreative, targeting?: Record<string, unknown>): Promise<CreativeRecord>;
   /** Marketing: ad platform connections for this workspace (Hub keeps all provider secrets). */
@@ -475,6 +478,11 @@ export class HubActionsClient implements ActionsClient {
     return this.parse(z.object({ paused: z.number(), failed: z.number() }), body);
   }
 
+  async resumeGoal(goalId: string) {
+    const body = await this.request('POST', `/v1/goals/${encodeURIComponent(goalId)}/resume`, {});
+    return this.parse(z.object({ resumed: z.number(), failed: z.number() }), body);
+  }
+
   async cancelGoal(goalId: string) {
     const body = await this.request('POST', `/v1/goals/${encodeURIComponent(goalId)}/cancel`, {});
     return this.parse(
@@ -492,6 +500,11 @@ export class HubActionsClient implements ActionsClient {
   async pauseCampaign(campaignId: string) {
     const body = await this.request('POST', `/v1/campaigns/${encodeURIComponent(campaignId)}/pause`, {});
     return this.parse(z.object({ paused: z.number(), failed: z.number() }), body);
+  }
+
+  async resumeCampaign(campaignId: string) {
+    const body = await this.request('POST', `/v1/campaigns/${encodeURIComponent(campaignId)}/resume`, {});
+    return this.parse(z.object({ resumed: z.number(), failed: z.number() }), body);
   }
 
   async cancelCampaign(campaignId: string) {

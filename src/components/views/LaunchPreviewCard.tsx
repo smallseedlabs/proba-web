@@ -6,6 +6,7 @@ import { formatCurrency } from '../../lib/utils/format';
 import { cn } from '../../lib/utils/cn';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
+import { RichText } from '../registry/basic';
 
 const THINKING_STEPS = [
   'Scanning your landing page & pricing...',
@@ -108,7 +109,62 @@ export function LaunchPreviewCard({
 
   if (!ask) {
     const liveMessage = status?.message || status?.detail;
-    if (assistantReply && status?.state !== 'error') {
+    if (status?.state === 'error' || assistantReply?.startsWith('Error:')) {
+      return (
+        <div className="rounded-2xl border border-red-200 bg-white p-6 text-[#09090B] shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-3 py-1 text-caption font-semibold text-red-700">
+              Action Needed
+            </span>
+            <div className="flex items-center gap-3">
+              <a href="#/goals" className="text-caption font-semibold text-[#2563EB] hover:underline">
+                Try again
+              </a>
+              {canSwitchMode && (
+                <button
+                  type="button"
+                  onClick={onSwitchToControlled}
+                  className="inline-flex items-center gap-1 text-caption font-medium text-slate-500 hover:text-[#09090B]"
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  Pro View
+                </button>
+              )}
+            </div>
+          </div>
+          <h2 className="mt-3 text-xl font-bold text-[#09090B]">{goalTitle}</h2>
+          <div className="mt-2 rounded-xl border border-red-100 bg-red-50/70 p-3.5 text-body text-red-800">
+            <RichText
+              text={
+                assistantReply?.startsWith('Error:')
+                  ? assistantReply.replace(/^Error:\s*/, '')
+                  : liveMessage || 'The agent encountered an error while preparing this campaign.'
+              }
+              className="text-red-800"
+            />
+          </div>
+          {onConnectPlatform && !hasConnectedPlatform && !isInstantManaged && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => onConnectPlatform('meta')}
+                className="rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-caption font-semibold text-[#09090B] hover:bg-slate-50"
+              >
+                Connect Meta
+              </button>
+              <button
+                type="button"
+                onClick={() => onConnectPlatform('reddit')}
+                className="rounded-lg border border-[#CBD5E1] bg-white px-3 py-1.5 text-caption font-semibold text-[#09090B] hover:bg-slate-50"
+              >
+                Connect Reddit
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+    if (!isPublishing && assistantReply) {
       return (
         <div className="rounded-2xl border border-amber-200 bg-white p-6 text-[#09090B] shadow-sm space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -132,8 +188,8 @@ export function LaunchPreviewCard({
             </div>
           </div>
           <h2 className="text-xl font-bold text-[#09090B]">{goalTitle}</h2>
-          <div className="whitespace-pre-wrap rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] p-4 text-body text-slate-700 leading-relaxed">
-            {assistantReply}
+          <div className="rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] p-4 text-body text-slate-700 leading-relaxed">
+            <RichText text={assistantReply} className="text-slate-700" />
           </div>
           {onReply && (
             <form
@@ -189,9 +245,9 @@ export function LaunchPreviewCard({
             )}
           </div>
           <h2 className="mt-3 text-xl font-bold text-[#09090B]">{goalTitle}</h2>
-          <p className="mt-2 rounded-xl border border-red-100 bg-red-50/70 p-3.5 text-body text-red-800">
-            {liveMessage || 'The agent encountered an error while preparing this campaign.'}
-          </p>
+          <div className="mt-2 rounded-xl border border-red-100 bg-red-50/70 p-3.5 text-body text-red-800">
+            <RichText text={liveMessage || 'The agent encountered an error while preparing this campaign.'} className="text-red-800" />
+          </div>
           {onConnectPlatform && !hasConnectedPlatform && !isInstantManaged && (
             <div className="mt-4 flex flex-wrap gap-2">
               <button
@@ -310,12 +366,22 @@ export function LaunchPreviewCard({
     );
   }
 
+  const uiArgs =
+    uiProps.args && typeof uiProps.args === 'object' && !Array.isArray(uiProps.args)
+      ? (uiProps.args as Record<string, unknown>)
+      : {};
   const platform =
     typeof plan.platform === 'string'
       ? plan.platform
-      : Array.isArray(targeting.platforms) && typeof targeting.platforms[0] === 'string'
-        ? String(targeting.platforms[0]).toLowerCase()
-        : 'reddit';
+      : typeof uiProps.platform === 'string'
+        ? uiProps.platform
+        : typeof uiArgs.platform === 'string'
+          ? uiArgs.platform
+          : Array.isArray(targeting.platforms) && typeof targeting.platforms[0] === 'string'
+            ? String(targeting.platforms[0]).toLowerCase()
+            : /\bmeta\b/i.test(ask.description ?? '')
+              ? 'meta'
+              : 'reddit';
 
   const platformLabel = platform === 'meta' ? 'Meta Feed' : platform === 'reddit' ? 'Reddit Ads' : platform.toUpperCase();
   const budgetValue =
@@ -339,6 +405,10 @@ export function LaunchPreviewCard({
   const communities = Array.isArray(targeting.communities)
     ? (targeting.communities as string[]).slice(0, 4).join(', ')
     : null;
+  const interests = Array.isArray(targeting.interests)
+    ? (targeting.interests as string[]).slice(0, 4).join(', ')
+    : null;
+  const audienceSummary = communities ?? interests;
   const rationale = typeof draft.rationale === 'string' && draft.rationale.trim() ? draft.rationale.trim() : null;
   const planReasons =
     plan.reasons && typeof plan.reasons === 'object' && !Array.isArray(plan.reasons)
@@ -357,8 +427,12 @@ export function LaunchPreviewCard({
               Agent Decision Ready
             </Badge>
             <Badge tone="neutral">{platformLabel}</Badge>
-            <Badge tone={hasConnectedPlatform ? 'success' : 'neutral'}>
-              {hasConnectedPlatform ? 'Account: Your Account' : 'Account: Proba Managed'}
+            <Badge tone={hasConnectedPlatform ? 'success' : isInstantManaged ? 'neutral' : 'warning'}>
+              {hasConnectedPlatform
+                ? 'Account: Your Account'
+                : isInstantManaged
+                  ? 'Account: Proba Managed'
+                  : 'Account: Connect to Publish'}
             </Badge>
           </div>
           <h2 className="mt-2 text-xl font-bold text-[#0B0D12]">{goalTitle}</h2>
@@ -403,7 +477,7 @@ export function LaunchPreviewCard({
               <dt className="text-caption text-slate-500">Platform &amp; Audience</dt>
               <dd className="font-semibold text-[#0B0D12]">
                 {platformLabel}
-                {communities ? ` · ${communities}` : ' · High-intent buyers matched from your site'}
+                {audienceSummary ? ` · ${audienceSummary}` : ' · High-intent buyers matched from your site'}
               </dd>
             </div>
             <div>
@@ -426,7 +500,11 @@ export function LaunchPreviewCard({
             {(rationale || planReasons.length > 0) && (
               <div className="rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] p-3 text-caption">
                 <dt className="font-semibold text-[#0B0D12]">Why Proba chose this</dt>
-                {rationale && <dd className="mt-1 text-slate-600">{rationale}</dd>}
+                {rationale && (
+                  <dd className="mt-1 text-slate-600">
+                    <RichText text={rationale} className="text-caption text-slate-600" />
+                  </dd>
+                )}
                 {planReasons.length > 0 && (
                   <ul className="mt-1.5 space-y-1 text-[12px] text-slate-600">
                     {planReasons.map((r) => (

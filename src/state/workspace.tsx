@@ -259,7 +259,7 @@ export function WorkspaceProvider({
       // Accepted is not applied: state.operations changes only when the Hub's status event arrives.
       return ok;
     },
-    [send, notify, transport, onSessionExpired]
+    [send, notify]
   );
 
   const createGoal = useCallback(
@@ -281,7 +281,7 @@ export function WorkspaceProvider({
       }
       return ok;
     },
-    [send, notify, transport, onSessionExpired]
+    [send, notify]
   );
 
   const api = useMemo<WorkspaceApi>(

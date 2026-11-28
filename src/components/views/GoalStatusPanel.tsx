@@ -84,6 +84,7 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
   const metric = progress.metric;
   const reasons = plan && typeof plan.reasons === 'object' && plan.reasons !== null ? (plan.reasons as Record<string, unknown>) : {};
   const hasPausableCampaign = !isCancelled && now.campaigns.some((c) => c.providerCampaignId && c.delivery?.state !== 'paused');
+  const hasResumableCampaign = !isCancelled && now.campaigns.some((c) => c.providerCampaignId && c.delivery?.state === 'paused');
 
   const handlePauseGoal = async () => {
     if (!client || typeof client.pauseGoal !== 'function') return;
@@ -99,6 +100,20 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
     }
   };
 
+  const handleResumeGoal = async () => {
+    if (!client || typeof client.resumeGoal !== 'function') return;
+    setPausingTarget('resume_goal');
+    setPauseError(null);
+    try {
+      await client.resumeGoal(goalId);
+      setLocalRefresh((n) => n + 1);
+    } catch (err) {
+      setPauseError(err instanceof Error ? err.message : 'Failed to activate goal campaigns.');
+    } finally {
+      setPausingTarget(null);
+    }
+  };
+
   const handlePauseCampaign = async (probaCampaignId: string) => {
     if (!client || typeof client.pauseCampaign !== 'function') return;
     setPausingTarget(probaCampaignId);
@@ -108,6 +123,34 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
       setLocalRefresh((n) => n + 1);
     } catch (err) {
       setPauseError(err instanceof Error ? err.message : 'Failed to pause platform campaign.');
+    } finally {
+      setPausingTarget(null);
+    }
+  };
+
+  const handleResumeCampaign = async (probaCampaignId: string) => {
+    if (!client || typeof client.resumeCampaign !== 'function') return;
+    setPausingTarget(`resume_${probaCampaignId}`);
+    setPauseError(null);
+    try {
+      await client.resumeCampaign(probaCampaignId);
+      setLocalRefresh((n) => n + 1);
+    } catch (err) {
+      setPauseError(err instanceof Error ? err.message : 'Failed to activate platform campaign.');
+    } finally {
+      setPausingTarget(null);
+    }
+  };
+
+  const handleRunReviewCampaign = async (probaCampaignId: string) => {
+    if (!client || typeof client.requestReview !== 'function') return;
+    setPausingTarget(`review_${probaCampaignId}`);
+    setPauseError(null);
+    try {
+      await client.requestReview(probaCampaignId, { intent: 'brain' });
+      setLocalRefresh((n) => n + 1);
+    } catch (err) {
+      setPauseError(err instanceof Error ? err.message : 'Failed to run AI campaign review.');
     } finally {
       setPausingTarget(null);
     }
@@ -192,7 +235,9 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
       <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <dt className="text-caption text-muted-foreground">Now</dt>
-          <dd className="mt-0.5 text-body font-semibold text-foreground">{NOW_LABELS[now.state]}</dd>
+          <dd className="mt-0.5 text-body font-semibold text-foreground">
+            {isCancelled ? (goal.status === 'inactive' ? 'Inactive' : 'Cancelled') : NOW_LABELS[now.state]}
+          </dd>
           {now.campaigns.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1.5">
               {now.campaigns.map((c) => (
@@ -274,6 +319,16 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-caption font-semibold uppercase tracking-wide text-muted-foreground">Platforms &amp; delivery status</h2>
           <div className="flex flex-wrap items-center gap-2">
+            {hasResumableCampaign && client && typeof client.resumeGoal === 'function' ? (
+              <button
+                type="button"
+                disabled={pausingTarget !== null}
+                onClick={handleResumeGoal}
+                className="rounded border border-emerald-500/50 bg-emerald-500/10 px-2.5 py-1 text-caption font-semibold text-emerald-700 hover:bg-emerald-500/20 disabled:opacity-50"
+              >
+                {pausingTarget === 'resume_goal' ? 'Activating all…' : 'Activate all ads'}
+              </button>
+            ) : null}
             {hasPausableCampaign && client && typeof client.pauseGoal === 'function' ? (
               <button
                 type="button"
@@ -354,6 +409,8 @@ export function GoalStatusPanel({ goalId, refreshKey }: { goalId: string; refres
           campaigns={now.campaigns}
           variants={variants}
           onPauseCampaign={!isCancelled && client && typeof client.pauseCampaign === 'function' ? handlePauseCampaign : undefined}
+          onResumeCampaign={!isCancelled && client && typeof client.resumeCampaign === 'function' ? handleResumeCampaign : undefined}
+          onRunReviewCampaign={!isCancelled && client && typeof client.requestReview === 'function' ? handleRunReviewCampaign : undefined}
           onCancelCampaign={!isCancelled && client && typeof client.cancelCampaign === 'function' ? handleCancelCampaign : undefined}
           onEnhanceVariant={
             !isCancelled && client && typeof client.enhanceGoalCreative === 'function' ? setEnhancingVariant : undefined

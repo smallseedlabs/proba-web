@@ -84,11 +84,18 @@ export function DecisionInbox({
     }
   };
 
-  const blockedCampaigns = (goalStatus?.now.campaigns ?? []).filter(
-    (c) => c.delivery && (c.delivery.state === 'rejected' || c.delivery.state === 'not_delivering')
-  );
+  const isGoalCancelled =
+    goalStatus?.goal.status === 'cancelled' || goalStatus?.goal.status === 'inactive';
 
-  if (proposals.length === 0 && openAsks.length === 0 && blockedCampaigns.length === 0) {
+  const blockedCampaigns = isGoalCancelled
+    ? []
+    : (goalStatus?.now.campaigns ?? []).filter(
+        (c) => c.delivery && (c.delivery.state === 'rejected' || c.delivery.state === 'not_delivering')
+      );
+
+  const visibleOpenAsks = isGoalCancelled ? [] : openAsks;
+
+  if (proposals.length === 0 && visibleOpenAsks.length === 0 && blockedCampaigns.length === 0) {
     return null;
   }
 
@@ -131,15 +138,15 @@ export function DecisionInbox({
         );
       })}
 
-      {openAsks.length > 0 && onOpenCopilot && (
+      {visibleOpenAsks.length > 0 && onOpenCopilot && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warning/40 bg-warning-subtle/40 p-4 shadow-card">
           <div className="flex items-center gap-2.5">
             <AlertTriangle className="h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
             <div>
               <p className="text-body font-semibold text-foreground">
-                {openAsks.length === 1
+                {visibleOpenAsks.length === 1
                   ? '1 action is waiting for your approval'
-                  : `${openAsks.length} actions are waiting for your approval`}
+                  : `${visibleOpenAsks.length} actions are waiting for your approval`}
               </p>
               <p className="text-caption text-muted-foreground">
                 Review and approve in the Co-pilot panel so Proba can execute on your connected platforms.

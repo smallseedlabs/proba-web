@@ -34,6 +34,8 @@ export function PlatformDeliveryMatrix({
   campaigns,
   variants = [],
   onPauseCampaign,
+  onResumeCampaign,
+  onRunReviewCampaign,
   onCancelCampaign,
   onEnhanceVariant,
   onPromoteVariant,
@@ -42,6 +44,8 @@ export function PlatformDeliveryMatrix({
   campaigns: CampaignItem[];
   variants?: CreativeVariantRecord[];
   onPauseCampaign?: (probaCampaignId: string) => void;
+  onResumeCampaign?: (probaCampaignId: string) => void;
+  onRunReviewCampaign?: (probaCampaignId: string) => void;
   onCancelCampaign?: (probaCampaignId: string) => void;
   onEnhanceVariant?: (variant: CreativeVariantRecord) => void;
   onPromoteVariant?: (variant: CreativeVariantRecord) => void;
@@ -69,6 +73,11 @@ export function PlatformDeliveryMatrix({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-body font-semibold text-foreground">{spec.displayName}</span>
+                {c.campaignName ? (
+                  <span className="text-caption font-medium text-muted-foreground">
+                    · {c.campaignName.replace(/&amp;/g, '&')}
+                  </span>
+                ) : null}
                 <Badge tone={tone} dot>
                   {delivery ? delivery.label : 'Registered'}
                 </Badge>
@@ -81,11 +90,21 @@ export function PlatformDeliveryMatrix({
                   <span className="font-mono text-caption text-muted-foreground">ID {c.providerCampaignId}</span>
                 ) : null}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {c.currentDailyBudget !== null ? (
                   <span className="text-caption font-medium tabular-nums text-muted-foreground">
                     {money(c.currentDailyBudget, c.currency)}/day
                   </span>
+                ) : null}
+                {onResumeCampaign && c.providerCampaignId && delivery?.state === 'paused' ? (
+                  <button
+                    type="button"
+                    disabled={pausingId !== null && pausingId !== undefined}
+                    onClick={() => onResumeCampaign(c.probaCampaignId)}
+                    className="rounded border border-emerald-500/50 bg-emerald-500/10 px-2 py-0.5 text-caption font-semibold text-emerald-700 hover:bg-emerald-500/20 disabled:opacity-50"
+                  >
+                    {pausingId === `resume_${c.probaCampaignId}` ? 'Activating…' : `Activate ${spec.shortLabel}`}
+                  </button>
                 ) : null}
                 {onPauseCampaign && c.providerCampaignId && delivery?.state !== 'paused' ? (
                   <button
@@ -95,6 +114,16 @@ export function PlatformDeliveryMatrix({
                     className="rounded border border-input/70 bg-surface px-2 py-0.5 text-caption font-medium text-foreground hover:bg-muted disabled:opacity-50"
                   >
                     {pausingId === c.probaCampaignId ? 'Pausing…' : `Pause ${spec.shortLabel}`}
+                  </button>
+                ) : null}
+                {onRunReviewCampaign && c.providerCampaignId ? (
+                  <button
+                    type="button"
+                    disabled={pausingId !== null && pausingId !== undefined}
+                    onClick={() => onRunReviewCampaign(c.probaCampaignId)}
+                    className="rounded border border-primary/40 bg-primary/10 px-2 py-0.5 text-caption font-medium text-primary hover:bg-primary/20 disabled:opacity-50"
+                  >
+                    {pausingId === `review_${c.probaCampaignId}` ? 'Reviewing…' : 'AI Review'}
                   </button>
                 ) : null}
                 {onCancelCampaign && (c.reviewEnabled || (c.providerCampaignId && delivery?.state !== 'paused')) ? (

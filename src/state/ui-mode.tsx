@@ -82,6 +82,7 @@ export function UIModeProvider({
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useUIMode(): UIModeContextValue {
   return useContext(UIModeContext);
 }

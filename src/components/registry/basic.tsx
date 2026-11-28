@@ -5,11 +5,21 @@ import { cn } from '../../lib/utils/cn';
 import { formatDateTime } from '../../lib/utils/format';
 import type { ComponentRendererProps } from './types';
 
-/** Minimal, safe Markdown: paragraphs, bullet lists and **bold**. No HTML is injected. */
+/** Minimal, safe Markdown: paragraphs, bullet lists, **bold**, and `code`. No HTML is injected. */
 function renderInline(text: string): ReactNode[] {
-  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
-    part.startsWith('**') && part.endsWith('**') ? <strong key={i}>{part.slice(2, -2)}</strong> : <span key={i}>{part}</span>
-  );
+  return text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g).map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i}>{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith('`') && part.endsWith('`') && part.length > 2) {
+      return (
+        <code key={i} className="rounded bg-muted px-1 py-0.5 font-mono text-[0.9em]">
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    return <span key={i}>{part}</span>;
+  });
 }
 
 export function RichText({ text, className }: { text: string; className?: string }) {

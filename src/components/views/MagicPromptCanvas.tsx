@@ -62,7 +62,7 @@ const ENGINE_LABELS: Record<GeoEngine, string> = {
 };
 
 export function MagicPromptCanvas({
-  hasConnectedPlatform,
+  hasConnectedPlatform: _hasConnectedPlatform,
   platformConnections,
   defaultCurrency = 'GBP',
   userRole,
@@ -87,7 +87,7 @@ export function MagicPromptCanvas({
   const [customBudget, setCustomBudget] = useState('');
   const [isCustom, setIsCustom] = useState(false);
   const [rail, setRail] = useState<'managed' | 'byo'>(
-    userRole === 'instant_managed' ? 'managed' : hasConnectedPlatform ? 'byo' : 'managed'
+    userRole === 'instant_managed' ? 'managed' : 'byo'
   );
   const [previewChannel, setPreviewChannel] = useState<'meta' | 'reddit'>('meta');
   const [showArchived, setShowArchived] = useState(false);

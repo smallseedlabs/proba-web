@@ -327,7 +327,7 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
         }
       });
     return () => controller.abort();
-  }, [actionsClient]);
+  }, [actionsClient, userRole]);
 
   // Auto-navigate to the newly created goal when submitted from MagicPromptCanvas
   useEffect(() => {
@@ -343,13 +343,13 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
   // In 1-Click Auto Mode, only auto-advance non-spend prerequisites (URL attach & research review).
   // plan_approval, ads.create_campaign, and action_approval always require an explicit user click (H0-01).
   useEffect(() => {
-    if (mode !== 'auto' || hasLiveCampaigns || !selected) return;
+    if (mode !== 'auto' || !selected) return;
     for (const ev of threadAsks) {
       const ask = askPayload(ev);
       if (!ask || autoApprovedRef.current.has(ask.askId)) continue;
       const uiProps = (ev.ui?.props ?? {}) as Record<string, unknown>;
       const toolName = typeof uiProps.toolName === 'string' ? uiProps.toolName : '';
-      if (ask.askType === 'research_review') {
+      if (!hasLiveCampaigns && ask.askType === 'research_review') {
         const built = buildResearchAnswerPayload(ask, 'approve');
         if (built.ok) {
           autoApprovedRef.current.add(ask.askId);
@@ -358,20 +358,41 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
         continue;
       }
       const isAttachPage = toolName === 'page.attach_user_page' || /attach_user_page/i.test(ask.title);
-      if (isAttachPage) {
+      if (!hasLiveCampaigns && isAttachPage) {
         autoApprovedRef.current.add(ask.askId);
         void respond(ev, { id: 'approve' });
         continue;
       }
       // Once the operator has made the explicit 1-click "Approve Spend & Launch" decision
       // for this goal in 1-Click Auto mode, auto-advance follow-up draft/launch asks so
-      // multi-step / multi-platform launches complete in 1 click instead of 3-4 clicks.
-      if (launchedGoalIdsRef.current.has(selected.goalId)) {
+      // multi-cell and multi-platform launches complete in 1 click instead of stalling after Cell 1.
+      const isLaunchFlowAsk =
+        ask.askType === 'plan_approval' ||
+        toolName === 'creative.draft_post' ||
+        toolName === 'ads.create_campaign' ||
+        /create_campaign|draft_post/i.test(ask.title) ||
+        String(ev.ui?.component ?? '').includes('creative_draft');
+      if (launchedGoalIdsRef.current.has(selected.goalId) && isLaunchFlowAsk) {
         autoApprovedRef.current.add(ask.askId);
         void respond(ev, { id: 'approve' });
       }
     }
   }, [mode, hasLiveCampaigns, selected, threadAsks, respond]);
+
+  // Fast status sync while a 1-click launch is publishing so Bento Command Center opens immediately without reload
+  useEffect(() => {
+    if (mode !== 'auto' || hasLiveCampaigns || !actionsClient || !selected?.goalId) return;
+    if (!launchedGoalIdsRef.current.has(selected.goalId)) return;
+    const timer = window.setInterval(() => {
+      void actionsClient
+        .getGoalStatus(selected.goalId)
+        .then((s) => {
+          if (s.now.campaigns.length > 0) setGoalStatus(s);
+        })
+        .catch(() => {});
+    }, 1500);
+    return () => window.clearInterval(timer);
+  }, [mode, hasLiveCampaigns, actionsClient, selected?.goalId, state.events.length]);
 
   const launchEvent = useMemo(
     () =>
@@ -681,13 +702,19 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                       onReply={
                         selected.threadId
                           ? async (text) => {
-                              await sendMessage(selected.threadId!, text);
+                              await sendMessage(text, selected.threadId!);
                             }
                           : undefined
                       }
                       dailyBudget={selected.metrics?.budget ?? 25}
                       currency={selected.metrics?.currency ?? accountCurrency}
-                      isPublishing={Boolean(selected && launchedGoalIdsRef.current.has(selected.goalId) && !launchAsk)}
+                      isPublishing={Boolean(
+                        selected &&
+                          launchedGoalIdsRef.current.has(selected.goalId) &&
+                          !launchAsk &&
+                          status?.state !== 'error' &&
+                          !latestAssistantMessage?.startsWith('Error:')
+                      )}
                       isInstantManaged={userRole === 'instant_managed'}
                       hasConnectedPlatform={hasConnectedPlatform}
                       canSwitchMode={canSwitchMode}
@@ -730,7 +757,9 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                   )}
                   {mode === 'auto' && hasLiveCampaigns && goalStatus && (() => {
                     const isCancelled = goalStatus.goal.status === 'cancelled';
-                    const isPaused = goalStatus.goal.status === 'paused';
+                    const hasPausedCells = goalStatus.now.campaigns.some((c) => c.providerCampaignId && c.delivery?.state === 'paused');
+                    const hasActiveCells = goalStatus.now.campaigns.some((c) => c.providerCampaignId && c.delivery?.state !== 'paused');
+                    const isPaused = goalStatus.goal.status === 'paused' || (hasPausedCells && !hasActiveCells);
                     const statusDot = isCancelled
                       ? 'bg-red-500'
                       : isPaused
@@ -739,7 +768,7 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                     const statusText = isCancelled
                       ? 'Cancelled'
                       : isPaused
-                        ? 'Paused'
+                        ? 'Paused (Ready to Activate)'
                         : goalStatus.now.state === 'running'
                           ? 'Live & Optimizing'
                           : 'Active';
@@ -786,7 +815,53 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                             >
                               + New Campaign
                             </a>
-                            {actionsClient && typeof actionsClient.pauseGoal === 'function' && !isCancelled && !isPaused && (
+                            {actionsClient && typeof actionsClient.resumeGoal === 'function' && !isCancelled && hasPausedCells && (
+                              <button
+                                type="button"
+                                disabled={autoActionBusy}
+                                onClick={async () => {
+                                  setAutoActionBusy(true);
+                                  setAutoActionError(null);
+                                  try {
+                                    await actionsClient.resumeGoal!(selected.goalId);
+                                    const refreshed = await actionsClient.getGoalStatus(selected.goalId);
+                                    setGoalStatus(refreshed);
+                                  } catch (err) {
+                                    setAutoActionError((err as Error).message || 'Could not activate campaign.');
+                                  } finally {
+                                    setAutoActionBusy(false);
+                                  }
+                                }}
+                                className="rounded-lg bg-[#10B981] px-3 py-1.5 text-caption font-semibold text-white hover:bg-[#059669] disabled:opacity-50"
+                              >
+                                Activate Ads
+                              </button>
+                            )}
+                            {actionsClient && typeof actionsClient.requestReview === 'function' && !isCancelled && goalStatus.now.campaigns.length > 0 && (
+                              <button
+                                type="button"
+                                disabled={autoActionBusy}
+                                onClick={async () => {
+                                  setAutoActionBusy(true);
+                                  setAutoActionError(null);
+                                  try {
+                                    for (const c of goalStatus.now.campaigns) {
+                                      await actionsClient.requestReview(c.probaCampaignId, { intent: 'brain' });
+                                    }
+                                    const refreshed = await actionsClient.getGoalStatus(selected.goalId);
+                                    setGoalStatus(refreshed);
+                                  } catch (err) {
+                                    setAutoActionError((err as Error).message || 'Could not run AI campaign review.');
+                                  } finally {
+                                    setAutoActionBusy(false);
+                                  }
+                                }}
+                                className="rounded-lg border border-[#2563EB]/40 bg-blue-50 px-3 py-1.5 text-caption font-semibold text-[#1D4ED8] hover:bg-blue-100 disabled:opacity-50"
+                              >
+                                Run AI Review
+                              </button>
+                            )}
+                            {actionsClient && typeof actionsClient.pauseGoal === 'function' && !isCancelled && hasActiveCells && (
                               <button
                                 type="button"
                                 disabled={autoActionBusy}
@@ -868,6 +943,25 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                           <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3.5 py-2 text-caption text-red-700">
                             {autoActionError}
                           </p>
+                        )}
+                        {latestAssistantMessage && /cap|exceeded|blocked|refused|option/i.test(latestAssistantMessage) && (
+                          <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/70 px-3.5 py-2.5 text-caption text-amber-900">
+                            <p className="min-w-0 flex-1 line-clamp-2">
+                              <span className="font-semibold">Proba Co-pilot Note:</span> {latestAssistantMessage.replace(/\*\*/g, '')}
+                            </p>
+                            {canSwitchMode && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setMode('controlled');
+                                  setCopilotOverride(true);
+                                }}
+                                className="shrink-0 font-semibold text-[#2563EB] hover:underline"
+                              >
+                                View options →
+                              </button>
+                            )}
+                          </div>
                         )}
 
                         {/* 6-Metric Live Telemetry Strip */}
@@ -960,14 +1054,24 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                               return (
                                 <li key={c.probaCampaignId} className="rounded-xl border border-[#E5E7EB] bg-[#FAFAFA] p-3 text-caption">
                                   <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex flex-wrap items-center gap-2 min-w-0">
                                       <span className={cn(
                                         'rounded px-1.5 py-0.5 text-[10px] font-bold uppercase',
                                         c.platform === 'meta' ? 'bg-blue-50 text-blue-700' : 'bg-orange-50 text-orange-700'
                                       )}>
                                         {c.platform}
                                       </span>
-                                      <span className="font-medium text-[#09090B]">{c.delivery?.label ?? 'Active'}</span>
+                                      {c.campaignName && (
+                                        <span className="truncate font-semibold text-[#09090B]">
+                                          {c.campaignName.replace(/&amp;/g, '&')}
+                                        </span>
+                                      )}
+                                      <span className="font-medium text-slate-600">{c.delivery?.label ?? 'Active'}</span>
+                                      {c.currentDailyBudget != null && (
+                                        <span className="font-mono text-[11px] text-slate-500">
+                                          · {formatCurrency(c.currentDailyBudget, c.currency ?? capCurrency)}/d
+                                        </span>
+                                      )}
                                     </div>
                                     {(c.delivery?.postUrl || c.delivery?.previewUrl) && (
                                       <a
@@ -1044,9 +1148,8 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                         landingPageUrl=""
                         onSendProposalToCopilot={(promptText) => {
                           setCopilotOverride(true);
-                          const sendFn = (workspace as unknown as { send?: (threadId: string, text: string) => void }).send;
-                          if (typeof sendFn === 'function' && selected.threadId) {
-                            sendFn(selected.threadId, promptText);
+                          if (selected.threadId) {
+                            void sendMessage(promptText, selected.threadId);
                           } else {
                             navigator.clipboard?.writeText(promptText);
                           }
