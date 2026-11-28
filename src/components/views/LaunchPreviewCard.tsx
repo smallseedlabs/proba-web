@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ExternalLink, Pencil, Rocket, ShieldCheck, SlidersHorizontal, Sparkles } from 'lucide-react';
 import type { AskPayload } from '../../lib/protocol';
+import { cardDailyBudget, cardDestination, primaryActionLabel } from './launch-card-model';
 import type { IncomingEvent } from '../../lib/transport';
 import { formatCurrency } from '../../lib/utils/format';
 import { cn } from '../../lib/utils/cn';
@@ -384,12 +385,7 @@ export function LaunchPreviewCard({
               : 'reddit';
 
   const platformLabel = platform === 'meta' ? 'Meta Feed' : platform === 'reddit' ? 'Reddit Ads' : platform.toUpperCase();
-  const budgetValue =
-    typeof costImpact.proposed === 'number'
-      ? costImpact.proposed
-      : typeof uiProps.dailyBudget === 'number'
-        ? uiProps.dailyBudget
-        : dailyBudget;
+  const budgetValue = cardDailyBudget(costImpact, uiProps, plan, dailyBudget);
   const budgetCurrency =
     typeof costImpact.currency === 'string'
       ? costImpact.currency
@@ -397,10 +393,7 @@ export function LaunchPreviewCard({
         ? uiProps.currency
         : currency;
 
-  const destination =
-    typeof uiProps.landingPageUrl === 'string'
-      ? uiProps.landingPageUrl
-      : landingPageUrl;
+  const destination = cardDestination(uiProps, draft, landingPageUrl);
 
   const communities = Array.isArray(targeting.communities)
     ? (targeting.communities as string[]).slice(0, 4).join(', ')
@@ -593,15 +586,7 @@ export function LaunchPreviewCard({
           className="inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-6 py-2.5 text-body font-semibold text-white shadow-sm transition hover:bg-[#1D4ED8] disabled:opacity-50"
         >
           <Rocket className="h-4 w-4" />
-          {submitting
-            ? ask.askType === 'plan_approval'
-              ? 'Approving…'
-              : 'Launching…'
-            : ask.askType === 'plan_approval'
-              ? 'Approve Plan'
-              : uiProps.toolName === 'ads.create_campaign' || ask.askType === 'action_approval'
-                ? `Approve Spend & Launch (${formatCurrency(budgetValue, budgetCurrency)}/day)`
-                : `Launch Campaign (${formatCurrency(budgetValue, budgetCurrency)}/day)`}
+          {primaryActionLabel(ask, uiProps, formatCurrency(budgetValue, budgetCurrency), submitting)}
         </button>
       </div>
     </div>

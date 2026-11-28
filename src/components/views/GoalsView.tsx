@@ -24,6 +24,7 @@ import { Composer, ThreadView } from './Thread';
 import { NewGoalDialog } from './NewGoalDialog';
 import { GoalStatusPanel } from './GoalStatusPanel';
 import { GeoVisibilityPanel } from './GeoVisibilityPanel';
+import { goalLandingPageUrlFromAsks } from './launch-card-model';
 import { LaunchPreviewCard } from './LaunchPreviewCard';
 import { MagicPromptCanvas } from './MagicPromptCanvas';
 
@@ -695,6 +696,7 @@ export function GoalsView({ selectedId, session }: { selectedId?: string; sessio
                             }
                           : undefined
                       }
+                      landingPageUrl={goalLandingPageUrlFromAsks(threadAsks.map((ev) => askPayload(ev)))}
                       dailyBudget={selected.metrics?.budget ?? 25}
                       currency={selected.metrics?.currency ?? accountCurrency}
                       isPublishing={Boolean(
