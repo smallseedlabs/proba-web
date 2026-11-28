@@ -1,0 +1,2 @@
+# Fake approval token in a unit-test fixture (tok-ask-plan-1-...), not a secret. Fingerprint-scoped so every other finding still fails the scan.
+08b5068a9a0df7957064929b9a604e3219184135:src/state/workspace.approval-token.test.tsx:generic-api-key:80
