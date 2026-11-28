@@ -388,7 +388,7 @@ describe('GoalsView header', () => {
       type: 'answer_ask',
       payload: expect.objectContaining({ askId: 'ask_attach', choice: 'approve' }),
     }));
-    const approveBtn = await screen.findByRole('button', { name: 'Approve Plan' });
+    const approveBtn = await screen.findByRole('button', { name: 'Approve plan' });
     await user.click(approveBtn);
     await waitFor(() =>
       expect(sendCommand).toHaveBeenCalledWith(
